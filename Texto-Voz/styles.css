@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&display=swap');
+button{
+    cursor: pointer;
+    outline: none;
+    transition:0.2s;
+}
+button:hover{
+    filter:brightness(80%);
+}
+main{
+    width: 100%;
+    margin: 53px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+main h1{
+    font-family: sans-serif;
+}
+main .buttons{
+    display: flex;
+    flex-direction: row;
+    margin-top: 18px;
+    justify-content: center;
+    width: 100%;
+}
+main .buttons button + button{
+    margin-left: 15px;
+}
+main input{
+    outline: none;
+    width: 21%;
+    padding: 13px 0;
+    border: 1px solid #000;
+    border-radius: 13px;
+    text-align: center;
+}
+main h3, a{
+    font-family: Consolas;
+}
+.primary{
+    background-color: #6bf740;
+    border: none;
+    padding: 16px 53px;
+    font-size: 16px;
+    border-radius: 13px;
+}
+.danger{
+    background-color: #ed0707;
+    border: none;
+    padding: 16px 53px;
+    font-size: 16px;
+    border-radius: 13px;
+}
