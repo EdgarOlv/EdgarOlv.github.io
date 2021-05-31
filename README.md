@@ -24,7 +24,7 @@ Atualmente sou graduando em engenharia de computação, participando ativamente 
 
 **Desenvolvedor de Sistemas Excel** - Fev/2020 - Atual
 
-## Conhecimentos Técnicos
+## Conhecimentos Técnicos   
 
 **Sistemas Embarcados**
 
@@ -33,7 +33,7 @@ Atualmente sou graduando em engenharia de computação, participando ativamente 
     - VHDL
     - Python
 
-**FullStack**
+**FullStack**   
 
     - Java, GO, Node.Js
 
