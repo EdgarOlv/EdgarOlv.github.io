@@ -5,7 +5,7 @@ function startConnect() {
 
     // Fetch the hostname/IP address and port number from the form
     host = "broker.hivemq.com"; //document.getElementById("host").value;
-    port = "8000"; //document.getElementById("port").value;
+    port = 8000; //document.getElementById("port").value;
 
     // Print output for the user in the messages div
     document.getElementById("messages").innerHTML += '<span>Conectando em: ' + host + ' Porta: ' + port + '</span><br/>';
