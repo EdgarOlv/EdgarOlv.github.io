@@ -9,14 +9,13 @@
 		//var host="192.168.1.157"; //change this
 		//var host="pi2.local"; //change this
 		//var host="m21.cloudmqtt.com";
-		//var host="test.mosquitto.org"; //change this
+		var host="test.mosquitto.org"; //change this
 		//var host="iot.eclipse.org";
-		var host="tailor.cloudmqtt.com";
 		//var port=9001;
-		//var port =8081;
+		var port =8081;
 		//r port=37363;
 		//var port=443;
-		var port=32415;
+		//var port=32415;
 		
 	 	function onConnect() {
 	  // Once a connection has been made, make a subscription and send a message.
@@ -36,8 +35,6 @@
 		var options = {
 			useSSL:true,
 			timeout: 3,
-			userName:"bevcctrk",
-			password:"eXGg885Wmm_I",
 			onSuccess: onConnect
 				  
 		 };
