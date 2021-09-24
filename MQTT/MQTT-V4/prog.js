@@ -101,7 +101,8 @@ function onMessageArrived(message) {
   }else 
   if (message.destinationName == 'Exp/Ativo') {
     document.getElementById('status').innerHTML = message.payloadString
-  } else {
+  } 
+  /*else {
     document.getElementById('messages').innerHTML +=
       '<span>Topic: ' +
       message.destinationName +
@@ -110,6 +111,7 @@ function onMessageArrived(message) {
       '</span><br/>'
     updateScroll() // Scroll to bottom of window
   }
+  */
 }
 
 // Called when the disconnection button is pressed
