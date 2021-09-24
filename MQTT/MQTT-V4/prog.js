@@ -98,7 +98,7 @@ function onMessageArrived(message) {
 
   if (message.destinationName == 'Exp/Luminosidade') {
     document.getElementById('luminosidade').innerHTML = message.payloadString
-  }
+  }else 
   if (message.destinationName == 'Exp/Ativo') {
     document.getElementById('status').innerHTML = message.payloadString
   } else {
