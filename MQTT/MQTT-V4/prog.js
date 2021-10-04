@@ -100,9 +100,16 @@ function onMessageArrived(message) {
     document.getElementById('luminosidade').innerHTML = message.payloadString
   }
   if (message.destinationName == 'Exp/Ativo') {
-    document.getElementById('status').innerHTML = message.payloadString
-  } 
-	/*else {
+    //wait 2 seconds
+    if (true) {
+      document.getElementById('status').innerHTML = 'On-line'
+    } else {
+      setTimeout(function () {
+        document.getElementById('status').innerHTML = 'Off-line'
+      }, 2000)
+    }
+  }
+  /*else {
     document.getElementById('messages').innerHTML +=
       '<span>Topic: ' +
       message.destinationName +
