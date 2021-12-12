@@ -3,13 +3,14 @@ var chart // global variuable for chart
 var dataTopics = new Array()
 var NomeUsuarioGeral
 var ValorRotacao = 0
-var aux = 1
+//var aux = 1
 var apoio = 0
 var desenhaGrafico = 0
 var EmUso = '0'
 var dataFormatada = '---'
 var VarPlataformaDisponivel = ''
 var VarReseta = false
+var MostraInformacao = 0
 
 //===================   GRAVAR A TELA ==========
 
@@ -98,38 +99,6 @@ function CriaPDF() {
   win.print() // IMPRIME O CONTEUDO
 }
 
-function CapturaParametrosUrl() {
-  //captura a url da página
-  var url = window.location.href
-
-  var res = url.split('?')
-
-  if (res[1] === undefined) {
-    console.log('página sem parâmetros.')
-  }
-
-  if (res[1] !== undefined) {
-    //tenta localizar os & (pode haver mais de 1)
-    var parametros = res[1].split('&')
-
-    //qtd. de parâmetros que serão tratados pelo laço.
-    var qtdParametrosParaLer = 1
-
-    //guarda o nome dos parâmetros e os valores e, vetores.
-    var parametroEncontrado = new Array()
-    var valorParametro = new Array()
-
-    if (parametros[0] !== undefined) {
-      captura = parametros[0].split('=')
-
-      parametroEncontrado[0] = captura[0]
-      valorParametro[1] = captura[1]
-
-      NomeUsuarioGeral = valorParametro[1]
-    }
-  }
-}
-
 function PegaNome() {
   document.getElementById('NomeUsuario').innerHTML =
     localStorage.getItem('nome')
@@ -149,14 +118,15 @@ function selecaoManual() {
 
 function VerificarDisponibilidade() {
   if (VarPlataformaDisponivel != '') {
-    alert('Plataforma em uso!! Tentando novamente em 10 segundos...')
-
     document.getElementById('messages').innerHTML +=
-      'Plataforma em uso!! Tentando novamente em 5 segundos...<br>'
-
-    setTimeout(VerificarDisponibilidade, 5000)
+      'Plataforma em uso!! Tentando novamente em 10 segundos...<br>'
+    VarPlataformaDisponivel = ''
+    setTimeout(VerificarDisponibilidade, 10000)
   } else {
-    setTimeout(startConnect, 5000)
+    document.getElementById('messages').innerHTML +=
+      'Iniciando acesso ao experimento...<br>'
+    client.disconnect()
+    setTimeout(startConnect, 4000)
   }
 }
 
@@ -203,6 +173,7 @@ function startConnect() {
   })
 
   selecao = 'manual' // inicia variavel como manual para n bugar no 'mensage'
+  MostraInformacao = 1
 
   BuildGraph()
 
@@ -217,6 +188,44 @@ function startConnect() {
   document.getElementById('dataAtual').innerHTML = dataFormatada
 }
 
+function ConexaoTemporaria() {
+  clientID = localStorage.getItem('nome') + '-' + parseInt(Math.random() * 100)
+
+  host = 'tailor.cloudmqtt.com'
+  port = 32415
+
+  client = new Paho.MQTT.Client(host, Number(port), clientID)
+
+  document.getElementById('messages').innerHTML +=
+    'Conectando ao Servidor...<br>'
+
+  // Set callback
+  client.onConnectionLost = onConnectionLost
+  client.onMessageArrived = VerificaMensagem
+
+  var options = {
+    useSSL: true,
+    timeout: 3,
+    userName: 'bevcctrk',
+    password: 'eXGg885Wmm_I',
+    onSuccess: onConnect2,
+    onFailure: function (message) {
+      document.getElementById('messages').innerHTML +=
+        'Conexão não realizada. Tentando novamente...<br>'
+      setTimeout(ConexaoTemporaria, 4000)
+    }
+  }
+
+  client.connect(options)
+  setTimeout(VerificarDisponibilidade, 5000)
+}
+
+function VerificaMensagem(message) {
+  if (message.destinationName == 'Exp/UsuarioAtivo') {
+    VarPlataformaDisponivel = message.payloadString
+  }
+}
+
 function VerificaSelecao() {
   if (EmUso == 1) {
     alert('Experimento em Uso! Aguarde.')
@@ -225,10 +234,10 @@ function VerificaSelecao() {
 
   if (selecao == 'manual') {
     //selecaoManual()
-    aux = 0
+    //aux = 0
     GiraManual()
   } else {
-    aux = 1
+    //aux = 1
     selecaoAutom()
     GiraAutomatico()
   }
@@ -242,6 +251,7 @@ function GiraManual() {
   client.send(message)
 
   desenhaGrafico = 1
+  MostraInformacao = 3
 
   document.getElementById('messages').innerHTML +=
     '<span>Enviado: ' + ValorManual + '° - Em Manual </span><br/>'
@@ -255,7 +265,7 @@ function GiraAutomatico() {
   client.send(message)
 
   desenhaGrafico = 360 / ValorAut + 2
-
+  MostraInformacao = desenhaGrafico + 1
   document.getElementById('messages').innerHTML +=
     '<span>Enviado: ' + ValorAut + '° - Em Automatico </span><br/>'
 }
@@ -267,6 +277,12 @@ function AlinhaMotor() {
   document.getElementById('messages').innerHTML = ''
   document.getElementById('messages').innerHTML +=
     'Realizando Alinhamento... <br>'
+  drawDefaultChart()
+}
+
+function onConnect2() {
+  client.subscribe('Exp/EmUso') // PROVAVELMENTE REMOVER
+  client.subscribe('Exp/UsuarioAtivo')
 }
 
 function onConnect() {
@@ -306,13 +322,27 @@ function onMessageArrived(message) {
 
     document.getElementById('luminosidade').innerHTML = valores[0]
 
-    document.getElementById('messages').innerHTML +=
-      '<span>Angulo: ' +
-      valores[1] +
-      '° -- ' +
-      'Intensidade Luminosa: ' +
-      valores[0] +
-      '</span><br/>'
+    //if (selecao == 'manual') {
+    if (MostraInformacao >= 1) {
+      document.getElementById('messages').innerHTML +=
+        '<span>Angulo: ' +
+        valores[1] +
+        '° -- ' +
+        'Intensidade Luminosa: ' +
+        valores[0] +
+        '</span><br/>'
+
+      MostraInformacao -= 1
+    }
+    /*} else {
+      document.getElementById('messages').innerHTML +=
+        '<span>Angulo: ' +
+        valores[1] +
+        '° -- ' +
+        'Intensidade Luminosa: ' +
+        valores[0] +
+        '</span><br/>'
+    }*/
 
     //====================== GRAFICOS =====================
 
@@ -352,7 +382,6 @@ function onMessageArrived(message) {
           data: []
         }
         chart.addSeries(newseries) //add the series
-
       }
 
       var thenum = valores[0].replace(/^\D+/g, '') //remove any text spaces from the message
@@ -374,11 +403,12 @@ function onMessageArrived(message) {
   if (message.destinationName == 'Exp/EmUso') {
     EmUso = message.payloadString
   }
-
+  /*
   if (message.destinationName == 'Exp/UsuarioAtivo') {
     VarPlataformaDisponivel = message.payloadString
     //alert(VarPlataformaDisponivel)
   }
+  */
 }
 
 function isNumber(n) {
@@ -416,7 +446,7 @@ function BuildGraph() {
     },
     xAxis: {
       type: 'int',
-      //tickPixelInterval: 150,
+      tickPixelInterval: 150,
       //categories: [0, 90, 180, 270, 360],
       //tickInterval: 5,
       //min: 0,
@@ -444,7 +474,7 @@ function usuarioOnline() {
     let message = new Paho.MQTT.Message('1')
     message.destinationName = 'Exp/UsuarioAtivo' // + clientID
     client.send(message)
-  }, 4000)
+  }, 2000)
 }
 
 // Called when the disconnection button is pressed
