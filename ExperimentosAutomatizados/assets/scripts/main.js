@@ -1,5 +1,5 @@
 var selecao
-var chart = [] // global variuable for chart
+var chart // global variuable for chart
 var dataTopics = new Array()
 var NomeUsuarioGeral
 var ValorRotacao = 0
