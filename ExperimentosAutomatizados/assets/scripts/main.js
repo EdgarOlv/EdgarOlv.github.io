@@ -227,7 +227,7 @@ function VerificaMensagem(message) {
 }
 
 function VerificaSelecao() {
-  BuildGraph()
+  //BuildGraph()
 
   if (EmUso == 1) {
     alert('Experimento em Uso! Aguarde.')
