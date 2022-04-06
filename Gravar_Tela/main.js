@@ -57,13 +57,13 @@ function saveFile(chunks) {
   btn.remove()
 
   const blob = new Blob(chunks, {
-    type: 'video/mp4'
-    // type: 'video/webm'
+    //type: 'video/mp4'
+     type: 'video/webm'
   })
-  let filename = 'Teste_' + dataFormatada,
+  let filename = 'Gravacao_' + dataFormatada,
     downloadLink = document.createElement('a')
   downloadLink.href = URL.createObjectURL(blob)
-  downloadLink.download = `${filename}.mp4`
+  downloadLink.download = `${filename}.webm`
 
   document.body.appendChild(downloadLink)
   downloadLink.click()
