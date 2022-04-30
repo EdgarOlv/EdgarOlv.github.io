@@ -28,6 +28,9 @@ function requestStream() {
 }
 
 function startRecorder(stream) {
+  var varIcon = document.getElementById('iconGravar')
+  varIcon.style.visibility = 'visible'
+
   const chunks = []
   const recorder = new MediaRecorder(stream)
   recorder.ondataavailable = e => chunks.push(e.data)
@@ -57,8 +60,7 @@ function saveFile(chunks) {
   btn.remove()
 
   const blob = new Blob(chunks, {
-    //type: 'video/mp4'
-     type: 'video/webm'
+    type: 'video/webm'
   })
   let filename = 'Gravacao_' + dataFormatada,
     downloadLink = document.createElement('a')
@@ -69,4 +71,5 @@ function saveFile(chunks) {
   downloadLink.click()
   URL.revokeObjectURL(blob) // clear from memory
   document.body.removeChild(downloadLink)
+  document.location.reload(true)
 }

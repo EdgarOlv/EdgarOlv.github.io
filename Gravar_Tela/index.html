@@ -1,9 +1,72 @@
+<!DOCTYPE html>
 <html>
- <head>
- <script type="text/javascript" src="./main.js"></script>
- </head>
- <body>
-   <button id="btn" onclick=" executar(); ">start demo</button>
-<pre id="log"></pre>
- </body>
+  <head>
+    <script type="text/javascript" src="./main.js"></script>
+    <title>Gravar Tela</title>
+    <style>
+      body {
+        background-color: #4b4e4a;
+        text-align: center;
+        padding: 80px;
+      }
+      h1 {
+        font-size: 50px;
+      }
+      body {
+        font: 20px Helvetica, sans-serif;
+        color: #fff;
+      }
+      .btn-hover {
+        min-height: 45px;
+        width: 190px;
+        border-radius: 30px;
+        border: 1px solid white;
+        background-color: rgb(0, 132, 255);
+        font-family: sans-serif;
+        color: rgb(255, 255, 255);
+        height: 45px;
+        font-size: 15px;
+      }
+      .btn-hover:hover {
+        background-color: rgb(50, 156, 255);
+      }
+      .imgGrav {
+        height: 90px;
+      }
+
+      @keyframes fa-blink {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+      #iconGravar {
+        visibility: hidden;
+        -webkit-animation: fa-blink 1s linear infinite;
+        -moz-animation: fa-blink 1s linear infinite;
+        -ms-animation: fa-blink 1s linear infinite;
+        -o-animation: fa-blink 1s linear infinite;
+        animation: fa-blink 1s linear infinite;
+      }
+      .editButton {
+        visibility: hidden;
+        height: 80px;
+      }
+    </style>
+  </head>
+  <body>
+    <img id="iconGravar" class="editButton" src="./res/imgGrav.png" />
+
+    <h1>Gravação de Tela</h1>
+    <button class="btn-hover" id="btn" onclick=" executar(); ">
+      Iniciar gravação
+    </button>
+    <pre id="log"></pre>
+    <pre id="log2"></pre>
+  </body>
 </html>
