@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Repositório de Projetos</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+
+      .container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f8f8f8;
+      }
+
+      .item {
+        width: 300px;
+        height: 300px;
+        margin: 10px;
+        padding: 20px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        transition: all 0.2s ease-in-out;
+      }
+
+      .item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.2);
+      }
+
+      .item a {
+        text-decoration: none;
+        color: black;
+        font-size: 24px;
+        margin-top: 20px;
+        transition: all 0.2s ease-in-out;
+      }
+
+      .item:hover a {
+        color: #007bff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="item">
+        <h2>Gravar a tela</h2>
+        <p>Gravar a tela do dispositivo com audio, e ter arquivo mp4</p>
+        <a href="https://edgarolv.github.io/Gravar_Tela/">Ver projeto</a>
+      </div>
+      <div class="item">
+        <h2>Gerar link Whats App</h2>
+        <p>Gerar link para iniciar conversa no Whats App</p>
+        <a href="https://edgarolv.github.io/LinkWhatsapp/">Ver projeto</a>
+      </div>
+      <div class="item">
+        <h2>Projeto 3</h2>
+        <p>Descrição breve do projeto 3</p>
+        <a href="projeto3.html">Ver projeto</a>
+      </div>
+      <div class="item">
+        <h2>Projeto 4</h2>
+        <p>Descrição breve do projeto 4</p>
+        <a href="projeto4.html">Ver projeto</a>
+      </div>
+    </div>
+  </body>
+</html>
