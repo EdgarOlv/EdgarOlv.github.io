@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calculadora de Insulina</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f3f4f6;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .container {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        width: 100%;
+        text-align: center;
+      }
+      label {
+        display: block;
+        margin-top: 1rem;
+        margin-bottom: 20px;
+      }
+      input[type='number'] {
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+      }
+      .checkboxes {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: space-between;
+      }
+      .checkboxes label {
+        display: flex;
+        align-items: center;
+        margin: 0 0.5rem;
+      }
+      button {
+        margin-top: 1.5rem;
+        padding: 0.75rem;
+        width: 100%;
+        background-color: #4f46e5;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      #resultado {
+        margin-top: 1rem;
+        font-weight: bold;
+        text-align: center;
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+      }
+      .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+      }
+      .modal-content h3 {
+        margin-top: 0;
+      }
+      .modal-content select {
+        margin-top: 1rem;
+        width: 100%;
+        padding: 0.5rem;
+      }
+      .modal-content button {
+        margin-top: 1rem;
+        background-color: #10b981;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Calculadora de Insulina</h2>
+      <label for="glicemia">Glicemia (mg/dL)</label>
+      <input type="number" id="glicemia" />
+
+      <div class="checkboxes">
+        <label><input type="checkbox" id="correcao" checked /> Correção</label>
+        <label><input type="checkbox" id="alimentar" /> Alimentar</label>
+        <label><input type="checkbox" id="treinar" /> Vai treinar</label>
+      </div>
+
+      <button onclick="calcularInsulina()">Calcular</button>
+
+      <div id="resultado"></div>
+    </div>
+
+    <div class="modal" id="modalAlimentar">
+      <div class="modal-content">
+        <h3>Escolha a refeição</h3>
+        <select id="refeicao">
+          <option value="30">Café da manhã (30g carb)</option>
+          <option value="15">Lanche da manhã (15g carb)</option>
+          <option value="60">Almoço (60g carb)</option>
+          <option value="20">Lanche da tarde (20g carb)</option>
+          <option value="40">Jantar (40g carb)</option>
+          <option value="15">Ceia (15g carb)</option>
+        </select>
+        <button onclick="fecharModal()">Confirmar</button>
+      </div>
+    </div>
+
+    <script>
+      const fatorSensibilidade = 37 // Exemplo de fator de correção
+      const relacaoCarboidrato = 10 // Exemplo de fator de carboidrato
+      const glicemiaAlvo = 110 // Glicemia alvo para correção
+
+      const modal = document.getElementById('modalAlimentar')
+      const checkboxAlimentar = document.getElementById('alimentar')
+      let carbsSelecionados = 0
+
+      checkboxAlimentar.addEventListener('change', () => {
+        if (checkboxAlimentar.checked) {
+          modal.style.display = 'flex'
+        } else {
+          carbsSelecionados = 0
+        }
+      })
+
+      function fecharModal() {
+        carbsSelecionados = parseInt(document.getElementById('refeicao').value)
+        modal.style.display = 'none'
+      }
+
+      function calcularInsulina() {
+        const glicemia = parseInt(document.getElementById('glicemia').value)
+        const correcao = document.getElementById('correcao').checked
+        const treinar = document.getElementById('treinar').checked
+        let insulina = 0
+
+        // Fórmula de correção (você pode alterar depois)
+        if (correcao) {
+          insulina += (glicemia - glicemiaAlvo) / fatorSensibilidade // Exemplo simples
+        }
+
+        // Alimentar: considerar proporção 1:10g de carboidrato
+        if (carbsSelecionados > 0) {
+          insulina += carbsSelecionados / relacaoCarboidrato
+        }
+
+        // Treinar: reduz pela metade
+        if (treinar) {
+          insulina /= 2
+        }
+
+        document.getElementById(
+          'resultado'
+        ).innerText = `Quantidade de insulina: ${insulina.toFixed(1)} unidades`
+      }
+    </script>
+  </body>
+</html>
