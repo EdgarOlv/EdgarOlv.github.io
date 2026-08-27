@@ -3,347 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ERP REALTECH - Protótipo Visual</title>
+  <meta name="description" content="Protótipo demonstrativo REALTECH ERP. Dados sintéticos, sem operação fiscal ou industrial real.">
+  <title>ERP REALTECH — Protótipo interativo</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="flows.css">
+  <script defer src="domain.js"></script>
+  <script defer src="script.js"></script>
+  <script defer src="views.js"></script>
+  <script defer src="interactions.js"></script>
 </head>
 <body>
   <main id="loginScreen" class="login-shell">
     <section class="login-panel">
-      <div class="brand-lockup">
-        <div class="brand-mark">R</div>
-        <div>
-          <strong>REALTECH</strong>
-          <span>ERP Industrial</span>
-        </div>
-      </div>
-      <h1>Bem-vindo ao Protótipo Visual do ERP REALTECH</h1>
-      <p>
-        Esta demonstração foi desenvolvida exclusivamente para ilustrar a proposta de modernização da gestão da empresa.
-        Os dados apresentados são fictícios e demonstram a experiência de uso e o fluxo operacional do futuro sistema.
-      </p>
+      <div class="brand-lockup"><div class="brand-mark">R</div><div><strong>REALTECH</strong><span>ERP Industrial</span></div></div>
+      <div class="login-headline"><span class="eyebrow">Uma operação, todas as etapas</span><h1>Bem-vindo de volta</h1><p>Explore o sistema pela perspectiva de cada equipe.</p></div>
+      <div id="demoProfiles" class="demo-profiles" aria-label="Perfis de demonstração"></div>
       <form id="loginForm" class="login-form">
-        <label>
-          Usuário
-          <input id="username" type="text" value="admin" autocomplete="username">
-        </label>
-        <label>
-          Senha
-          <input id="password" type="password" value="123" autocomplete="current-password">
-        </label>
-        <button type="submit">Entrar</button>
-        <small>Usuário teste: <b>admin</b> &nbsp; Senha: <b>123</b></small>
+        <label>Usuário<input id="username" name="username" value="admin" autocomplete="username" required></label>
+        <label>Senha de demonstração<input id="password" name="password" type="password" value="admin123" autocomplete="current-password" required></label>
+        <p id="loginError" class="form-error" role="alert"></p>
+        <button class="primary-btn login-submit" type="submit">Entrar no sistema</button>
       </form>
+      <details class="demo-logins"><summary>Outros perfis e credenciais de teste</summary><div id="otherProfiles"></div></details>
+      <p class="muted small">Ambiente demonstrativo. Não insira dados reais, fórmulas comerciais ou senhas pessoais. Os registros ficam somente neste navegador.</p>
     </section>
     <aside class="login-preview">
-      <div class="preview-top">
-        <span>Pedidos Hoje</span>
-        <strong>12</strong>
-      </div>
-      <div class="mini-chart">
-        <span style="height: 40%"></span>
-        <span style="height: 64%"></span>
-        <span style="height: 52%"></span>
-        <span style="height: 78%"></span>
-        <span style="height: 68%"></span>
-        <span style="height: 92%"></span>
-        <span style="height: 74%"></span>
-      </div>
-      <div class="preview-card">
-        <b>Fluxo operacional</b>
-        <p>Pedido, financeiro, produção, qualidade, faturamento e despacho integrados em uma única visão.</p>
-      </div>
+      <div class="preview-header"><p class="preview-label">REALTECH · Aditivos e condimentos</p><span class="preview-tag">DEMONSTRAÇÃO</span></div>
+      <div><h2 class="preview-title">Da ideia ao produto.<br>Do pedido à entrega.</h2><p class="preview-description">Uma visão conectada de quem vende, quem produz e quem acompanha cada etapa.</p></div>
+      <div class="preview-metrics"><div class="preview-metric"><span>Experiências por equipe</span><strong>9 perfis</strong></div><div class="preview-metric"><span>Base de referência</span><strong>Flutter</strong></div></div>
+      <ol class="preview-steps"><li><b>01</b><div><strong>Comercial e financeiro</strong><span>Pedido, crédito e aprovação</span></div></li><li><b>02</b><div><strong>Produção e qualidade</strong><span>Ficha técnica, lotes e rastreabilidade</span></div></li><li><b>03</b><div><strong>Faturamento e despacho</strong><span>Registro interno e acompanhamento</span></div></li></ol>
+      <div class="preview-card"><div class="preview-card-icon">↗</div><div><b>Teste o percurso completo</b><p>Crie um pedido no Comercial, analise no Financeiro e conclua a operação como Administrador. Os dados são compartilhados entre os perfis deste navegador.</p></div></div>
     </aside>
   </main>
-
   <div id="app" class="app hidden">
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <div class="brand-mark">R</div>
-        <div>
-          <strong>REALTECH</strong>
-          <span>ERP Visual</span>
-        </div>
-      </div>
-      <nav class="menu" aria-label="Menu principal">
-        <button class="nav-item active" data-screen="dashboard"><span>🏠</span>Dashboard</button>
-        <hr>
-        <p>📋 Comercial</p>
-        <button class="nav-item" data-screen="pedidos">Pedidos</button>
-        <button class="nav-item" data-screen="clientes">Clientes</button>
-        <hr>
-        <p>🧪 P&amp;D</p>
-        <button class="nav-item" data-screen="produtos">Produtos</button>
-        <button class="nav-item" data-screen="formulas">Fórmulas</button>
-        <hr>
-        <p>🏭 Produção</p>
-        <button class="nav-item" data-screen="ordens">Ordens</button>
-        <button class="nav-item" data-screen="qualidade">Qualidade</button>
-        <hr>
-        <button class="nav-item" data-screen="estoque"><span>📦</span>Estoque</button>
-        <hr>
-        <button class="nav-item" data-screen="relatorios"><span>📈</span>Relatórios</button>
-        <hr>
-        <button class="nav-item" data-screen="perfil"><span>👤</span>Perfil</button>
-        <button class="nav-item" data-screen="configuracoes"><span>⚙</span>Configurações</button>
-      </nav>
-      <div class="prototype-stamp">Protótipo Visual • Versão Conceitual • Julho/2026</div>
+    <aside class="sidebar" id="sidebar">
+      <button class="ghost-btn sidebar-close" id="closeMenu" aria-label="Fechar menu">×</button>
+      <div class="sidebar-brand"><div class="brand-mark">R</div><div><strong>REALTECH</strong><span>ERP Industrial</span></div></div>
+      <nav id="navigation" class="menu" aria-label="Menu principal"></nav>
+      <div class="prototype-stamp">Protótipo interativo · v2<br>Dados sintéticos · somente local</div>
     </aside>
-
     <section class="workspace">
       <header class="topbar">
-        <div>
-          <span class="eyebrow">Gestão integrada</span>
-          <h2 id="screenTitle">Dashboard</h2>
-        </div>
-        <div class="topbar-actions">
-          <button id="flowBtn" class="ghost-btn">📊 Ver Fluxo da Empresa</button>
-          <button id="newOrderBtn" class="primary-btn">+ Novo Pedido</button>
-        </div>
+        <button id="menuToggle" class="ghost-btn mobile-menu" aria-label="Abrir menu" aria-expanded="false">☰</button>
+        <div><span class="eyebrow">Gestão integrada</span><h2 id="screenTitle">Dashboard</h2></div>
+        <div class="topbar-actions"><span id="currentUser" class="user-pill"></span><button id="newOrderBtn" class="primary-btn">+ Novo pedido</button><button id="logoutBtn" class="ghost-btn">Trocar perfil</button></div>
       </header>
-
-      <section id="dashboard" class="screen active">
-        <div class="metric-grid">
-          <article class="metric-card"><span>Pedidos Hoje</span><strong>12</strong><small>+18% vs. ontem</small></article>
-          <article class="metric-card"><span>Produção</span><strong>5</strong><small>OPs em andamento</small></article>
-          <article class="metric-card"><span>Produtos</span><strong>128</strong><small>Catálogo ativo</small></article>
-          <article class="metric-card"><span>Clientes</span><strong>84</strong><small>Carteira comercial</small></article>
-        </div>
-        <div class="dashboard-grid">
-          <article class="panel span-2">
-            <div class="panel-head">
-              <h3>Pedidos do mês</h3>
-              <span>Julho/2026</span>
-            </div>
-            <div class="bar-chart" aria-label="Gráfico de pedidos do mês">
-              <span style="height:45%"></span><span style="height:60%"></span><span style="height:52%"></span><span style="height:78%"></span><span style="height:66%"></span><span style="height:86%"></span><span style="height:72%"></span><span style="height:94%"></span>
-            </div>
-          </article>
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Produção</h3>
-              <span>Capacidade</span>
-            </div>
-            <div class="donut"><b>72%</b><span>ocupado</span></div>
-          </article>
-          <article class="panel span-2">
-            <div class="panel-head">
-              <h3>Últimos pedidos</h3>
-              <span id="orderCount">5 registros</span>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Pedido</th><th>Cliente</th><th>Status</th><th>Valor</th><th>Data</th></tr></thead>
-                <tbody id="latestOrders"></tbody>
-              </table>
-            </div>
-          </article>
-          <article class="panel alerts">
-            <h3>Alertas</h3>
-            <p><b>3</b> OP aguardando aprovação</p>
-            <p><b>2</b> produtos com estoque baixo</p>
-            <p><b>1</b> pedido aguardando financeiro</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="produtos" class="screen">
-        <div class="section-actions">
-          <input class="search" placeholder="Pesquisar produto">
-          <button class="primary-btn">Novo Produto</button>
-        </div>
-        <article class="panel">
-          <table>
-            <thead><tr><th>Produto</th><th>Categoria</th><th>Preço</th><th>Status</th><th>Ação</th></tr></thead>
-            <tbody>
-              <tr><td>Nutri Plus</td><td>Suplemento</td><td>R$ 89,90</td><td><span class="status ok">Ativo</span></td><td><button class="link-btn">Editar</button></td></tr>
-              <tr><td>Energy Mix</td><td>Blend</td><td>R$ 74,50</td><td><span class="status ok">Ativo</span></td><td><button class="link-btn">Editar</button></td></tr>
-              <tr><td>Fiber Control</td><td>Funcional</td><td>R$ 62,20</td><td><span class="status warn">Revisão</span></td><td><button class="link-btn">Editar</button></td></tr>
-            </tbody>
-          </table>
-        </article>
-      </section>
-
-      <section id="formulas" class="screen">
-        <div class="formula-layout">
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Produto</h3>
-              <span>Nutri Plus</span>
-            </div>
-            <div class="ingredient-list">
-              <div><span>Proteína</span><b>40%</b></div>
-              <div><span>Malto</span><b>25%</b></div>
-              <div><span>Aroma</span><b>3%</b></div>
-              <div><span>Conservante</span><b>2%</b></div>
-            </div>
-          </article>
-          <article class="panel formula-summary">
-            <h3>Viabilidade</h3>
-            <p><span>Preço</span><b>R$ 89,90</b></p>
-            <p><span>Margem</span><b>31%</b></p>
-            <p><span>Comissão</span><b>4,5%</b></p>
-          </article>
-        </div>
-      </section>
-
-      <section id="pedidos" class="screen">
-        <article class="panel">
-          <table>
-            <thead><tr><th>Pedido</th><th>Cliente</th><th>Status</th><th>Valor</th><th>Data</th></tr></thead>
-            <tbody id="ordersTable"></tbody>
-          </table>
-        </article>
-      </section>
-
-      <section id="abrir-pedido" class="screen">
-        <article class="panel order-detail">
-          <div class="panel-head">
-            <h3>PED00045</h3>
-            <span>Cliente: Farma Vida</span>
-          </div>
-          <table>
-            <thead><tr><th>Produto</th><th>Quantidade</th><th>Preço</th></tr></thead>
-            <tbody><tr><td>Nutri Plus</td><td>250 kg</td><td>R$ 22.475,00</td></tr></tbody>
-          </table>
-          <div class="timeline">
-            <div class="done">Criado</div><div class="done">Financeiro</div><div class="current">Produção</div><div>Qualidade</div><div>Faturado</div><div>Despachado</div>
-          </div>
-        </article>
-      </section>
-
-      <section id="ordens" class="screen">
-        <article class="panel">
-          <div class="op-head">
-            <div><span>OP00034</span><h3>Nutri Plus</h3></div>
-            <strong>250 kg</strong>
-            <span class="status info">Em Produção</span>
-          </div>
-          <table>
-            <thead><tr><th>Ingrediente</th><th>Quantidade</th><th>Lote</th></tr></thead>
-            <tbody>
-              <tr><td>Proteína</td><td>100 kg</td><td>LT-9021</td></tr>
-              <tr><td>Malto</td><td>62,5 kg</td><td>LT-7710</td></tr>
-              <tr><td>Aroma</td><td>7,5 kg</td><td>LT-3384</td></tr>
-            </tbody>
-          </table>
-        </article>
-      </section>
-
-      <section id="estoque" class="screen">
-        <div class="stock-layout">
-          <article class="panel">
-            <table>
-              <thead><tr><th>Ingrediente</th><th>Lote</th><th>Quantidade</th><th>Validade</th></tr></thead>
-              <tbody>
-                <tr><td>Proteína</td><td>LT-9021</td><td>820 kg</td><td>12/2026</td></tr>
-                <tr><td>Malto</td><td>LT-7710</td><td>140 kg</td><td>10/2026</td></tr>
-                <tr><td>Aroma</td><td>LT-3384</td><td>18 kg</td><td>09/2026</td></tr>
-              </tbody>
-            </table>
-          </article>
-          <article class="panel stock-indicator">
-            <h3>Indicadores</h3>
-            <p><span class="dot green"></span>Estoque OK</p>
-            <p><span class="dot yellow"></span>Baixo</p>
-            <p><span class="dot red"></span>Crítico</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="qualidade" class="screen">
-        <article class="panel">
-          <table>
-            <thead><tr><th>OP</th><th>Resultado</th><th>Laudo</th></tr></thead>
-            <tbody>
-              <tr><td>OP00034</td><td><span class="check">✔</span> Aprovado</td><td><button class="link-btn">PDF</button></td></tr>
-              <tr><td>OP00031</td><td><span class="check">✔</span> Aprovado</td><td><button class="link-btn">PDF</button></td></tr>
-            </tbody>
-          </table>
-        </article>
-      </section>
-
-      <section id="relatorios" class="screen">
-        <div class="report-grid">
-          <article class="report-card">Produção</article>
-          <article class="report-card">Pedidos</article>
-          <article class="report-card">Clientes</article>
-          <article class="report-card">Financeiro</article>
-          <article class="report-card">Estoque</article>
-        </div>
-      </section>
-
-      <section id="perfil" class="screen">
-        <article class="panel profile">
-          <div class="avatar">AR</div>
-          <div>
-            <h3>Administrador REALTECH</h3>
-            <p>Cargo: Diretor Operacional</p>
-            <p>Permissões: Comercial, Produção, Estoque, Relatórios</p>
-            <button class="ghost-btn">Alterar senha</button>
-          </div>
-        </article>
-      </section>
-
-      <section id="configuracoes" class="screen">
-        <div class="settings-grid">
-          <article class="panel"><h3>Empresa</h3><p>REALTECH Aditivos</p></article>
-          <article class="panel"><h3>Usuários</h3><p>8 usuários cadastrados</p></article>
-          <article class="panel"><h3>Backup</h3><p>Último backup hoje às 07:30</p></article>
-          <article class="panel"><h3>Versão</h3><p>Conceitual 1.0</p></article>
-        </div>
-      </section>
-
-      <section id="clientes" class="screen">
-        <article class="panel">
-          <table>
-            <thead><tr><th>Cliente</th><th>Cidade</th><th>Último pedido</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr><td>Farma Vida</td><td>São Paulo</td><td>PED00045</td><td><span class="status ok">Ativo</span></td></tr>
-              <tr><td>Nutri Center</td><td>Campinas</td><td>PED00044</td><td><span class="status ok">Ativo</span></td></tr>
-            </tbody>
-          </table>
-        </article>
-      </section>
+      <div class="demo-banner"><span>DEMO</span> Sem dados reais, emissão de NF-e ou integração com o sistema oficial.<button data-route="guia" class="text-button">Como testar</button></div>
+      <p id="storageWarning" class="storage-warning hidden" role="alert"></p>
+      <main id="content" class="screen-body" tabindex="-1"></main>
     </section>
   </div>
-
-  <div id="orderModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="orderModalTitle">
-    <form id="orderForm" class="modal-card">
-      <button type="button" class="close-btn" data-close="orderModal">×</button>
-      <span class="eyebrow">Comercial</span>
-      <h3 id="orderModalTitle">Novo Pedido</h3>
-      <label>Cliente
-        <select id="orderClient">
-          <option>Farma Vida</option>
-          <option>Nutri Center</option>
-          <option>Bio Performance</option>
-        </select>
-      </label>
-      <label>Produto
-        <select id="orderProduct">
-          <option>Nutri Plus</option>
-          <option>Energy Mix</option>
-          <option>Fiber Control</option>
-        </select>
-      </label>
-      <label>Quantidade
-        <input id="orderQty" type="number" min="1" value="120">
-      </label>
-      <button class="primary-btn" type="submit">Salvar Pedido</button>
-    </form>
-  </div>
-
-  <div id="flowModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="flowTitle">
-    <div class="modal-card flow-card">
-      <button type="button" class="close-btn" data-close="flowModal">×</button>
-      <span class="eyebrow">Fluxo da Empresa</span>
-      <h3 id="flowTitle">Do pedido ao despacho</h3>
-      <div class="flow-line">
-        <div>Pedido</div><span>↓</span><div>Financeiro</div><span>↓</span><div>Produção</div><span>↓</span><div>Qualidade</div><span>↓</span><div>Faturamento</div><span>↓</span><div>Despacho</div>
-      </div>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
+  <dialog id="flowDialog" aria-labelledby="dialogTitle"><form id="dialogForm"><div class="dialog-head"><div><span class="eyebrow" id="dialogEyebrow">REALTECH ERP</span><h2 id="dialogTitle"></h2></div><button type="button" class="ghost-btn" id="closeDialog" aria-label="Fechar diálogo">×</button></div><div id="dialogBody"></div><p id="dialogError" class="form-error" role="alert"></p><div class="dialog-footer"><button type="button" class="ghost-btn" id="cancelDialog">Voltar</button><button type="submit" class="primary-btn" id="confirmDialog">Confirmar</button></div></form></dialog>
+  <div id="toast" class="flow-toast" role="status" aria-live="polite"></div>
+  <noscript>Ative JavaScript para testar o protótipo REALTECH.</noscript>
 </body>
 </html>
