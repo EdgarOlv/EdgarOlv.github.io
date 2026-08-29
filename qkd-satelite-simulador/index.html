@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulador QKD Satélite–Terra</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#101e31;--line:#243a56;--cyan:#55d9ff;--green:#66e3a4;--red:#ff7185;--text:#eaf3ff;--muted:#9db0c8}*{box-sizing:border-box}body{margin:0;font:15px system-ui,sans-serif;background:radial-gradient(circle at 70% 0,#17365c 0,transparent 40%),var(--bg);color:var(--text)}main{max-width:1150px;margin:auto;padding:28px}h1{margin:0 0 6px;font-size:clamp(26px,5vw,44px)}p{color:var(--muted)}.grid{display:grid;grid-template-columns:330px 1fr;gap:18px}.panel{background:#101e31e8;border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 15px 40px #0005}.control{margin:13px 0}.control label{display:flex;justify-content:space-between;margin-bottom:6px}.control output{color:var(--cyan);font-weight:700}input[type=range]{width:100%;accent-color:var(--cyan)}.check{display:flex;gap:10px;align-items:center;margin-top:16px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.card{background:#0a1727;border:1px solid var(--line);border-radius:12px;padding:14px}.card small{color:var(--muted)}.card strong{display:block;font-size:22px;margin-top:5px}canvas{width:100%;height:320px;background:#081524;border-radius:12px;margin-top:14px}.note{font-size:13px}.ok{color:var(--green)}.bad{color:var(--red)}@media(max-width:800px){.grid{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body><main>
+<h1>QKD satélite–terra</h1><p>Explore como geometria, atmosfera, apontamento e ruído afetam um enlace BB84 em uma passagem LEO.</p>
+<div class="grid"><section class="panel">
+<h2>Parâmetros</h2>
+<div id="controls"></div>
+<label class="check"><input id="attack" type="checkbox"> Simular interceptação e reenvio</label>
+<p class="note">Modelo didático: as grandezas são aproximações úteis para comparar cenários, não uma certificação de segurança.</p>
+</section><section class="panel">
+<div class="cards">
+<div class="card"><small>Distância inclinada</small><strong id="range">—</strong></div>
+<div class="card"><small>Perda total</small><strong id="loss">—</strong></div>
+<div class="card"><small>QBER</small><strong id="qber">—</strong></div>
+<div class="card"><small>Chave secreta</small><strong id="key">—</strong></div>
+</div>
+<canvas id="chart" width="760" height="320"></canvas><p id="status"></p>
+</section></div>
+</main><script>
+const defs=[['alt','Altitude LEO','km',500,1200,550,10],['elev','Elevação máxima','°',10,90,70,1],['div','Divergência','µrad',2,30,10,.5],['recv','Diâmetro receptor','m',.2,2,1,.05],['atm','Perda atmosférica no zênite','dB',.2,8,2,.1],['point','Erro de apontamento','µrad',0,20,3,.2],['dark','Contagens escuras','/s',1,5000,100,10],['bg','Ruído de fundo','/s',1,20000,500,50],['mis','Desalinhamento','%',0,10,1.5,.1]];
+const box=document.querySelector('#controls'),els={};
+for(const [id,name,u,min,max,val,step] of defs){box.insertAdjacentHTML('beforeend',`<div class="control"><label>${name}<output id="${id}o">${val} ${u}</output></label><input id="${id}" type="range" min="${min}" max="${max}" value="${val}" step="${step}"></div>`);els[id]=document.querySelector('#'+id);els[id].oninput=run}
+attack.onchange=run;const R=6371,rep=1e8,gate=1e-9,etaDet=.55,mu=.5;
+function H2(x){if(x<=0||x>=1)return 0;return-x*Math.log2(x)-(1-x)*Math.log2(1-x)}
+function calc(E){const h=+els.alt.value,e=E*Math.PI/180,rho=-R*Math.sin(e)+Math.sqrt((R+h)**2-R**2*Math.cos(e)**2);const w=(+els.div.value*1e-6)*(rho*1000);const a=+els.recv.value/2;const geo=Math.max(1e-15,1-Math.exp(-2*a*a/(w*w)));const pointing=Math.exp(-2*(rho*1000*+els.point.value*1e-6)**2/(w*w));const atm=Math.pow(10,-(+els.atm.value/Math.max(.12,Math.sin(e)))/10);const channel=geo*pointing*atm;const signal=1-Math.exp(-mu*channel*etaDet);const noise=(+els.dark.value+ +els.bg.value)*gate;let q=(signal*(+els.mis.value/100)+.5*noise)/(signal+noise);if(attack.checked)q=.25+.5*q;const sift=.5*rep*(signal+noise);const secret=Math.max(0,sift*(1-2*H2(Math.min(.499,q))));return{rho,loss:-10*Math.log10(Math.max(channel,1e-20)),q,secret}}
+function run(){for(const [id,,, , , ,] of defs)document.querySelector('#'+id+'o').textContent=`${els[id].value} ${defs.find(x=>x[0]===id)[2]}`;const max=+els.elev.value,res=calc(max);range.textContent=res.rho.toFixed(0)+' km';loss.textContent=res.loss.toFixed(1)+' dB';qber.textContent=(100*res.q).toFixed(2)+'%';key.textContent=res.secret>=1e6?(res.secret/1e6).toFixed(2)+' Mb/s':res.secret>=1e3?(res.secret/1e3).toFixed(2)+' kb/s':res.secret.toFixed(0)+' b/s';status.innerHTML=res.secret>0?'<span class="ok">Há geração de chave no ápice neste modelo.</span>':'<span class="bad">Neste cenário, a QBER impede chave secreta.</span>';draw(max)}
+function draw(max){const c=chart,x=c.getContext('2d'),W=c.width,H=c.height;x.clearRect(0,0,W,H);x.strokeStyle='#243a56';x.fillStyle='#9db0c8';x.font='12px system-ui';for(let i=0;i<5;i++){let y=25+i*(H-55)/4;x.beginPath();x.moveTo(42,y);x.lineTo(W-15,y);x.stroke();x.fillText((20-i*5)+'%',5,y+4)}const pts=[];for(let i=0;i<=100;i++){const E=5+(max-5)*Math.sin(Math.PI*i/100),r=calc(E);pts.push([42+i*(W-60)/100,25+(Math.min(.2,r.q)/.2)*(H-55)])}x.strokeStyle='#55d9ff';x.lineWidth=3;x.beginPath();pts.forEach((p,i)=>i?x.lineTo(...p):x.moveTo(...p));x.stroke();x.fillStyle='#eaf3ff';x.fillText('QBER ao longo da passagem',50,18);x.fillStyle='#9db0c8';x.fillText('início',42,H-8);x.fillText('ápice',W/2-15,H-8);x.fillText('fim',W-38,H-8)}run();
+</script></body></html>
