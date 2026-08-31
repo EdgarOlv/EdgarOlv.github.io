@@ -6,7 +6,7 @@
   else root.Realtech = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
-  const VERSION = 2;
+  const VERSION = 3;
   const clone = value => JSON.parse(JSON.stringify(value));
   const round = value => Math.round(value * 1000) / 1000;
   const today = () => localDate(new Date());
@@ -18,10 +18,10 @@
     reprovado:'Reprovado', ativo:'Ativo', inativo:'Inativo', ativa:'Ativa', obsoleta:'Obsoleta', emDesenvolvimento:'Em desenvolvimento', regular:'Regular', restricao:'Restrição', inadimplente:'Inadimplente'
   };
   const profiles = {
-    administrador: { label:'Administrador', description:'Explore o ciclo completo e acompanhe a operação.', modules:['dashboard','pedidos','clientes','produtos','formulas','precificacao','producao','estoque','qualidade','financeiro','faturamento','despacho','comissoes','relatorios','auditoria','usuarios','guia'] },
-    comercial: { label:'Comercial', description:'Crie pedidos, acompanhe sua carteira e suas comissões.', modules:['dashboard','pedidos','clientes','produtos','comissoes','relatorios','guia'] },
+    administrador: { label:'Administrador', description:'Explore o ciclo completo e acompanhe a operação.', modules:['dashboard','pedidos','clientes','produtos','formulas','precificacao','producao','etiquetas','estoque','qualidade','financeiro','faturamento','despacho','comissoes','relatorios','auditoria','usuarios','guia'] },
+    comercial: { label:'Comercial', description:'Crie pedidos e acompanhe sua carteira.', modules:['dashboard','pedidos','clientes','produtos','relatorios','guia'] },
     financeiro: { label:'Financeiro', description:'Analise crédito e libere ou bloqueie pedidos.', modules:['dashboard','pedidos','clientes','financeiro','relatorios','guia'] },
-    producao: { label:'Produção', description:'Emita fichas e registre produção e consumo por lote.', modules:['dashboard','producao','estoque','relatorios','guia'] },
+    producao: { label:'Produção', description:'Consulte documentos da OP e registre produção e consumo por lote.', modules:['dashboard','producao','etiquetas','estoque','relatorios','guia'] },
     qualidade: { label:'Qualidade', description:'Inspecione lotes e consulte a rastreabilidade.', modules:['dashboard','producao','qualidade','relatorios','guia'] },
     fiscal: { label:'Fiscal / Expedição', description:'Registre faturamento e despacho demonstrativos.', modules:['dashboard','pedidos','faturamento','despacho','relatorios','guia'] },
     pd: { label:'P&D', description:'Consulte fórmulas, crie versões e simule preços.', modules:['dashboard','produtos','formulas','precificacao','relatorios','guia'] },
@@ -32,7 +32,7 @@
     saveOrder:['comercial'], submitOrder:['comercial'], approveOrder:['comercial'], cancelOrder:['comercial'],
     analyze:['financeiro'], createOps:['producao'], issueSheet:['producao'], startOp:['producao'], reportProduction:['producao'],
     inspect:['qualidade'], bill:['fiscal'], dispatch:['fiscal'], receiveLot:['estoque'], adjustLot:['estoque'],
-    saveClient:['comercial'], createVersion:['pd'], activateVersion:['pd'], releasePrice:['pd'], payCommission:[], toggleUser:[]
+    saveClient:['comercial'], editLabel:['producao'], saveLabel:['producao'], editOpLabels:['producao'], saveOpLabels:['producao'], createVersion:['pd'], activateVersion:['pd'], releasePrice:['pd'], payCommission:[], toggleUser:[]
   };
   function can(user, action) { return !!user && (user.perfil === 'administrador' || (permissions[action] || []).includes(user.perfil)); }
   function requireThat(condition, message) { if (!condition) throw new Error(message); }
@@ -64,7 +64,7 @@
     const issues=[];
     if (!o.aprovacao || !['liberado','liberadoComRestricao'].includes(o.statusAnalise)) issues.push('Liberações financeira e comercial');
     if (ops.length!==o.itens.length || ops.some(op=>op.status!=='concluida')) issues.push('Todas as OPs concluídas');
-    if (ops.length===0 || ops.some(op=>!op.ficha)) issues.push('Fichas técnicas emitidas');
+    if (ops.length===0 || ops.some(op=>!op.documentoOp)) issues.push('Documentos da OP gerados');
     if (ops.some(op=>!op.lotes.length || op.lotes.some(id=>get(s.lotes,id).status!=='liberado'))) issues.push('Todos os lotes aprovados pela Qualidade');
     if (ops.some(op=>op.lotes.some(id=>{ const l=get(s.lotes,id); return l.validade<today() || l.saldo<l.quantidadeInicial; }))) issues.push('Lotes válidos e saldo integral disponível');
     if (o.status==='cancelado') issues.push('Pedido cancelado');
@@ -91,8 +91,8 @@
     const formulas=[{id:'f1v2',codigo:'FORM-001',nome:'Tempero Especial A',versao:2,status:'ativa',rendimento:100,itens:[{ingredienteId:'i1',quantidade:10},{ingredienteId:'i2',quantidade:5},{ingredienteId:'i3',quantidade:80},{ingredienteId:'i4',quantidade:5}],observacoes:'Composição exclusivamente ilustrativa, não usar na fabricação.'},{id:'f2v1',codigo:'FORM-002',nome:'Realçador de Sabor B',versao:1,status:'ativa',rendimento:100,itens:[{ingredienteId:'i2',quantidade:40},{ingredienteId:'i3',quantidade:55},{ingredienteId:'i4',quantidade:5}],observacoes:'Composição exclusivamente ilustrativa, não usar na fabricação.'}];
     const s={schemaVersion:VERSION,revision:0,usuarios:users,ingredientes:ingredients,formulas,fornecedores:[{id:'s1',nome:'Fornecedor Alfa — demonstração'},{id:'s2',nome:'Fornecedor Beta — demonstração'}],
       produtos:[{id:'p1',codigo:'PROD-001',nome:'Tempero Especial A 5 kg',categoria:'Temperos',unidade:'UN',pesoKg:5,embalagem:'Balde 5 kg',embalagemCentavos:450,formulaId:'f1v2',status:'ativo',precoCentavos:5500,comissaoBps:500,precoLiberado:true,tabela:'Tabela demonstração 2026'}, {id:'p2',codigo:'PROD-002',nome:'Realçador de Sabor B 20 kg',categoria:'Realçadores',unidade:'UN',pesoKg:20,embalagem:'Bombona 20 kg',embalagemCentavos:1200,formulaId:'f2v1',status:'ativo',precoCentavos:24000,comissaoBps:450,precoLiberado:true,tabela:'Tabela demonstração 2026'}, {id:'p3',codigo:'PROD-003',nome:'Condimento Premium C',categoria:'Condimentos',unidade:'KG',pesoKg:1,embalagem:'Saco',embalagemCentavos:200,formulaId:null,status:'emDesenvolvimento',precoCentavos:0,comissaoBps:600,precoLiberado:false,tabela:'Não liberada'}],
-      clientes:[{id:'c1',razaoSocial:'Alimentos do Norte — demonstração',nomeFantasia:'AlimNorte (teste)',cnpj:'12.345.678/0001-95',inscricaoEstadual:'ISENTO',endereco:'Av. Exemplo, 500 · Belém/PA',contato:'Compras · compras@example.com',vendedorId:'vendedor',limiteCentavos:5000000,exposicaoInicialCentavos:800000,situacaoFinanceira:'regular',tabela:'Tabela demonstração 2026',ativo:true},{id:'c2',razaoSocial:'Condimentos do Centro — demonstração',nomeFantasia:'CondCentro (teste)',cnpj:'11.222.333/0001-81',inscricaoEstadual:'ISENTO',endereco:'Rua Exemplo, 200 · Goiânia/GO',contato:'Compras · centro@example.com',vendedorId:'vendedor',limiteCentavos:300000,exposicaoInicialCentavos:280000,situacaoFinanceira:'restricao',tabela:'Tabela demonstração 2026',ativo:true},{id:'c3',razaoSocial:'Cliente Inativo — demonstração',nomeFantasia:'Cliente inativo (teste)',cnpj:'45.723.174/0001-10',inscricaoEstadual:'ISENTO',endereco:'Endereço fictício',contato:'teste@example.com',vendedorId:'vendedor',limiteCentavos:0,exposicaoInicialCentavos:0,situacaoFinanceira:'inadimplente',tabela:'Tabela demonstração 2026',ativo:false}],
-      lotes:[],pedidos:[],ordens:[],movimentacoes:[],auditoria:[],seq:{pedido:1000,op:0,lote:0}};
+      clientes:[{id:'c1',razaoSocial:'Alimentos do Norte — demonstração',nomeFantasia:'AlimNorte (teste)',cnpj:'12.345.678/0001-95',inscricaoEstadual:'ISENTO',endereco:'Av. Exemplo, 500 · Belém/PA',contato:'Compras · compras@example.com',vendedorId:'vendedor',limiteCentavos:5000000,exposicaoInicialCentavos:800000,situacaoFinanceira:'regular',tabela:'Tabela demonstração 2026',ativo:true,historicoFinanceiro:[{mes:'2026-01',status:'liberado',diasAtraso:0},{mes:'2026-02',status:'liberado',diasAtraso:0},{mes:'2026-03',status:'liberadoComRestricao',diasAtraso:8},{mes:'2026-04',status:'liberado',diasAtraso:0},{mes:'2026-05',status:'liberado',diasAtraso:0},{mes:'2026-06',status:'liberadoComRestricao',diasAtraso:4}]},{id:'c2',razaoSocial:'Condimentos do Centro — demonstração',nomeFantasia:'CondCentro (teste)',cnpj:'11.222.333/0001-81',inscricaoEstadual:'ISENTO',endereco:'Rua Exemplo, 200 · Goiânia/GO',contato:'Compras · centro@example.com',vendedorId:'vendedor',limiteCentavos:300000,exposicaoInicialCentavos:280000,situacaoFinanceira:'restricao',tabela:'Tabela demonstração 2026',ativo:true,historicoFinanceiro:[{mes:'2026-01',status:'liberado',diasAtraso:0},{mes:'2026-02',status:'liberadoComRestricao',diasAtraso:12},{mes:'2026-03',status:'bloqueado',diasAtraso:35},{mes:'2026-04',status:'liberadoComRestricao',diasAtraso:18},{mes:'2026-05',status:'liberadoComRestricao',diasAtraso:7},{mes:'2026-06',status:'bloqueado',diasAtraso:29}]},{id:'c3',razaoSocial:'Cliente Inativo — demonstração',nomeFantasia:'Cliente inativo (teste)',cnpj:'45.723.174/0001-10',inscricaoEstadual:'ISENTO',endereco:'Endereço fictício',contato:'teste@example.com',vendedorId:'vendedor',limiteCentavos:0,exposicaoInicialCentavos:0,situacaoFinanceira:'inadimplente',tabela:'Tabela demonstração 2026',ativo:false,historicoFinanceiro:[{mes:'2026-01',status:'bloqueado',diasAtraso:60}]}],
+      etiquetas:[{id:'etq1',nome:'Etiqueta pequena padrão',tamanho:'Pequena',conteudo:'Produto, lote, fabricação, validade e peso líquido',observacoes:'Modelo preliminar para validação.'},{id:'etq2',nome:'Etiqueta grande padrão',tamanho:'Grande',conteudo:'Produto, lote, fabricação, validade, peso líquido e instruções',observacoes:'Modelo preliminar para validação.'}],recebiveis:[],lotes:[],pedidos:[],ordens:[],movimentacoes:[],auditoria:[],seq:{pedido:1000,op:0,lote:0}};
     for(const [id,ing,saldo,expiry,status,forn] of [['l1','i1',8,200,'liberado','s1'],['l2','i1',472,300,'liberado','s1'],['l3','i2',295,300,'liberado','s1'],['l4','i3',998,300,'liberado','s2'],['l5','i4',150,300,'liberado','s1'],['l6','i1',50,-2,'liberado','s2'],['l7','i2',25,100,'bloqueado','s2']]) {
       s.lotes.push({id,codigo:`MP-${id.slice(1).padStart(4,'0')}`,tipo:'ingrediente',ingredienteId:ing,fornecedorId:forn,saldo,quantidadeInicial:saldo,fabricacao:day(-30),validade:day(expiry),status});
       s.movimentacoes.push({id:uid(),loteId:id,tipo:'entrada',quantidade:saldo,unidade:'KG',data:new Date().toISOString(),responsavel:'Carga de demonstração',motivo:'Saldo inicial sintético'});
@@ -118,7 +118,7 @@
     switch(action) {
       case 'saveOrder': {
         const old=payload.id ? order() : null;
-        requireThat(!old || ['rascunho','aguardandoAprovacao'].includes(old.status) && !old.aprovacao,'Pedido aprovado não pode ser editado. Crie um pedido complementar.');
+        requireThat(!old || old.status==='rascunho','Pedido enviado ao Financeiro não pode ser editado. Crie um pedido complementar quando aplicável.');
         const c=get(s.clientes,payload.clienteId); requireThat(c.ativo,'Cliente inativo não pode receber pedidos.'); requireThat(user.perfil!=='comercial' || c.vendedorId===user.id,'Cliente fora da sua carteira.');
         const due=date(payload.prazoEntrega,'Prazo de entrega'); requireThat(due>=today(),'Prazo de entrega não pode estar no passado.');
         requireThat(Array.isArray(payload.itens) && payload.itens.length>0,'Adicione ao menos um item.');
@@ -157,12 +157,12 @@
       case 'createOps': {
         const o=order();requireThat(o.status==='aprovado' && o.aprovacao,'Pedido precisa de aprovação comercial.');requireThat(!s.ordens.some(x=>x.pedidoId===o.id),'OPs já geradas para este pedido.');
         o.itens.forEach(i=>{requireThat(get(s.formulas,i.formula.id).status==='ativa' && get(s.produtos,i.produtoId).status==='ativo','Produto ou fórmula não liberados para nova produção.');
-          s.ordens.push({id:uid(),numero:`OP-${String(++s.seq.op).padStart(5,'0')}`,pedidoId:o.id,itemId:i.id,produtoId:i.produtoId,produtoNome:i.nome,formula:clone(i.formula),pesoKg:i.pesoKg,quantidadePrevista:i.quantidade,quantidadeProduzida:0,perdasKg:0,sobrasKg:0,status:'aguardando',lotes:[],apontamentos:[],ficha:null});});o.status='emProducao';break;
+          s.ordens.push({id:uid(),numero:`OP-${String(++s.seq.op).padStart(5,'0')}`,pedidoId:o.id,itemId:i.id,produtoId:i.produtoId,produtoNome:i.nome,formula:clone(i.formula),pesoKg:i.pesoKg,quantidadePrevista:i.quantidade,quantidadeProduzida:0,perdasKg:0,sobrasKg:0,status:'aguardando',lotes:[],apontamentos:[],documentoOp:null,etiquetas:[]});});o.status='emProducao';break;
       }
-      case 'issueSheet': {const x=op();requireThat(x.status!=='concluida','OP já concluída.');requireThat(!x.ficha,'Ficha já emitida.');x.ficha={numero:`FT-${x.numero}`,versao:x.formula.versao,data:now,usuario:user.nome,necessidades:requirements(x,x.quantidadePrevista*x.pesoKg)};break;}
-      case 'startOp': {const x=op();requireThat(x.status==='aguardando' && x.ficha,'Emita a ficha técnica antes de iniciar a OP.');x.status='emProducao';x.operador=user.nome;x.inicio=now;break;}
+      case 'issueSheet': {const x=op();requireThat(x.status!=='concluida','OP já concluída.');requireThat(!x.documentoOp,'Documento da OP já gerado.');x.documentoOp={numero:`DOC-${x.numero}`,versao:x.formula.versao,data:now,usuario:user.nome,necessidades:requirements(x,x.quantidadePrevista*x.pesoKg)};break;}
+      case 'startOp': {const x=op();requireThat(x.status==='aguardando' && x.documentoOp,'Gere o documento da OP antes de iniciar a produção.');x.status='emProducao';x.operador=user.nome;x.inicio=now;break;}
       case 'reportProduction': {
-        const x=op();requireThat(x.status==='emProducao' && x.ficha,'OP precisa estar em produção e ter ficha emitida.');
+        const x=op();requireThat(x.status==='emProducao' && x.documentoOp,'OP precisa estar em produção e ter documento gerado.');
         const q=number(payload.quantidade,'Quantidade produzida',1);requireThat(Number.isInteger(q) && q<=x.quantidadePrevista-x.quantidadeProduzida,'Informe UN inteiras, no máximo o saldo da OP.');
         const loss=round(number(payload.perdasKg,'Perdas')), surplus=round(number(payload.sobrasKg,'Sobras'));
         const reason=text(payload.observacoes,'Observações',loss>0 || surplus>0);
@@ -185,7 +185,7 @@
         l.inspecoes.push({resultado:payload.decisao,observacoes:text(payload.observacoes,'Motivo da reprovação',payload.decisao==='reprovado'),laudo:text(payload.laudo,'Referência de laudo',false),usuario:user.nome,data:now});l.status=payload.decisao==='aprovado'?'liberado':'reprovado';break;
       }
       case 'bill': {
-        const o=order();requireThat(!o.faturamento,'Pedido já faturado.');const issues=billingIssues(s,o);requireThat(!issues.length,'Faturamento bloqueado: '+issues.join('; '));o.faturamento={referencia:text(payload.referencia,'Referência interna'),data:now,usuario:user.nome,valorCentavos:orderTotal(o)};o.status='faturado';break;
+        const o=order();requireThat(!o.faturamento,'Pedido já faturado.');const issues=billingIssues(s,o);requireThat(!issues.length,'Faturamento bloqueado: '+issues.join('; '));o.faturamento={referencia:text(payload.referencia,'Referência interna'),data:now,usuario:user.nome,valorCentavos:orderTotal(o)};o.status='faturado';s.recebiveis.push({id:uid(),pedidoId:o.id,clienteId:o.clienteId,vendedorId:o.vendedorId,valorCentavos:orderTotal(o),comissaoCentavos:commission(o),vencimento:day(30),recebidoEm:null,status:'aberto'});break;
       }
       case 'dispatch': {
         const o=order();requireThat(o.faturamento && !o.despacho,'Pedido deve estar faturado e ainda não despachado.');requireThat(!billingIssues(s,o).length,'Há pendência de liberação ou validade nos lotes.');
@@ -203,8 +203,10 @@
       case 'adjustLot': {const l=get(s.lotes,payload.id);target=l;before=clone(l);requireThat(l.tipo==='ingrediente','Ajuste demonstrativo disponível apenas para matéria-prima.');const q=round(number(payload.saldo,'Novo saldo'));const reason=text(payload.justificativa,'Justificativa');move(l,round(q-l.saldo),'ajuste',reason);l.saldo=q;break;}
       case 'saveClient': {
         const cnpj=text(payload.cnpj,'CNPJ').replace(/\D/g,'');requireThat(validCnpj(cnpj),'CNPJ inválido: confira os dígitos verificadores.');requireThat(!s.clientes.some(c=>c.cnpj.replace(/\D/g,'')===cnpj),'CNPJ já cadastrado.');
-        target={id:uid(),cnpj,razaoSocial:text(payload.razaoSocial,'Razão social'),nomeFantasia:text(payload.nomeFantasia,'Nome fantasia'),inscricaoEstadual:text(payload.inscricaoEstadual,'Inscrição estadual'),endereco:text(payload.endereco,'Endereço'),contato:text(payload.contato,'Contato'),vendedorId:user.perfil==='comercial'?user.id:'vendedor',limiteCentavos:0,exposicaoInicialCentavos:0,situacaoFinanceira:'regular',tabela:'Tabela demonstração 2026',ativo:true};s.clientes.push(target);result=target.id;break;
+        target={id:uid(),cnpj,razaoSocial:text(payload.razaoSocial,'Razão social'),nomeFantasia:text(payload.nomeFantasia,'Nome fantasia'),inscricaoEstadual:text(payload.inscricaoEstadual,'Inscrição estadual'),endereco:text(payload.endereco,'Endereço'),contato:text(payload.contato,'Contato'),vendedorId:user.perfil==='comercial'?user.id:'vendedor',limiteCentavos:0,exposicaoInicialCentavos:0,situacaoFinanceira:'regular',tabela:'Tabela demonstração 2026',ativo:true,historicoFinanceiro:[]};s.clientes.push(target);result=target.id;break;
       }
+      case 'saveLabel': {const e=get(s.etiquetas,payload.id);target=e;before=clone(e);e.nome=text(payload.nome,'Nome');e.conteudo=text(payload.conteudo,'Dados da etiqueta');e.observacoes=text(payload.observacoes,'Observações',false);break;}
+      case 'saveOpLabels': {const x=op();x.etiquetas=[{etiquetaId:'etq1',quantidade:Math.round(number(payload.pequena,'Quantidade pequena'))},{etiquetaId:'etq2',quantidade:Math.round(number(payload.grande,'Quantidade grande'))}].filter(i=>i.quantidade>0);target=x;break;}
       case 'createVersion': {
         const f=get(s.formulas,payload.id);const rows=payload.itens.map(i=>({ingredienteId:i.ingredienteId,quantidade:round(number(i.quantidade,'Quantidade de ingrediente'))}));requireThat(rows.length===f.itens.length && rows.every((i,n)=>i.ingredienteId===f.itens[n].ingredienteId),'Ingredientes inválidos.');const yieldKg=number(payload.rendimento,'Rendimento',0.001);requireThat(Math.abs(rows.reduce((n,i)=>n+i.quantidade,0)-yieldKg)<0.001,'Na demonstração, a soma dos ingredientes deve ser igual ao rendimento.');
         target={...clone(f),id:uid(),versao:Math.max(...s.formulas.filter(x=>x.codigo===f.codigo).map(x=>x.versao))+1,status:'emDesenvolvimento',rendimento:yieldKg,itens:rows,observacoes:text(payload.justificativa,'Justificativa da versão')};s.formulas.push(target);break;
@@ -236,7 +238,7 @@
   }
   function validateState(s) {
     requireThat(s?.schemaVersion===VERSION && Number.isInteger(s.revision) && s.seq,'Dados de demonstração incompatíveis.');
-    for(const key of ['usuarios','clientes','produtos','formulas','ingredientes','fornecedores','lotes','pedidos','ordens','movimentacoes','auditoria'])requireThat(Array.isArray(s[key]),'Arquivo de demonstração incompleto.');
+    for(const key of ['usuarios','clientes','produtos','formulas','ingredientes','fornecedores','etiquetas','recebiveis','lotes','pedidos','ordens','movimentacoes','auditoria'])requireThat(Array.isArray(s[key]),'Arquivo de demonstração incompleto.');
     return s;
   }
   return {VERSION,profiles,labels,permissions,can,clone,today,day,get,seed,demoSeed,execute,orderTotal,commission,credit,requirements,eligibleLots,suggestConsumption,billingIssues,stage,visibleOrders,visibleClients,formulaCost,priceSimulation,validCnpj,validateState};
