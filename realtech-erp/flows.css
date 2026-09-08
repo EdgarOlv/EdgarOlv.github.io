@@ -27,6 +27,17 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline:3px solid
 .small { font-size:12px; }
 .form-error { color:#b91c1c; font-size:13px; line-height:1.5; margin:0; }
 .form-error:empty { display:none; }
+.data-mode-toggle { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:14px 16px; border:1px solid var(--line); border-radius:14px; background:#f8fafc; cursor:pointer; }
+.data-mode-toggle>span:first-child { min-width:0; }
+.data-mode-toggle strong,.data-mode-toggle small { display:block; }
+.data-mode-toggle small { margin-top:5px; color:var(--muted); font-weight:400; line-height:1.4; }
+.switch { position:relative; flex:0 0 46px; height:26px; }
+.switch input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.switch span { display:block; width:46px; height:26px; border-radius:999px; background:#cbd5e1; transition:background .15s; }
+.switch span::after { content:""; display:block; width:20px; height:20px; margin:3px; border-radius:50%; background:white; box-shadow:0 1px 4px #17203340; transition:transform .15s; }
+.switch input:checked+span { background:var(--blue); }
+.switch input:checked+span::after { transform:translateX(20px); }
+.switch input:focus-visible+span { outline:3px solid #93c5fd; outline-offset:2px; }
 .demo-banner { display:flex; align-items:center; gap:10px; padding:9px 26px; background:#eff6ff; border-bottom:1px solid #dbeafe; color:#40506a; font-size:12px; flex-wrap:wrap; }
 .demo-banner>span { font-size:10px; font-weight:800; color:var(--blue); padding:3px 6px; border:1px solid #bfdbfe; border-radius:5px; }
 .demo-banner button { margin-left:auto; }

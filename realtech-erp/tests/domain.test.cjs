@@ -1,46 +1,453 @@
-const test=require('node:test');
-const assert=require('node:assert/strict');
-const D=require('../domain.js');
-function harness(){let s=D.seed();return {get s(){return s;},run(a,p={},who='admin'){const r=D.execute(s,D.get(s.usuarios,who),a,p);s=r.state;return r.id;},set(fn){fn(s);}};}
-function create(h,client='c1',items=[{produtoId:'p1',quantidade:20},{produtoId:'p2',quantidade:5}]){return h.run('saveOrder',{clienteId:client,itens:items,prazoEntrega:D.day(15),condicoesComerciais:'30/60 dias'});}
-function approve(h,id){h.run('submitOrder',{id});h.run('analyze',{id,decisao:'liberado'},'financeiro');h.run('approveOrder',{id},'vendedor');}
-function ready(h,id){approve(h,id);h.run('createOps',{id},'producao');for(const op of h.s.ordens){h.run('issueSheet',{id:op.id},'producao');h.run('startOp',{id:op.id},'producao');}}
-function report(h,id,q,loss=0,surplus=0){const op=D.get(h.s.ordens,id);h.run('reportProduction',{id,quantidade:q,perdasKg:loss,sobrasKg:surplus,observacoes:'Apontamento teste',validade:D.day(180),consumos:D.suggestConsumption(h.s,op,q*op.pesoKg+loss+surplus)},'producao');}
-function inspectAll(h){for(const l of h.s.lotes.filter(l=>l.tipo==='produto'&&l.status==='pendente'))h.run('inspect',{id:l.id,decisao:'aprovado'},'qualidade');}
-function dispatchData(id){return {id,transportadora:'Transportadora teste',valor:150,rastreamento:'TESTE123',comprovante:'COMP-DEMO',dataSaida:D.today(),prazo:D.day(3)};}
-test('Fluxo completo com dois itens, perfis, produção parcial, perdas, sobras, faturamento e despacho',()=>{
- const h=harness(),id=create(h);assert.equal(D.orderTotal(h.s.pedidos[0]),230000);assert.equal(D.commission(h.s.pedidos[0]),10900);
- ready(h,id);assert.equal(h.s.ordens.length,2);const [a,b]=h.s.ordens;
- assert.equal(D.requirements(a,100).reduce((n,r)=>n+r.quantidade,0),100);
- report(h,a.id,10,1,1);assert.equal(D.get(h.s.ordens,a.id).status,'emProducao');
- assert.throws(()=>h.run('bill',{id,referencia:'FAT'}),/bloqueado/);
- report(h,a.id,10);report(h,b.id,5);assert.throws(()=>h.run('bill',{id,referencia:'FAT'}),/Qualidade/);
- inspectAll(h);assert.deepEqual(D.billingIssues(h.s,h.s.pedidos[0]),[]);
- h.run('bill',{id,referencia:'FAT-001'},'fiscal');h.run('dispatch',dispatchData(id),'fiscal');
- assert.equal(D.stage(h.s,h.s.pedidos[0]),'Despachado');assert.ok(h.s.lotes.filter(l=>l.tipo==='produto').every(l=>l.saldo===0));
- assert.equal(D.get(h.s.ordens,a.id).sobrasKg,1);assert.equal(D.get(h.s.ordens,a.id).perdasKg,1);
- h.run('payCommission',{id});assert.equal(h.s.pedidos[0].comissaoPaga.valorCentavos,10900);
- assert.ok(h.s.auditoria.some(a=>a.perfil==='financeiro'));assert.ok(h.s.auditoria.some(a=>a.perfil==='qualidade'));
- const consumed=D.get(h.s.ordens,a.id).apontamentos.flatMap(a=>a.consumos).filter(c=>c.ingredienteId==='i1');assert.ok(new Set(consumed.map(c=>c.loteId)).size>1);
- const materialInput=h.s.movimentacoes.filter(m=>m.tipo==='consumo').reduce((n,m)=>n-m.quantidade,0);assert.ok(Math.abs(materialInput-202)<0.001);
-});
-test('Autorizações são verificadas no domínio, não apenas nos botões',()=>{const h=harness(),id=create(h);for(const [a,p,u] of [['analyze',{id,decisao:'liberado'},'vendedor'],['approveOrder',{id},'financeiro'],['reportProduction',{},'financeiro'],['releasePrice',{id:'p1',margem:30},'diretor'],['dispatch',{id},'qualidade']])assert.throws(()=>h.run(a,p,u),/perfil/);});
-test('Cliente inativo, produto em desenvolvimento, tabela e fórmula não liberadas são recusados',()=>{const h=harness();assert.throws(()=>create(h,'c3'),/inativo/);assert.throws(()=>create(h,'c1',[{produtoId:'p3',quantidade:2}]),/liberados/);h.set(s=>s.produtos[0].precoLiberado=false);assert.throws(()=>create(h),/liberados/);h.set(s=>{s.produtos[0].precoLiberado=true;s.formulas[0].status='obsoleta';});assert.throws(()=>create(h),/ativa/);});
-test('Quantidades, prazo, itens duplicados e valores não finitos são recusados',()=>{const h=harness();for(const n of [0,-1,1.5,NaN,Infinity])assert.throws(()=>create(h,'c1',[{produtoId:'p1',quantidade:n}]));assert.throws(()=>create(h,'c1',[{produtoId:'p1',quantidade:1},{produtoId:'p1',quantidade:1}]),/Agrupe/);assert.throws(()=>h.run('saveOrder',{clienteId:'c1',itens:[{produtoId:'p1',quantidade:1}],prazoEntrega:D.day(-1),condicoesComerciais:'À vista'}),/passado/);});
-test('Financeiro bloqueia avanço e exige motivo de restrição; nova liberação permite continuar',()=>{const h=harness(),id=create(h,'c2');h.run('submitOrder',{id});assert.throws(()=>h.run('approveOrder',{id}),/Liberação/);assert.throws(()=>h.run('analyze',{id,decisao:'liberado'}),/restrição/);assert.throws(()=>h.run('analyze',{id,decisao:'bloqueado'}),/Justificativa/);h.run('analyze',{id,decisao:'bloqueado',justificativa:'Crédito insuficiente'});assert.throws(()=>h.run('approveOrder',{id}),/Liberação/);h.run('analyze',{id,decisao:'liberadoComRestricao',justificativa:'Autorização demonstrativa'});h.run('approveOrder',{id});assert.equal(h.s.pedidos[0].analises.length,2);});
-test('Envio ao Financeiro bloqueia edição imediatamente no domínio',()=>{const h=harness(),id=create(h);h.run('submitOrder',{id});assert.throws(()=>h.run('saveOrder',{id,clienteId:'c1',itens:[{produtoId:'p1',quantidade:2}],prazoEntrega:D.day(10),condicoesComerciais:'À vista'}),/enviado ao Financeiro/);h.run('analyze',{id,decisao:'liberado'});h.run('approveOrder',{id});assert.throws(()=>h.run('saveOrder',{id}),/não pode ser editado/);});
-test('Versão e preços preservam pedidos e OPs existentes',()=>{const h=harness(),id=create(h);ready(h,id);const old=D.clone(h.s.pedidos[0].itens[0]);h.run('createVersion',{id:'f1v2',rendimento:100,itens:h.s.formulas[0].itens,justificativa:'Revisão teste'},'quimica');const f=h.s.formulas.at(-1);h.run('activateVersion',{id:f.id,justificativa:'Versão validada'},'quimica');assert.equal(h.s.produtos[0].precoLiberado,false);h.run('releasePrice',{id:'p1',margem:40},'quimica');assert.deepEqual(h.s.pedidos[0].itens[0],old);assert.equal(h.s.ordens[0].formula.versao,2);assert.equal(h.s.produtos[0].formulaId,f.id);});
-test('Produção exige documento da OP e início, e rejeita duplicações de OP',()=>{const h=harness(),id=create(h);approve(h,id);h.run('createOps',{id});assert.throws(()=>h.run('createOps',{id}));const op=h.s.ordens[0];assert.throws(()=>h.run('startOp',{id:op.id}),/documento da OP/);assert.throws(()=>report(h,op.id,20),/em produção/);h.run('issueSheet',{id:op.id});assert.throws(()=>h.run('issueSheet',{id:op.id}),/já gerado/);});
-test('Lotes vencidos e bloqueados nunca entram na sugestão',()=>{const h=harness();assert.ok(!D.eligibleLots(h.s,'i1').some(l=>l.id==='l6'));assert.ok(!D.eligibleLots(h.s,'i2').some(l=>l.id==='l7'));});
-test('Falha de consumo não baixa parcialmente o estoque e agrega repetição do mesmo lote',()=>{
- const h=harness(),id=create(h);ready(h,id);const op=h.s.ordens[0],before=D.clone(h.s),base={id:op.id,quantidade:20,perdasKg:0,sobrasKg:0,validade:D.day(180),consumos:D.suggestConsumption(h.s,op,100)};
- for(const mutate of [p=>p.consumos.push({loteId:'l6',quantidade:1}),p=>p.consumos.push({loteId:'l7',quantidade:1}),p=>p.consumos[0].quantidade=9999,p=>p.consumos.pop(),p=>p.consumos.push(p.consumos[0])]){const p=D.clone(base);mutate(p);assert.throws(()=>h.run('reportProduction',p));assert.deepEqual(h.s,before);}
- const p=D.clone(base),first=p.consumos.shift();p.consumos.push({...first,quantidade:first.quantidade/2},{...first,quantidade:first.quantidade/2});h.run('reportProduction',p);assert.equal(h.s.ordens[0].apontamentos[0].consumos.filter(c=>c.loteId===first.loteId).length,1);
-});
-test('Reprovação de um lote bloqueia faturamento e não pode ser apagada por reinspeção',()=>{const h=harness(),id=create(h,'c1',[{produtoId:'p1',quantidade:2}]);ready(h,id);report(h,h.s.ordens[0].id,2);const l=h.s.lotes.at(-1);assert.throws(()=>h.run('inspect',{id:l.id,decisao:'reprovado'}),/Motivo/);h.run('inspect',{id:l.id,decisao:'reprovado',observacoes:'Teste fora da especificação'});assert.throws(()=>h.run('bill',{id,referencia:'FAT'}),/Qualidade/);assert.throws(()=>h.run('inspect',{id:l.id,decisao:'aprovado'}),/pendente/);});
-test('Faturamento, despacho e pagamento não podem duplicar',()=>{const h=harness(),id=create(h,'c1',[{produtoId:'p1',quantidade:1}]);assert.throws(()=>h.run('dispatch',dispatchData(id)),/faturado/);ready(h,id);report(h,h.s.ordens[0].id,1);inspectAll(h);h.run('bill',{id,referencia:'FAT'});assert.throws(()=>h.run('bill',{id,referencia:'FAT'}),/já faturado/);h.run('dispatch',dispatchData(id));assert.throws(()=>h.run('dispatch',dispatchData(id)));h.run('payCommission',{id});assert.throws(()=>h.run('payCommission',{id}));});
-test('Ajustes justificam o delta e os movimentos reconciliam com os saldos',()=>{const h=harness();assert.throws(()=>h.run('adjustLot',{id:'l1',saldo:0}),/Justificativa/);h.run('adjustLot',{id:'l1',saldo:10,justificativa:'Inventário teste'});assert.equal(h.s.movimentacoes.at(-1).quantidade,2);for(const l of h.s.lotes)assert.equal(h.s.movimentacoes.filter(m=>m.loteId===l.id).reduce((n,m)=>n+m.quantidade,0),l.saldo);});
-test('CNPJ tem verificador e unicidade; usuário inativo não executa comando',()=>{const h=harness();assert.equal(D.validCnpj('12.345.678/0001-95'),true);assert.equal(D.validCnpj('12.345.678/0001-90'),false);assert.throws(()=>h.run('saveClient',{cnpj:'12.345.678/0001-95'}),/cadastrado/);h.run('toggleUser',{id:'vendedor'});assert.throws(()=>h.run('saveOrder',{},'vendedor'),/inativo/);assert.throws(()=>h.run('toggleUser',{id:'admin'}),/própria/);});
-test('Cancelamento após OP é bloqueado; segregação comercial por vendedor',()=>{const h=harness(),id=create(h);ready(h,id);assert.throws(()=>h.run('cancelOrder',{id,justificativa:'Teste'}),/estorno/);h.set(s=>{s.pedidos[0].vendedorId='outro';});assert.equal(D.visibleOrders(h.s,D.get(h.s.usuarios,'vendedor')).length,0);assert.throws(()=>h.run('saveOrder',{id},'vendedor'),/outro vendedor/);});
-test('Seed e persistência JSON mantêm relacionamentos; esquema desconhecido é recusado',()=>{const s=D.demoSeed();assert.equal(s.pedidos.length,3);assert.equal(s.ordens.length,1);assert.deepEqual(D.validateState(JSON.parse(JSON.stringify(s))),s);assert.throws(()=>D.validateState({schemaVersion:99}));});
-test('Aprovação revalida crédito alterado desde a decisão financeira',()=>{const h=harness(),id=create(h);h.run('submitOrder',{id});h.run('analyze',{id,decisao:'liberado'});h.set(s=>s.clientes[0].limiteCentavos=100);assert.throws(()=>h.run('approveOrder',{id}),/Crédito mudou/);h.run('analyze',{id,decisao:'liberadoComRestricao',justificativa:'Exceção de teste'});h.run('approveOrder',{id});});
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const D = require('../domain.js')
+function harness() {
+  let s = D.seed()
+  return {
+    get s() {
+      return s
+    },
+    run(a, p = {}, who = 'admin') {
+      const r = D.execute(s, D.get(s.usuarios, who), a, p)
+      s = r.state
+      return r.id
+    },
+    set(fn) {
+      fn(s)
+    }
+  }
+}
+function create(
+  h,
+  client = 'c1',
+  items = [
+    { produtoId: 'p1', quantidade: 20 },
+    { produtoId: 'p2', quantidade: 5 }
+  ]
+) {
+  return h.run('saveOrder', {
+    clienteId: client,
+    itens: items,
+    prazoEntrega: D.day(15),
+    condicoesComerciais: '30/60 dias'
+  })
+}
+function approve(h, id) {
+  h.run('submitOrder', { id })
+  h.run('analyze', { id, decisao: 'liberado' }, 'financeiro')
+  h.run('approveOrder', { id }, 'vendedor')
+}
+function ready(h, id) {
+  approve(h, id)
+  h.run('createOps', { id }, 'producao')
+  for (const op of h.s.ordens) {
+    h.run('issueSheet', { id: op.id }, 'producao')
+    h.run('startOp', { id: op.id }, 'producao')
+  }
+}
+function report(h, id, q, loss = 0, surplus = 0) {
+  const op = D.get(h.s.ordens, id)
+  h.run(
+    'reportProduction',
+    {
+      id,
+      quantidade: q,
+      perdasKg: loss,
+      sobrasKg: surplus,
+      observacoes: 'Apontamento teste',
+      validade: D.day(180),
+      consumos: D.suggestConsumption(h.s, op, q * op.pesoKg + loss + surplus)
+    },
+    'producao'
+  )
+}
+function inspectAll(h) {
+  for (const l of h.s.lotes.filter(
+    l => l.tipo === 'produto' && l.status === 'pendente'
+  ))
+    h.run('inspect', { id: l.id, decisao: 'aprovado' }, 'qualidade')
+}
+function dispatchData(id) {
+  return {
+    id,
+    transportadora: 'Transportadora teste',
+    valor: 150,
+    rastreamento: 'TESTE123',
+    comprovante: 'COMP-DEMO',
+    dataSaida: D.today(),
+    prazo: D.day(3)
+  }
+}
+test('Fluxo completo com dois itens, perfis, produção parcial, perdas, sobras, faturamento e despacho', () => {
+  const h = harness(),
+    id = create(h)
+  assert.equal(D.orderTotal(h.s.pedidos[0]), 230000)
+  assert.equal(D.commission(h.s.pedidos[0]), 10900)
+  ready(h, id)
+  assert.equal(h.s.ordens.length, 2)
+  const [a, b] = h.s.ordens
+  assert.equal(
+    D.requirements(a, 100).reduce((n, r) => n + r.quantidade, 0),
+    100
+  )
+  report(h, a.id, 10, 1, 1)
+  assert.equal(D.get(h.s.ordens, a.id).status, 'emProducao')
+  assert.throws(() => h.run('bill', { id, referencia: 'FAT' }), /bloqueado/)
+  report(h, a.id, 10)
+  report(h, b.id, 5)
+  assert.throws(() => h.run('bill', { id, referencia: 'FAT' }), /Qualidade/)
+  inspectAll(h)
+  assert.deepEqual(D.billingIssues(h.s, h.s.pedidos[0]), [])
+  h.run('bill', { id, referencia: 'FAT-001' }, 'fiscal')
+  h.run('dispatch', dispatchData(id), 'fiscal')
+  assert.equal(D.stage(h.s, h.s.pedidos[0]), 'Despachado')
+  assert.ok(
+    h.s.lotes.filter(l => l.tipo === 'produto').every(l => l.saldo === 0)
+  )
+  assert.equal(D.get(h.s.ordens, a.id).sobrasKg, 1)
+  assert.equal(D.get(h.s.ordens, a.id).perdasKg, 1)
+  const recebivel = h.s.recebiveis[0]
+  assert.equal(recebivel.status, 'aberto')
+  h.run(
+    'registerReceipt',
+    { id: recebivel.id, recebidoEm: D.today(), referencia: 'PIX-DEMO' },
+    'financeiro'
+  )
+  assert.equal(h.s.recebiveis[0].comissaoCentavos, 10900)
+  assert.equal(h.s.recebiveis[0].status, 'pago')
+  assert.ok(h.s.auditoria.some(a => a.perfil === 'financeiro'))
+  assert.ok(h.s.auditoria.some(a => a.perfil === 'qualidade'))
+  const consumed = D.get(h.s.ordens, a.id)
+    .apontamentos.flatMap(a => a.consumos)
+    .filter(c => c.ingredienteId === 'i1')
+  assert.ok(new Set(consumed.map(c => c.loteId)).size > 1)
+  const materialInput = h.s.movimentacoes
+    .filter(m => m.tipo === 'consumo')
+    .reduce((n, m) => n - m.quantidade, 0)
+  assert.ok(Math.abs(materialInput - 202) < 0.001)
+})
+test('Autorizações são verificadas no domínio, não apenas nos botões', () => {
+  const h = harness(),
+    id = create(h)
+  for (const [a, p, u] of [
+    ['analyze', { id, decisao: 'liberado' }, 'vendedor'],
+    ['approveOrder', { id }, 'financeiro'],
+    ['reportProduction', {}, 'financeiro'],
+    ['releasePrice', { id: 'p1', margem: 30 }, 'diretor'],
+    ['dispatch', { id }, 'qualidade']
+  ])
+    assert.throws(() => h.run(a, p, u), /perfil/)
+})
+test('Cliente inativo, produto em desenvolvimento, tabela e fórmula não liberadas são recusados', () => {
+  const h = harness()
+  assert.throws(() => create(h, 'c3'), /inativo/)
+  assert.throws(
+    () => create(h, 'c1', [{ produtoId: 'p3', quantidade: 2 }]),
+    /liberados/
+  )
+  h.set(s => (s.produtos[0].precoLiberado = false))
+  assert.throws(() => create(h), /liberados/)
+  h.set(s => {
+    s.produtos[0].precoLiberado = true
+    s.formulas[0].status = 'obsoleta'
+  })
+  assert.throws(() => create(h), /ativa/)
+})
+test('Quantidades, prazo, itens duplicados e valores não finitos são recusados', () => {
+  const h = harness()
+  for (const n of [0, -1, 1.5, NaN, Infinity])
+    assert.throws(() => create(h, 'c1', [{ produtoId: 'p1', quantidade: n }]))
+  assert.throws(
+    () =>
+      create(h, 'c1', [
+        { produtoId: 'p1', quantidade: 1 },
+        { produtoId: 'p1', quantidade: 1 }
+      ]),
+    /Agrupe/
+  )
+  assert.throws(
+    () =>
+      h.run('saveOrder', {
+        clienteId: 'c1',
+        itens: [{ produtoId: 'p1', quantidade: 1 }],
+        prazoEntrega: D.day(-1),
+        condicoesComerciais: 'À vista'
+      }),
+    /passado/
+  )
+})
+test('Financeiro bloqueia avanço e exige motivo de restrição; nova liberação permite continuar', () => {
+  const h = harness(),
+    id = create(h, 'c2')
+  h.run('submitOrder', { id })
+  assert.throws(() => h.run('approveOrder', { id }), /Liberação/)
+  assert.throws(
+    () => h.run('analyze', { id, decisao: 'liberado' }),
+    /restrição/
+  )
+  assert.throws(
+    () => h.run('analyze', { id, decisao: 'bloqueado' }),
+    /Justificativa/
+  )
+  h.run('analyze', {
+    id,
+    decisao: 'bloqueado',
+    justificativa: 'Crédito insuficiente'
+  })
+  assert.throws(() => h.run('approveOrder', { id }), /Liberação/)
+  h.run('analyze', {
+    id,
+    decisao: 'liberadoComRestricao',
+    justificativa: 'Autorização demonstrativa'
+  })
+  h.run('approveOrder', { id })
+  assert.equal(h.s.pedidos[0].analises.length, 2)
+})
+test('Envio ao Financeiro bloqueia edição imediatamente no domínio', () => {
+  const h = harness(),
+    id = create(h)
+  h.run('submitOrder', { id })
+  assert.throws(
+    () =>
+      h.run('saveOrder', {
+        id,
+        clienteId: 'c1',
+        itens: [{ produtoId: 'p1', quantidade: 2 }],
+        prazoEntrega: D.day(10),
+        condicoesComerciais: 'À vista'
+      }),
+    /enviado ao Financeiro/
+  )
+  h.run('analyze', { id, decisao: 'liberado' })
+  h.run('approveOrder', { id })
+  assert.throws(() => h.run('saveOrder', { id }), /não pode ser editado/)
+})
+test('Versão e preços preservam pedidos e OPs existentes', () => {
+  const h = harness(),
+    id = create(h)
+  ready(h, id)
+  const old = D.clone(h.s.pedidos[0].itens[0])
+  h.run(
+    'createVersion',
+    {
+      id: 'f1v2',
+      rendimento: 100,
+      itens: h.s.formulas[0].itens,
+      justificativa: 'Revisão teste'
+    },
+    'quimica'
+  )
+  const f = h.s.formulas.at(-1)
+  h.run(
+    'activateVersion',
+    { id: f.id, justificativa: 'Versão validada' },
+    'quimica'
+  )
+  assert.equal(h.s.produtos[0].precoLiberado, false)
+  h.run('releasePrice', { id: 'p1', margem: 40 }, 'quimica')
+  assert.deepEqual(h.s.pedidos[0].itens[0], old)
+  assert.equal(h.s.ordens[0].formula.versao, 2)
+  assert.equal(h.s.produtos[0].formulaId, f.id)
+})
+test('Produção exige documento da OP e início, e rejeita duplicações de OP', () => {
+  const h = harness(),
+    id = create(h)
+  approve(h, id)
+  h.run('createOps', { id })
+  assert.throws(() => h.run('createOps', { id }))
+  const op = h.s.ordens[0]
+  assert.throws(() => h.run('startOp', { id: op.id }), /documento da OP/)
+  assert.throws(() => report(h, op.id, 20), /em produção/)
+  h.run('issueSheet', { id: op.id })
+  assert.throws(() => h.run('issueSheet', { id: op.id }), /já gerado/)
+})
+test('Lotes vencidos e bloqueados nunca entram na sugestão', () => {
+  const h = harness()
+  assert.ok(!D.eligibleLots(h.s, 'i1').some(l => l.id === 'l6'))
+  assert.ok(!D.eligibleLots(h.s, 'i2').some(l => l.id === 'l7'))
+})
+test('Falha de consumo não baixa parcialmente o estoque e agrega repetição do mesmo lote', () => {
+  const h = harness(),
+    id = create(h)
+  ready(h, id)
+  const op = h.s.ordens[0],
+    before = D.clone(h.s),
+    base = {
+      id: op.id,
+      quantidade: 20,
+      perdasKg: 0,
+      sobrasKg: 0,
+      validade: D.day(180),
+      consumos: D.suggestConsumption(h.s, op, 100)
+    }
+  for (const mutate of [
+    p => p.consumos.push({ loteId: 'l6', quantidade: 1 }),
+    p => p.consumos.push({ loteId: 'l7', quantidade: 1 }),
+    p => (p.consumos[0].quantidade = 9999),
+    p => p.consumos.pop(),
+    p => p.consumos.push(p.consumos[0])
+  ]) {
+    const p = D.clone(base)
+    mutate(p)
+    assert.throws(() => h.run('reportProduction', p))
+    assert.deepEqual(h.s, before)
+  }
+  const p = D.clone(base),
+    first = p.consumos.shift()
+  p.consumos.push(
+    { ...first, quantidade: first.quantidade / 2 },
+    { ...first, quantidade: first.quantidade / 2 }
+  )
+  h.run('reportProduction', p)
+  assert.equal(
+    h.s.ordens[0].apontamentos[0].consumos.filter(
+      c => c.loteId === first.loteId
+    ).length,
+    1
+  )
+})
+test('Reprovação de um lote bloqueia faturamento e não pode ser apagada por reinspeção', () => {
+  const h = harness(),
+    id = create(h, 'c1', [{ produtoId: 'p1', quantidade: 2 }])
+  ready(h, id)
+  report(h, h.s.ordens[0].id, 2)
+  const l = h.s.lotes.at(-1)
+  assert.throws(
+    () => h.run('inspect', { id: l.id, decisao: 'reprovado' }),
+    /Motivo/
+  )
+  h.run('inspect', {
+    id: l.id,
+    decisao: 'reprovado',
+    observacoes: 'Teste fora da especificação'
+  })
+  assert.throws(() => h.run('bill', { id, referencia: 'FAT' }), /Qualidade/)
+  assert.throws(
+    () => h.run('inspect', { id: l.id, decisao: 'aprovado' }),
+    /pendente/
+  )
+})
+test('Faturamento, despacho e recebimento não podem duplicar', () => {
+  const h = harness(),
+    id = create(h, 'c1', [{ produtoId: 'p1', quantidade: 1 }])
+  assert.throws(() => h.run('dispatch', dispatchData(id)), /faturado/)
+  ready(h, id)
+  report(h, h.s.ordens[0].id, 1)
+  inspectAll(h)
+  h.run('bill', { id, referencia: 'FAT' })
+  assert.throws(() => h.run('bill', { id, referencia: 'FAT' }), /já faturado/)
+  h.run('dispatch', dispatchData(id))
+  assert.throws(() => h.run('dispatch', dispatchData(id)))
+  const rid = h.s.recebiveis[0].id
+  assert.throws(
+    () =>
+      h.run(
+        'registerReceipt',
+        { id: rid, recebidoEm: D.today(), referencia: 'PIX' },
+        'vendedor'
+      ),
+    /perfil/
+  )
+  h.run(
+    'registerReceipt',
+    { id: rid, recebidoEm: D.today(), referencia: 'PIX' },
+    'financeiro'
+  )
+  assert.throws(
+    () =>
+      h.run(
+        'registerReceipt',
+        { id: rid, recebidoEm: D.today(), referencia: 'PIX' },
+        'financeiro'
+      ),
+    /já registrado/
+  )
+})
+test('Ajustes justificam o delta e os movimentos reconciliam com os saldos', () => {
+  const h = harness()
+  assert.throws(
+    () => h.run('adjustLot', { id: 'l1', saldo: 0 }),
+    /Justificativa/
+  )
+  h.run('adjustLot', { id: 'l1', saldo: 10, justificativa: 'Inventário teste' })
+  assert.equal(h.s.movimentacoes.at(-1).quantidade, 2)
+  for (const l of h.s.lotes)
+    assert.equal(
+      h.s.movimentacoes
+        .filter(m => m.loteId === l.id)
+        .reduce((n, m) => n + m.quantidade, 0),
+      l.saldo
+    )
+})
+test('CNPJ tem verificador e unicidade; usuário inativo não executa comando', () => {
+  const h = harness()
+  assert.equal(D.validCnpj('12.345.678/0001-95'), true)
+  assert.equal(D.validCnpj('12.345.678/0001-90'), false)
+  assert.throws(
+    () => h.run('saveClient', { cnpj: '12.345.678/0001-95' }),
+    /cadastrado/
+  )
+  h.run('toggleUser', { id: 'vendedor' })
+  assert.throws(() => h.run('saveOrder', {}, 'vendedor'), /inativo/)
+  assert.throws(() => h.run('toggleUser', { id: 'admin' }), /própria/)
+})
+test('Cancelamento após OP é bloqueado; segregação comercial por vendedor', () => {
+  const h = harness(),
+    id = create(h)
+  ready(h, id)
+  assert.throws(
+    () => h.run('cancelOrder', { id, justificativa: 'Teste' }),
+    /estorno/
+  )
+  h.set(s => {
+    s.pedidos[0].vendedorId = 'outro'
+  })
+  assert.equal(D.visibleOrders(h.s, D.get(h.s.usuarios, 'vendedor')).length, 0)
+  assert.throws(() => h.run('saveOrder', { id }, 'vendedor'), /outro vendedor/)
+})
+test('Seed e persistência JSON mantêm relacionamentos; esquema desconhecido é recusado', () => {
+  const s = D.demoSeed()
+  assert.equal(s.pedidos.length, 3)
+  assert.equal(s.ordens.length, 1)
+  assert.deepEqual(D.validateState(JSON.parse(JSON.stringify(s))), s)
+  assert.throws(() => D.validateState({ schemaVersion: 99 }))
+})
+test('Aprovação revalida crédito alterado desde a decisão financeira', () => {
+  const h = harness(),
+    id = create(h)
+  h.run('submitOrder', { id })
+  h.run('analyze', { id, decisao: 'liberado' })
+  h.set(s => (s.clientes[0].limiteCentavos = 100))
+  assert.throws(() => h.run('approveOrder', { id }), /Crédito mudou/)
+  h.run('analyze', {
+    id,
+    decisao: 'liberadoComRestricao',
+    justificativa: 'Exceção de teste'
+  })
+  h.run('approveOrder', { id })
+})
+test('Modo sem dados mantém referências sintéticas e remove os registros operacionais', () => {
+  const s = D.emptySeed()
+  assert.equal(s.usuarios.length, 9)
+  for (const key of [
+    'ingredientes',
+    'formulas',
+    'fornecedores',
+    'produtos',
+    'clientes',
+    'etiquetas',
+    'lotes'
+  ])
+    assert.ok(s[key].length > 0)
+  for (const key of [
+    'recebiveis',
+    'pedidos',
+    'ordens',
+    'movimentacoes',
+    'auditoria'
+  ])
+    assert.deepEqual(s[key], [])
+  assert.deepEqual(s.seq, { pedido: 1000, op: 0, lote: 0 })
+  assert.doesNotThrow(() => D.validateState(JSON.parse(JSON.stringify(s))))
+})
+

@@ -25,14 +25,14 @@
 
 ### Domínio
 
-Suíte Node nativa em `tests/domain.test.cjs`: **17 testes passaram, zero falhas**. Verificação de sintaxe dos quatro arquivos JavaScript de execução também passou. Casos de fluxo completo com perfis distintos; cálculo de totais; conversão UN/kg; produção parcial; perdas/sobras; consumo de múltiplos lotes; saldo e atomicidade da simulação; restrições de acesso; cliente/produto inválido; análise e reanálise; bloqueio de edição; snapshot de fórmula/preço; geração duplicada; qualidade reprovada; saída/pagamento duplicados; ajustes; CNPJ; usuário inativo; segregação por vendedor; persistência JSON; revalidação de crédito.
+Suíte Node nativa em `tests/domain.test.cjs`: **18 testes passaram, zero falhas**. Verificação de sintaxe dos quatro arquivos JavaScript de execução também passou. Casos de fluxo completo com perfis distintos; cálculo de totais; conversão UN/kg; produção parcial; perdas/sobras; consumo de múltiplos lotes; saldo e atomicidade da simulação; restrições de acesso; cliente/produto inválido; análise e reanálise; bloqueio de edição; snapshot de fórmula/preço; geração duplicada; qualidade reprovada; saída/pagamento duplicados; ajustes; CNPJ; usuário inativo; segregação por vendedor; persistência JSON; revalidação de crédito; seed vazio com somente usuários públicos.
 
 ### Interface no navegador
 
 Executado pela UI, sem injetar estados no app:
 
 - Login Comercial, Financeiro e Administrador; indicadores e menus diferentes; credencial inválida recusada.
-- Criação do PED-01004 com dois itens, R$ 2.300,00 e R$ 109,00 de comissão.
+- Criação do PED-01004 com dois itens, R$ 2.300,00 e 200 kg, sem antecipar comissão ao Comercial.
 - Envio pelo Comercial; liberação pelo Financeiro; aprovação comercial e desaparecimento da edição.
 - Geração das OP-00002 e OP-00003; emissão de fichas e início de produção.
 - Apontamento integral de ambas; primeira fórmula consome dois lotes de ácido cítrico.
@@ -42,6 +42,7 @@ Executado pela UI, sem injetar estados no app:
 - Recarga, novo login e recuperação do pedido despachado.
 - Abertura de módulos administrativos; consulta de erros do navegador sem erros registrados no recorte inspecionado.
 - Revisão visual do login e dashboard desktop; dashboard 390 × 844, valor monetário corrigido para não quebrar centavos; menu móvel abre e fecha.
+- Flag de dados ligada por padrão; desligada mantém os nove logins, zera os indicadores, oculta “Novo pedido” sem cadastros e exibe tabelas vazias. Ao religar, o conjunto com dados reaparece sem mistura entre os modos.
 
 ### Não validado / não entregue
 

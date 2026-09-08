@@ -21,6 +21,10 @@
       <form id="loginForm" class="login-form">
         <label>Usuário<input id="username" name="username" value="admin" autocomplete="username" required></label>
         <label>Senha de demonstração<input id="password" name="password" type="password" value="admin123" autocomplete="current-password" required></label>
+        <label class="data-mode-toggle" for="withDemoData">
+          <span><strong>Dados de demonstração</strong><small id="dataModeDescription">Carrega pedidos, OPs, lotes e demais exemplos para explorar os fluxos.</small></span>
+          <span class="switch"><input id="withDemoData" type="checkbox" checked><span aria-hidden="true"></span></span>
+        </label>
         <p id="loginError" class="form-error" role="alert"></p>
         <button class="primary-btn login-submit" type="submit">Entrar no sistema</button>
       </form>
@@ -48,7 +52,7 @@
         <div><span class="eyebrow">Gestão integrada</span><h2 id="screenTitle">Dashboard</h2></div>
         <div class="topbar-actions"><span id="currentUser" class="user-pill"></span><button id="newOrderBtn" class="primary-btn">+ Novo pedido</button><button id="logoutBtn" class="ghost-btn">Trocar perfil</button></div>
       </header>
-      <div class="demo-banner"><span>DEMO</span> Sem dados reais, emissão de NF-e ou integração com o sistema oficial.<button data-route="guia" class="text-button">Como testar</button></div>
+      <div class="demo-banner"><span id="dataModeBadge">DEMO COM DADOS</span><span id="dataModeBanner">Registros sintéticos carregados neste navegador.</span><button data-route="guia" class="text-button">Como testar</button></div>
       <p id="storageWarning" class="storage-warning hidden" role="alert"></p>
       <main id="content" class="screen-body" tabindex="-1"></main>
     </section>

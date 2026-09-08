@@ -1,95 +1,745 @@
-'use strict';
+'use strict'
 // Presentation and repository adapter. Business rules stay in domain.js.
-const D=Realtech, KEY='realtech.prototype.v3';
-const $=s=>document.querySelector(s);
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n/100);
-const qty=n=>new Intl.NumberFormat('pt-BR',{maximumFractionDigits:3}).format(n);
-const fmtDate=s=>s?new Date(s.length===10?s+'T12:00:00':s).toLocaleDateString('pt-BR'):'—';
-const fmtTime=s=>s?new Date(s).toLocaleString('pt-BR'):'—';
-const find=(list,id)=>D.get(list,id);
-let state,user=null,route='dashboard',selectedId=null,toastTimer,modalSubmit=null,dialogOrigin=null,editingOrder=null,storageProblem=false;
-try {const saved=localStorage.getItem(KEY);state=saved?D.validateState(JSON.parse(saved)):D.demoSeed();if(!saved)localStorage.setItem(KEY,JSON.stringify(state));}
-catch(e){state=D.demoSeed();storageProblem=true;$('#storageWarning').textContent='Armazenamento indisponível ou incompatível. Dados anteriores não foram sobrescritos. Teste somente em memória; use Reiniciar demonstração no guia para restaurar o armazenamento.';$('#storageWarning').classList.remove('hidden');}
-const names={dashboard:'Dashboard',pedidos:'Pedidos',clientes:'Clientes',produtos:'Produtos',formulas:'Fórmulas',precificacao:'Precificação',producao:'Ordens de produção',etiquetas:'Etiquetas',estoque:'Estoque e lotes',qualidade:'Qualidade',financeiro:'Análise financeira',faturamento:'Faturamento',despacho:'Frete e despacho',comissoes:'Comissões',relatorios:'Relatórios',auditoria:'Auditoria',usuarios:'Usuários',guia:'Guia de demonstração'};
-const navGroups=[['Visão geral',[['dashboard','◈']]],['Comercial',[['pedidos','🛒'],['clientes','👥'],['produtos','🧴']]],['Pesquisa e desenvolvimento',[['formulas','⚗'],['precificacao','◇']]],['Operação',[['producao','⚙'],['etiquetas','▣'],['estoque','📦'],['qualidade','✓']]],['Financeiro e expedição',[['financeiro','💰'],['faturamento','▤'],['despacho','↗'],['comissoes','◉']]],['Gestão',[['relatorios','▥'],['auditoria','◷'],['usuarios','♙'],['guia','?']]]];
-const actionNames={saveOrder:'Pedido salvo / revisão',submitOrder:'Enviado ao financeiro',analyze:'Análise financeira',approveOrder:'Aprovação comercial',createOps:'OPs geradas',issueSheet:'Documento da OP gerado',saveLabel:'Etiqueta atualizada',saveOpLabels:'Etiquetas da OP definidas',startOp:'Produção iniciada',reportProduction:'Produção apontada',inspect:'Inspeção',bill:'Faturamento',dispatch:'Despacho',cancelOrder:'Cancelamento',receiveLot:'Recebimento',adjustLot:'Ajuste de estoque',saveClient:'Cadastro de cliente',createVersion:'Nova versão',activateVersion:'Ativação de versão',releasePrice:'Liberação de preço',payCommission:'Pagamento de comissão',toggleUser:'Acesso atualizado'};
-const allowed=r=>!!user&&D.profiles[user.perfil].modules.includes(r);
-const can=a=>D.can(user,a);
-const technical=()=>['administrador','pd','producao','qualidade'].includes(user.perfil);
-const costs=()=>['administrador','pd'].includes(user.perfil);
-const orders=()=>D.visibleOrders(state,user);
-const clients=()=>D.visibleClients(state,user);
-function toast(m){$('#toast').textContent=m;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4500);}
-function commit(a,p){
-  if(!storageProblem){const saved=localStorage.getItem(KEY);if(saved&&JSON.parse(saved).revision!==state.revision)throw new Error('Os dados mudaram em outra aba. Feche este diálogo e recarregue a página.');}
-  const next=D.execute(state,user,a,p);
-  if(!storageProblem){try{localStorage.setItem(KEY,JSON.stringify(next.state));}catch(e){throw new Error('Falha ao salvar no navegador. Nenhum registro foi alterado. Libere espaço ou reinicie a demonstração.');}}
-  state=next.state;user=find(state.usuarios,user.id);return next.id;
+const D = Realtech,
+  DEMO_KEY = 'realtech.prototype.v3',
+  EMPTY_KEY = 'realtech.prototype.v3.empty',
+  MODE_KEY = 'realtech.prototype.data-mode'
+const $ = s => document.querySelector(s)
+const esc = v =>
+  String(v ?? '').replace(
+    /[&<>"']/g,
+    c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[
+        c
+      ]
+  )
+const money = n =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+    n / 100
+  )
+const qty = n =>
+  new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 }).format(n)
+const fmtDate = s =>
+  s
+    ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString(
+        'pt-BR'
+      )
+    : '—'
+const fmtTime = s => (s ? new Date(s).toLocaleString('pt-BR') : '—')
+const find = (list, id) => D.get(list, id)
+let state,
+  user = null,
+  route = 'dashboard',
+  selectedId = null,
+  toastTimer,
+  modalSubmit = null,
+  dialogOrigin = null,
+  editingOrder = null,
+  storageProblem = false
+let dataMode = 'with-data',
+  KEY = DEMO_KEY
+function freshState() {
+  return dataMode === 'with-data' ? D.demoSeed() : D.emptySeed()
 }
-function badge(s){const c=['liberado','aprovado','faturado','concluida','ativo','ativa','regular'].includes(s)?'ok':['bloqueado','reprovado','cancelado','inadimplente'].includes(s)?'danger':['pendente','aguardandoAprovacao','liberadoComRestricao','restricao','emDesenvolvimento'].includes(s)?'warn':s==='emProducao'?'info':'neutral';return `<span class="status ${c}">${esc(D.labels[s]||s)}</span>`;}
-function btn(label,a,id,primary=false){return `<button type="button" class="${primary?'primary-btn':'ghost-btn'}" data-action="${esc(a)}" data-id="${esc(id||'')}">${esc(label)}</button>`;}
-function actionButton(label,a,id,primary=false){return can(a)?btn(label,a,id,primary):'';}
-function link(label,r,id){return `<button class="text-button" data-route="${esc(r)}" data-id="${esc(id||'')}">${esc(label)}</button>`;}
-function table(h,rows){return `<div class="table-wrap"><table><thead><tr>${h.map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${h.length}" class="empty">Nenhum registro neste recorte.<br>Avance no fluxo ou altere os filtros.</td></tr>`}</tbody></table></div>`;}
-function panel(t,b,extra=''){return `<article class="panel"><div class="panel-head"><h3>${t}</h3>${extra}</div>${b}</article>`;}
-function intro(t,d,a=''){return `<div class="page-intro"><div><h1>${esc(t)}</h1><p>${esc(d)}</p></div><div class="actions">${a}</div></div>`;}
-function notice(s,k=''){return `<div class="notice ${k}">${s}</div>`;}
-function fields(items){return `<dl class="detail-list">${items.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;}
-function input(l,n,v='',t='text',a=''){return `<label>${l}<input name="${n}" type="${t}" value="${esc(v)}" ${a}></label>`;}
-function select(l,n,opts,v=''){return `<label>${l}<select name="${n}">${opts.map(([id,t])=>`<option value="${esc(id)}" ${String(v)===String(id)?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`;}
-function textarea(l,n,v='',required=false){return `<label class="full">${l}<textarea name="${n}" maxlength="2000" ${required?'required':''}>${esc(v)}</textarea></label>`;}
-function formData(){return Object.fromEntries(new FormData($('#dialogForm')));}
-function modal(t,b,fn,label='Confirmar'){dialogOrigin=document.activeElement;$('#dialogTitle').textContent=t;$('#dialogBody').innerHTML=b;$('#dialogError').textContent='';$('#confirmDialog').textContent=label;$('#confirmDialog').hidden=!fn;modalSubmit=fn;$('#flowDialog').showModal();}
-function closeModal(){$('#flowDialog').close();modalSubmit=null;editingOrder=null;if(dialogOrigin?.isConnected)dialogOrigin.focus();}
-$('#closeDialog').onclick=closeModal;$('#cancelDialog').onclick=closeModal;
-$('#flowDialog').addEventListener('cancel',()=>{modalSubmit=null;editingOrder=null;});
-$('#dialogForm').onsubmit=e=>{e.preventDefault();if(!modalSubmit)return;try{modalSubmit(formData());closeModal();render();toast('Registro salvo na demonstração.');}catch(error){$('#dialogError').textContent=error.message;}};
-function renderProfiles(){
-  $('#demoProfiles').innerHTML=[['admin','◈','Administrador'],['vendedor','🛒','Comercial'],['financeiro','◇','Financeiro']].map(([id,i,t])=>`<button class="profile-choice ${id==='admin'?'active':''}" data-demo="${id}" type="button"><b>${i}</b>${t}</button>`).join('');
-  $('#otherProfiles').innerHTML=state.usuarios.map(u=>`<div class="login-option"><button class="text-button" data-demo="${u.id}">${esc(D.profiles[u.perfil].label)}${u.ativo?'':' (inativo)'}</button><span>${esc(u.login)} / ${esc(u.senha)}</span></div>`).join('');
+function loadDataMode(mode) {
+  dataMode = mode
+  KEY = mode === 'with-data' ? DEMO_KEY : EMPTY_KEY
+  storageProblem = false
+  try {
+    const saved = localStorage.getItem(KEY)
+    state = saved ? D.validateState(JSON.parse(saved)) : freshState()
+    const migratedEmpty =
+      mode === 'empty' &&
+      saved &&
+      (!state.clientes.length || !state.produtos.length)
+    if (migratedEmpty) state = freshState()
+    if (!saved) localStorage.setItem(KEY, JSON.stringify(state))
+    else if (migratedEmpty) localStorage.setItem(KEY, JSON.stringify(state))
+    localStorage.setItem(MODE_KEY, mode)
+  } catch (e) {
+    state = freshState()
+    storageProblem = true
+  }
 }
-renderProfiles();
-$('#loginForm').onsubmit=e=>{e.preventDefault();const u=state.usuarios.find(u=>u.login===$('#username').value.trim()&&u.senha===$('#password').value);if(!u||!u.ativo){$('#loginError').textContent='Usuário ou senha inválidos, ou acesso inativo.';return;}user=u;$('#loginError').textContent='';$('#loginScreen').classList.add('hidden');$('#app').classList.remove('hidden');go('dashboard');};
-$('#logoutBtn').onclick=()=>{closeModal();user=null;$('#content').innerHTML='';$('#navigation').innerHTML='';$('#app').classList.add('hidden');$('#loginScreen').classList.remove('hidden');renderProfiles();location.hash='login';$('#username').focus();};
-$('#newOrderBtn').onclick=()=>openOrderForm();
-$('#menuToggle').onclick=()=>{const open=$('#sidebar').classList.toggle('open');$('#menuToggle').setAttribute('aria-expanded',String(open));};
-$('#closeMenu').onclick=()=>{$('#sidebar').classList.remove('open');$('#menuToggle').setAttribute('aria-expanded','false');$('#menuToggle').focus();};
-function go(r,id=null){if(!allowed(r)){toast('Este módulo não está disponível para o seu perfil.');return;}route=r;selectedId=id;const hash=`#/${r}${id?'/'+encodeURIComponent(id):''}`;if(location.hash!==hash)history.pushState(null,'',hash);$('#sidebar').classList.remove('open');$('#menuToggle').setAttribute('aria-expanded','false');render();$('#content').scrollTop=0;}
-window.addEventListener('popstate',()=>{if(!user)return;const p=location.hash.replace(/^#\//,'').split('/');go(allowed(p[0])?p[0]:'dashboard',p[1]?decodeURIComponent(p[1]):null);});
-window.addEventListener('storage',e=>{if(e.key===KEY){$('#storageWarning').textContent='A demonstração foi alterada em outra aba. Recarregue antes de registrar novas ações.';$('#storageWarning').classList.remove('hidden');}});
-function render(){
-  if(!user)return;
-  const viewHash=`#/${route}${selectedId?'/'+encodeURIComponent(selectedId):''}`;
-  if(location.hash!==viewHash)history.pushState(null,'',viewHash);
-  $('#currentUser').textContent=`${user.nome} · ${D.profiles[user.perfil].label}`;$('#newOrderBtn').hidden=!can('saveOrder');$('#screenTitle').textContent=names[route];
-  $('#navigation').innerHTML=navGroups.map(([g,items])=>{const v=items.filter(([r])=>allowed(r));return v.length?`<div class="menu-section">${g}</div>${v.map(([r,i])=>`<button class="nav-item ${r===route?'active':''}" data-route="${r}" ${r===route?'aria-current="page"':''}><span class="nav-icon" aria-hidden="true">${i}</span>${names[r]}</button>`).join('')}`:'';}).join('');
-  const views={dashboard:dashboardView,pedidos:()=>selectedId?orderView(selectedId):ordersView(),clientes:clientsView,produtos:productsView,formulas:formulasView,precificacao:pricingView,producao:()=>selectedId?opView(selectedId):productionView(),etiquetas:labelsView,estoque:stockView,qualidade:qualityView,financeiro:financialView,faturamento:billingView,despacho:dispatchView,comissoes:commissionsView,relatorios:reportsView,auditoria:auditView,usuarios:usersView,guia:guideView};
-  try{$('#content').innerHTML=views[route]();}catch(e){$('#content').innerHTML=notice(esc(e.message),'danger');}
+try {
+  loadDataMode(
+    localStorage.getItem(MODE_KEY) === 'empty' ? 'empty' : 'with-data'
+  )
+} catch (e) {
+  loadDataMode('with-data')
+  storageProblem = true
 }
-function orderRows(list){return list.map(o=>[link(o.numero,'pedidos',o.id),`${esc(o.clienteNome)}<small>${esc(find(state.usuarios,o.vendedorId).nome)}</small>`,badge(o.status),esc(D.stage(state,o)),money(D.orderTotal(o)),fmtDate(o.prazoEntrega)]);}
-function dashboardView(){
-  const list=orders(),role=user.perfil,pending=list.filter(o=>o.status==='aguardandoAprovacao'&&o.statusAnalise==='pendente'),active=list.filter(o=>!['cancelado','faturado'].includes(o.status));
-  const operational=['producao','qualidade','estoque','pd'].includes(role);
-  let metrics;
-  if(role==='comercial')metrics=[['Meus pedidos ativos',active.length,'🛒','pedidos'],['Aprovação comercial',list.filter(o=>o.status==='aguardandoAprovacao'&&['liberado','liberadoComRestricao'].includes(o.statusAnalise)).length,'✓','pedidos'],['Minha carteira',clients().filter(c=>c.ativo).length,'👥','clientes'],['Pedidos faturados',list.filter(o=>o.faturamento).length,'▤','relatorios']];
-  else if(role==='financeiro')metrics=[['Aguardando análise',pending.length,'◇','financeiro'],['Bloqueados',list.filter(o=>o.statusAnalise==='bloqueado'&&o.status!=='cancelado').length,'!','financeiro'],['Com restrição',list.filter(o=>o.statusAnalise==='liberadoComRestricao').length,'↗','financeiro'],['Valor em análise',money(pending.reduce((n,o)=>n+D.orderTotal(o),0)),'💰','financeiro']];
-  else if(operational)metrics=[['OPs aguardando',state.ordens.filter(o=>o.status==='aguardando').length,'⚙',allowed('producao')?'producao':'relatorios'],['OPs em produção',state.ordens.filter(o=>o.status==='emProducao').length,'↗',allowed('producao')?'producao':'relatorios'],['Lotes pendentes',state.lotes.filter(l=>l.tipo==='produto'&&l.status==='pendente').length,'✓',allowed('qualidade')?'qualidade':'relatorios'],['Produtos liberados',state.produtos.filter(p=>p.status==='ativo'&&p.precoLiberado).length,'📦',allowed('produtos')?'produtos':'relatorios']];
-  else metrics=[['Pedidos ativos',active.length,'🛒','pedidos'],['Faturamento registrado',money(list.filter(o=>o.faturamento).reduce((n,o)=>n+o.faturamento.valorCentavos,0)),'💰',allowed('faturamento')?'faturamento':'relatorios'],['OPs em produção',state.ordens.filter(o=>o.status==='emProducao').length,'⚙',allowed('producao')?'producao':'relatorios'],['Prontos para faturar',list.filter(o=>!o.faturamento&&!D.billingIssues(state,o).length).length,'✓',allowed('faturamento')?'faturamento':'relatorios']];
-  const phases=['Análise financeira','Aprovação comercial','Gerar OPs','Produção','Qualidade / liberação','Pronto para faturar','Aguardando despacho','Despachado'];
-  const work=operational?panel('Operação em andamento',table(['OP','Produto','Produzido','Status'],state.ordens.map(o=>[allowed('producao')?link(o.numero,'producao',o.id):esc(o.numero),esc(o.produtoNome),`${o.quantidadeProduzida} / ${o.quantidadePrevista} UN`,badge(o.status)]))):panel(role==='comercial'?'Minha carteira de pedidos':'Pedidos recentes',table(['Pedido','Cliente','Status','Próxima etapa','Valor','Entrega'],orderRows(list.slice().reverse().slice(0,6))));
-  return intro(`Olá, ${user.nome.split(' ')[0]}`,D.profiles[role].description,badge(D.profiles[role].label))+`<div class="metric-grid">${metrics.map(([t,v,i,r])=>`<button class="metric-card" data-route="${r}"><div class="metric-top"><span>${t}</span><div class="metric-icon blue">${i}</div></div><strong>${v}</strong><small class="trend neutral">Registros desta demonstração</small></button>`).join('')}</div><div class="dashboard-grid"><div class="stack">${work}${panel('Seu próximo passo',notice(role==='comercial'?'Crie ou abra um pedido. Após a análise financeira, volte aqui para aprovar comercialmente.':role==='financeiro'?'Confira crédito e situação do cliente. Bloqueios e liberações com restrição exigem justificativa.':'As etapas usam os mesmos pedidos, OPs e lotes. Consulte o roteiro para testar o ciclo completo.'),link('Abrir roteiro','guia'))}</div><div class="stack">${panel(operational?'Fluxo de referência':'Pedidos por etapa',operational?'<ol class="guide-list"><li>Pedido aprovado</li><li>Ficha emitida e OP iniciada</li><li>Produção e consumo por lote</li><li>Inspeção e liberação</li><li>Faturamento e despacho</li></ol>':phases.map(p=>{const n=list.filter(o=>D.stage(state,o)===p).length;return `<div class="queue-row"><span class="stage-count">${n}</span><div><strong>${p}</strong><div class="progress-track"><span style="width:${list.length?n/list.length*100:0}%"></span></div></div></div>`;}).join(''))}${panel('Sobre os dados','<p class="muted small">Indicadores calculados a partir dos registros. Valores e composições são exemplos de teste.</p>')}</div></div>`;
+const names = {
+  dashboard: 'Dashboard',
+  pedidos: 'Pedidos',
+  clientes: 'Clientes',
+  produtos: 'Produtos',
+  formulas: 'Fórmulas',
+  precificacao: 'Precificação',
+  producao: 'Ordens de produção',
+  etiquetas: 'Etiquetas',
+  estoque: 'Estoque e lotes',
+  qualidade: 'Qualidade',
+  financeiro: 'Análise financeira',
+  faturamento: 'Faturamento',
+  despacho: 'Frete e despacho',
+  comissoes: 'Comissões',
+  relatorios: 'Relatórios',
+  auditoria: 'Auditoria',
+  usuarios: 'Usuários',
+  guia: 'Guia de demonstração'
 }
-function ordersView(){return intro('Pedidos comerciais','Preços e comissões vêm da tabela liberada. Após aprovação, o pedido fica preservado.')+`<div class="toolbar"><label>Buscar pedido ou cliente<input id="orderSearch" placeholder="Número, cliente ou etapa..."></label>${select('Status','filterStatus',[['','Todos'],...['rascunho','aguardandoAprovacao','aprovado','emProducao','faturado','cancelado'].map(s=>[s,D.labels[s]])])}</div>`+panel('Todos os pedidos',`<div id="orderResults">${table(['Pedido','Cliente','Status','Próxima etapa','Valor','Entrega'],orderRows(orders().slice().reverse()))}</div>`);}
-function orderView(id){
-  const o=find(orders(),id),ops=state.ordens.filter(x=>x.pedidoId===id),issues=D.billingIssues(state,o);
-  const done=[true,['liberado','liberadoComRestricao'].includes(o.statusAnalise),!!o.aprovacao,ops.length===o.itens.length&&ops.every(x=>x.status==='concluida'),ops.length>0&&ops.every(x=>x.lotes.length&&x.lotes.every(id=>find(state.lotes,id).status==='liberado')),!!o.faturamento,!!o.despacho];
-  let buttons='';if(o.status==='rascunho')buttons+=actionButton('Editar pedido','saveOrder',id);if(o.status==='rascunho')buttons+=actionButton('Enviar ao financeiro','submitOrder',id,true);
-  if(o.status==='aguardandoAprovacao'){buttons+=actionButton('Analisar crédito','analyze',id,true);if(['liberado','liberadoComRestricao'].includes(o.statusAnalise))buttons+=actionButton('Aprovar comercialmente','approveOrder',id,true);}
-  if(o.status==='aprovado')buttons+=actionButton('Gerar OP por item','createOps',id,true);
-  if(o.aprovacao)buttons+=can('saveOrder')?btn('Pedido complementar','complement',id):'';
-  if(!['cancelado','faturado'].includes(o.status)&&!ops.length)buttons+=actionButton('Cancelar pedido','cancelOrder',id);
-  if(!o.faturamento&&!issues.length)buttons+=actionButton('Registrar faturamento','bill',id,true);
-  if(o.faturamento&&!o.despacho)buttons+=actionButton('Registrar despacho','dispatch',id,true);
-  return `<div class="stack">${intro(o.numero,`${o.clienteNome} · ${D.stage(state,o)}`,link('← Todos os pedidos','pedidos'))}<ol class="flow-steps">${['Pedido','Financeiro','Comercial','Produção','Qualidade','Faturamento','Despacho'].map((s,i)=>`<li class="${done[i]?'done':i===done.indexOf(false)?'current':''}"><b>${done[i]?'✓':String(i+1).padStart(2,'0')}</b>${s}</li>`).join('')}</ol>${o.status==='cancelado'?notice('Pedido cancelado. '+esc(o.cancelamento?.justificativa),'danger'):''}${o.aprovacao?notice('Pedido bloqueado para edição. Preço, comissão e versão estão preservados; alterações exigem pedido complementar.'):''}${panel('Dados do pedido',fields([['Cliente',esc(o.clienteNome)],['Vendedor',esc(find(state.usuarios,o.vendedorId).nome)],['Prazo de entrega',fmtDate(o.prazoEntrega)],['Condições comerciais',esc(o.condicoesComerciais)],['Status',badge(o.status)],['Análise financeira',badge(o.statusAnalise)],['Valor total',money(D.orderTotal(o))],['Comissão prevista',money(D.commission(o))],['Observações',esc(o.observacoes||'—')]])+(o.complementarDe?`<p>Complementa ${link(find(state.pedidos,o.complementarDe).numero,'pedidos',o.complementarDe)}</p>`:''))}${panel('Itens e valores congelados',table(['Produto','Quantidade','Peso total','Preço / UN','Comissão','Subtotal'],o.itens.map(i=>[`${esc(i.nome)}${technical()?`<small>${esc(i.formula.codigo)} · v${i.formula.versao}</small>`:''}`,`${qty(i.quantidade)} UN`,`${qty(i.quantidade*i.pesoKg)} kg`,money(i.precoCentavos),`${qty(i.comissaoBps/100)}%`,money(i.precoCentavos*i.quantidade)])))}<div class="actions">${buttons||'<p class="muted">Nenhuma ação disponível para este perfil nesta etapa.</p>'}</div>${ops.length?panel('Ordens vinculadas',table(['OP','Produto','Previsto','Produzido','Status'],ops.map(x=>[allowed('producao')?link(x.numero,'producao',x.id):esc(x.numero),esc(x.produtoNome),`${x.quantidadePrevista} UN · ${qty(x.quantidadePrevista*x.pesoKg)} kg`,`${x.quantidadeProduzida} UN`,badge(x.status)]))):''}${!o.faturamento?notice('Para faturar: '+(issues.length?issues.map(esc).join(' · '):'todos os requisitos atendidos.'),issues.length?'warn':'success'):panel('Faturamento e expedição',fields([['Referência interna',esc(o.faturamento.referencia)],['Faturado em',fmtTime(o.faturamento.data)],['Transportadora',esc(o.despacho?.transportadora||'Ainda não despachado')],['Rastreamento',esc(o.despacho?.rastreamento||'—')],['Frete informativo',o.despacho?money(o.despacho.valorCentavos):'—'],['Saída',fmtDate(o.despacho?.dataSaida)]]))}${panel('Histórico de decisões',`<ol class="timeline">${o.analises.map(a=>`<li>${badge(a.decisao)}<small>${esc(a.usuario)} · ${fmtTime(a.data)}</small><p>${esc(a.justificativa||'Sem ressalvas.')}</p></li>`).join('')}${o.aprovacao?`<li><b>Aprovação comercial</b><small>${esc(o.aprovacao.usuario)} · ${fmtTime(o.aprovacao.data)}</small></li>`:''}${!o.analises.length?'<li class="muted">O histórico será preenchido ao registrar as análises.</li>':''}</ol>`)}</div>`;
+const navGroups = [
+  ['Visão geral', [['dashboard', '◈']]],
+  [
+    'Comercial',
+    [
+      ['pedidos', '🛒'],
+      ['clientes', '👥'],
+      ['produtos', '🧴'],
+      ['comissoes', '◉']
+    ]
+  ],
+  [
+    'Pesquisa e desenvolvimento',
+    [
+      ['formulas', '⚗'],
+      ['precificacao', '◇']
+    ]
+  ],
+  [
+    'Operação',
+    [
+      ['producao', '⚙'],
+      ['etiquetas', '▣'],
+      ['estoque', '📦'],
+      ['qualidade', '✓']
+    ]
+  ],
+  [
+    'Financeiro e expedição',
+    [
+      ['financeiro', '💰'],
+      ['faturamento', '▤'],
+      ['despacho', '↗']
+    ]
+  ],
+  [
+    'Gestão',
+    [
+      ['relatorios', '▥'],
+      ['auditoria', '◷'],
+      ['usuarios', '♙'],
+      ['guia', '?']
+    ]
+  ]
+]
+const actionNames = {
+  saveOrder: 'Pedido salvo / revisão',
+  submitOrder: 'Enviado ao financeiro',
+  analyze: 'Análise financeira',
+  approveOrder: 'Aprovação comercial',
+  createOps: 'OPs geradas',
+  issueSheet: 'Documento da OP gerado',
+  saveLabel: 'Etiqueta atualizada',
+  saveOpLabels: 'Etiquetas da OP definidas',
+  startOp: 'Produção iniciada',
+  reportProduction: 'Produção apontada',
+  inspect: 'Inspeção',
+  bill: 'Faturamento',
+  registerReceipt: 'Recebimento do cliente',
+  dispatch: 'Despacho',
+  cancelOrder: 'Cancelamento',
+  receiveLot: 'Recebimento',
+  adjustLot: 'Ajuste de estoque',
+  saveClient: 'Cadastro de cliente',
+  createVersion: 'Nova versão',
+  activateVersion: 'Ativação de versão',
+  releasePrice: 'Liberação de preço',
+  toggleUser: 'Acesso atualizado'
 }
+const allowed = r => !!user && D.profiles[user.perfil].modules.includes(r)
+const can = a => D.can(user, a)
+const technical = () =>
+  ['administrador', 'pd', 'producao', 'qualidade'].includes(user.perfil)
+const costs = () => ['administrador', 'pd'].includes(user.perfil)
+const orders = () => D.visibleOrders(state, user)
+const clients = () => D.visibleClients(state, user)
+function toast(m) {
+  $('#toast').textContent = m
+  $('#toast').classList.add('visible')
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 4500)
+}
+function commit(a, p) {
+  if (!storageProblem) {
+    const saved = localStorage.getItem(KEY)
+    if (saved && JSON.parse(saved).revision !== state.revision)
+      throw new Error(
+        'Os dados mudaram em outra aba. Feche este diálogo e recarregue a página.'
+      )
+  }
+  const next = D.execute(state, user, a, p)
+  if (!storageProblem) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(next.state))
+    } catch (e) {
+      throw new Error(
+        'Falha ao salvar no navegador. Nenhum registro foi alterado. Libere espaço ou reinicie a demonstração.'
+      )
+    }
+  }
+  state = next.state
+  user = find(state.usuarios, user.id)
+  return next.id
+}
+function badge(s) {
+  const c = [
+    'liberado',
+    'aprovado',
+    'faturado',
+    'concluida',
+    'ativo',
+    'ativa',
+    'regular'
+  ].includes(s)
+    ? 'ok'
+    : ['bloqueado', 'reprovado', 'cancelado', 'inadimplente'].includes(s)
+      ? 'danger'
+      : [
+            'pendente',
+            'aguardandoAprovacao',
+            'liberadoComRestricao',
+            'restricao',
+            'emDesenvolvimento'
+          ].includes(s)
+        ? 'warn'
+        : s === 'emProducao'
+          ? 'info'
+          : 'neutral'
+  return `<span class="status ${c}">${esc(D.labels[s] || s)}</span>`
+}
+function btn(label, a, id, primary = false) {
+  return `<button type="button" class="${primary ? 'primary-btn' : 'ghost-btn'}" data-action="${esc(a)}" data-id="${esc(id || '')}">${esc(label)}</button>`
+}
+function actionButton(label, a, id, primary = false) {
+  return can(a) ? btn(label, a, id, primary) : ''
+}
+function link(label, r, id) {
+  return `<button class="text-button" data-route="${esc(r)}" data-id="${esc(id || '')}">${esc(label)}</button>`
+}
+function table(h, rows) {
+  return `<div class="table-wrap"><table><thead><tr>${h.map(x => `<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows.length ? rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${h.length}" class="empty">Nenhum registro neste recorte.<br>Avance no fluxo ou altere os filtros.</td></tr>`}</tbody></table></div>`
+}
+function panel(t, b, extra = '') {
+  return `<article class="panel"><div class="panel-head"><h3>${t}</h3>${extra}</div>${b}</article>`
+}
+function intro(t, d, a = '') {
+  return `<div class="page-intro"><div><h1>${esc(t)}</h1><p>${esc(d)}</p></div><div class="actions">${a}</div></div>`
+}
+function notice(s, k = '') {
+  return `<div class="notice ${k}">${s}</div>`
+}
+function fields(items) {
+  return `<dl class="detail-list">${items.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`
+}
+function input(l, n, v = '', t = 'text', a = '') {
+  return `<label>${l}<input name="${n}" type="${t}" value="${esc(v)}" ${a}></label>`
+}
+function select(l, n, opts, v = '') {
+  return `<label>${l}<select name="${n}">${opts.map(([id, t]) => `<option value="${esc(id)}" ${String(v) === String(id) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`
+}
+function textarea(l, n, v = '', required = false) {
+  return `<label class="full">${l}<textarea name="${n}" maxlength="2000" ${required ? 'required' : ''}>${esc(v)}</textarea></label>`
+}
+function formData() {
+  return Object.fromEntries(new FormData($('#dialogForm')))
+}
+function modal(t, b, fn, label = 'Confirmar') {
+  dialogOrigin = document.activeElement
+  $('#dialogTitle').textContent = t
+  $('#dialogBody').innerHTML = b
+  $('#dialogError').textContent = ''
+  $('#confirmDialog').textContent = label
+  $('#confirmDialog').hidden = !fn
+  modalSubmit = fn
+  $('#flowDialog').showModal()
+}
+function closeModal() {
+  $('#flowDialog').close()
+  modalSubmit = null
+  editingOrder = null
+  if (dialogOrigin?.isConnected) dialogOrigin.focus()
+}
+$('#closeDialog').onclick = closeModal
+$('#cancelDialog').onclick = closeModal
+$('#flowDialog').addEventListener('cancel', () => {
+  modalSubmit = null
+  editingOrder = null
+})
+$('#dialogForm').onsubmit = e => {
+  e.preventDefault()
+  if (!modalSubmit) return
+  try {
+    modalSubmit(formData())
+    closeModal()
+    render()
+    toast('Registro salvo na demonstração.')
+  } catch (error) {
+    $('#dialogError').textContent = error.message
+  }
+}
+function renderProfiles() {
+  $('#demoProfiles').innerHTML = [
+    ['admin', '◈', 'Administrador'],
+    ['vendedor', '🛒', 'Comercial'],
+    ['financeiro', '◇', 'Financeiro']
+  ]
+    .map(
+      ([id, i, t]) =>
+        `<button class="profile-choice ${id === 'admin' ? 'active' : ''}" data-demo="${id}" type="button"><b>${i}</b>${t}</button>`
+    )
+    .join('')
+  $('#otherProfiles').innerHTML = state.usuarios
+    .map(
+      u =>
+        `<div class="login-option"><button class="text-button" data-demo="${u.id}">${esc(D.profiles[u.perfil].label)}${u.ativo ? '' : ' (inativo)'}</button><span>${esc(u.login)} / ${esc(u.senha)}</span></div>`
+    )
+    .join('')
+}
+renderProfiles()
+function syncDataModeControl() {
+  const withData = dataMode === 'with-data'
+  $('#withDemoData').checked = withData
+  $('#dataModeDescription').textContent = withData
+    ? 'Carrega pedidos, OPs, lotes e demais exemplos para explorar os fluxos.'
+    : 'Começa sem histórico de pedidos e operações, com uma base sintética para criar um novo fluxo.'
+}
+syncDataModeControl()
+if (storageProblem) {
+  $('#storageWarning').textContent =
+    'O navegador não permitiu salvar este modo. A sessão funcionará apenas em memória.'
+  $('#storageWarning').classList.remove('hidden')
+}
+$('#withDemoData').addEventListener('change', e => {
+  loadDataMode(e.target.checked ? 'with-data' : 'empty')
+  syncDataModeControl()
+  renderProfiles()
+})
+$('#loginForm').onsubmit = e => {
+  e.preventDefault()
+  loadDataMode($('#withDemoData').checked ? 'with-data' : 'empty')
+  const u = state.usuarios.find(
+    u =>
+      u.login === $('#username').value.trim() &&
+      u.senha === $('#password').value
+  )
+  if (!u || !u.ativo) {
+    $('#loginError').textContent =
+      'Usuário ou senha inválidos, ou acesso inativo.'
+    return
+  }
+  user = u
+  $('#loginError').textContent = ''
+  $('#loginScreen').classList.add('hidden')
+  $('#app').classList.remove('hidden')
+  go('dashboard')
+}
+$('#logoutBtn').onclick = () => {
+  closeModal()
+  user = null
+  $('#content').innerHTML = ''
+  $('#navigation').innerHTML = ''
+  $('#app').classList.add('hidden')
+  $('#loginScreen').classList.remove('hidden')
+  renderProfiles()
+  location.hash = 'login'
+  $('#username').focus()
+}
+$('#newOrderBtn').onclick = () => openOrderForm()
+$('#menuToggle').onclick = () => {
+  const open = $('#sidebar').classList.toggle('open')
+  $('#menuToggle').setAttribute('aria-expanded', String(open))
+}
+$('#closeMenu').onclick = () => {
+  $('#sidebar').classList.remove('open')
+  $('#menuToggle').setAttribute('aria-expanded', 'false')
+  $('#menuToggle').focus()
+}
+function go(r, id = null) {
+  if (!allowed(r)) {
+    toast('Este módulo não está disponível para o seu perfil.')
+    return
+  }
+  route = r
+  selectedId = id
+  const hash = `#/${r}${id ? '/' + encodeURIComponent(id) : ''}`
+  if (location.hash !== hash) history.pushState(null, '', hash)
+  $('#sidebar').classList.remove('open')
+  $('#menuToggle').setAttribute('aria-expanded', 'false')
+  render()
+  $('#content').scrollTop = 0
+}
+window.addEventListener('popstate', () => {
+  if (!user) return
+  const p = location.hash.replace(/^#\//, '').split('/')
+  go(allowed(p[0]) ? p[0] : 'dashboard', p[1] ? decodeURIComponent(p[1]) : null)
+})
+window.addEventListener('storage', e => {
+  if (e.key === KEY) {
+    $('#storageWarning').textContent =
+      'A demonstração foi alterada em outra aba. Recarregue antes de registrar novas ações.'
+    $('#storageWarning').classList.remove('hidden')
+  }
+})
+function render() {
+  if (!user) return
+  const viewHash = `#/${route}${selectedId ? '/' + encodeURIComponent(selectedId) : ''}`
+  if (location.hash !== viewHash) history.pushState(null, '', viewHash)
+  $('#currentUser').textContent =
+    `${user.nome} · ${D.profiles[user.perfil].label}`
+  $('#newOrderBtn').hidden = !can('saveOrder')
+  $('#screenTitle').textContent = names[route]
+  $('#dataModeBadge').textContent =
+    dataMode === 'with-data' ? 'DEMO COM DADOS' : 'DEMO SEM DADOS'
+  $('#dataModeBanner').textContent =
+    dataMode === 'with-data'
+      ? 'Registros sintéticos carregados neste navegador.'
+      : 'Sem histórico de pedidos e operações; base sintética pronta para um novo fluxo.'
+  $('#navigation').innerHTML = navGroups
+    .map(([g, items]) => {
+      const v = items.filter(([r]) => allowed(r))
+      return v.length
+        ? `<div class="menu-section">${g}</div>${v.map(([r, i]) => `<button class="nav-item ${r === route ? 'active' : ''}" data-route="${r}" ${r === route ? 'aria-current="page"' : ''}><span class="nav-icon" aria-hidden="true">${i}</span>${names[r]}</button>`).join('')}`
+        : ''
+    })
+    .join('')
+  const views = {
+    dashboard: dashboardView,
+    pedidos: () => (selectedId ? orderView(selectedId) : ordersView()),
+    clientes: clientsView,
+    produtos: productsView,
+    formulas: formulasView,
+    precificacao: pricingView,
+    producao: () => (selectedId ? opView(selectedId) : productionView()),
+    etiquetas: labelsView,
+    estoque: stockView,
+    qualidade: qualityView,
+    financeiro: financialView,
+    faturamento: billingView,
+    despacho: dispatchView,
+    comissoes: commissionsView,
+    relatorios: reportsView,
+    auditoria: auditView,
+    usuarios: usersView,
+    guia: guideView
+  }
+  try {
+    $('#content').innerHTML = views[route]()
+  } catch (e) {
+    $('#content').innerHTML = notice(esc(e.message), 'danger')
+  }
+}
+function orderRows(list) {
+  return list.map(o => [
+    link(o.numero, 'pedidos', o.id),
+    `${esc(o.clienteNome)}<small>${esc(find(state.usuarios, o.vendedorId).nome)}</small>`,
+    badge(o.status),
+    esc(D.stage(state, o)),
+    money(D.orderTotal(o)),
+    fmtDate(o.prazoEntrega)
+  ])
+}
+function dashboardView() {
+  const list = orders(),
+    role = user.perfil,
+    pending = list.filter(
+      o => o.status === 'aguardandoAprovacao' && o.statusAnalise === 'pendente'
+    ),
+    active = list.filter(o => !['cancelado', 'faturado'].includes(o.status))
+  const operational = ['producao', 'qualidade', 'estoque', 'pd'].includes(role)
+  let metrics
+  if (role === 'comercial')
+    metrics = [
+      ['Meus pedidos ativos', active.length, '🛒', 'pedidos'],
+      [
+        'Aprovação comercial',
+        list.filter(
+          o =>
+            o.status === 'aguardandoAprovacao' &&
+            ['liberado', 'liberadoComRestricao'].includes(o.statusAnalise)
+        ).length,
+        '✓',
+        'pedidos'
+      ],
+      [
+        'Minha carteira',
+        clients().filter(c => c.ativo).length,
+        '👥',
+        'clientes'
+      ],
+      [
+        'Pedidos faturados',
+        list.filter(o => o.faturamento).length,
+        '▤',
+        'relatorios'
+      ]
+    ]
+  else if (role === 'financeiro')
+    metrics = [
+      ['Aguardando análise', pending.length, '◇', 'financeiro'],
+      [
+        'Bloqueados',
+        list.filter(
+          o => o.statusAnalise === 'bloqueado' && o.status !== 'cancelado'
+        ).length,
+        '!',
+        'financeiro'
+      ],
+      [
+        'Com restrição',
+        list.filter(o => o.statusAnalise === 'liberadoComRestricao').length,
+        '↗',
+        'financeiro'
+      ],
+      [
+        'Valor em análise',
+        money(pending.reduce((n, o) => n + D.orderTotal(o), 0)),
+        '💰',
+        'financeiro'
+      ]
+    ]
+  else if (operational)
+    metrics = [
+      [
+        'OPs aguardando',
+        state.ordens.filter(o => o.status === 'aguardando').length,
+        '⚙',
+        allowed('producao') ? 'producao' : 'relatorios'
+      ],
+      [
+        'OPs em produção',
+        state.ordens.filter(o => o.status === 'emProducao').length,
+        '↗',
+        allowed('producao') ? 'producao' : 'relatorios'
+      ],
+      [
+        'Lotes pendentes',
+        state.lotes.filter(l => l.tipo === 'produto' && l.status === 'pendente')
+          .length,
+        '✓',
+        allowed('qualidade') ? 'qualidade' : 'relatorios'
+      ],
+      [
+        'Produtos liberados',
+        state.produtos.filter(p => p.status === 'ativo' && p.precoLiberado)
+          .length,
+        '📦',
+        allowed('produtos') ? 'produtos' : 'relatorios'
+      ]
+    ]
+  else
+    metrics = [
+      ['Pedidos ativos', active.length, '🛒', 'pedidos'],
+      [
+        'Faturamento registrado',
+        money(
+          list
+            .filter(o => o.faturamento)
+            .reduce((n, o) => n + o.faturamento.valorCentavos, 0)
+        ),
+        '💰',
+        allowed('faturamento') ? 'faturamento' : 'relatorios'
+      ],
+      [
+        'OPs em produção',
+        state.ordens.filter(o => o.status === 'emProducao').length,
+        '⚙',
+        allowed('producao') ? 'producao' : 'relatorios'
+      ],
+      [
+        'Prontos para faturar',
+        list.filter(o => !o.faturamento && !D.billingIssues(state, o).length)
+          .length,
+        '✓',
+        allowed('faturamento') ? 'faturamento' : 'relatorios'
+      ]
+    ]
+  const phases = [
+    'Análise financeira',
+    'Aprovação comercial',
+    'Gerar OPs',
+    'Produção',
+    'Qualidade / liberação',
+    'Pronto para faturar',
+    'Aguardando despacho',
+    'Despachado'
+  ]
+  const work = operational
+    ? panel(
+        'Operação em andamento',
+        table(
+          ['OP', 'Produto', 'Produzido', 'Status'],
+          state.ordens.map(o => [
+            allowed('producao')
+              ? link(o.numero, 'producao', o.id)
+              : esc(o.numero),
+            esc(o.produtoNome),
+            `${o.quantidadeProduzida} / ${o.quantidadePrevista} UN`,
+            badge(o.status)
+          ])
+        )
+      )
+    : panel(
+        role === 'comercial' ? 'Minha carteira de pedidos' : 'Pedidos recentes',
+        table(
+          ['Pedido', 'Cliente', 'Status', 'Próxima etapa', 'Valor', 'Entrega'],
+          orderRows(list.slice().reverse().slice(0, 6))
+        )
+      )
+  return (
+    intro(
+      `Olá, ${user.nome.split(' ')[0]}`,
+      D.profiles[role].description,
+      badge(D.profiles[role].label)
+    ) +
+    `<div class="metric-grid">${metrics.map(([t, v, i, r]) => `<button class="metric-card" data-route="${r}"><div class="metric-top"><span>${t}</span><div class="metric-icon blue">${i}</div></div><strong>${v}</strong><small class="trend neutral">Registros desta demonstração</small></button>`).join('')}</div><div class="dashboard-grid"><div class="stack">${work}${panel('Seu próximo passo', notice(role === 'comercial' ? 'Crie ou abra um pedido. Após a análise financeira, volte aqui para aprovar comercialmente.' : role === 'financeiro' ? 'Confira crédito e situação do cliente. Bloqueios e liberações com restrição exigem justificativa.' : 'As etapas usam os mesmos pedidos, OPs e lotes. Consulte o roteiro para testar o ciclo completo.'), link('Abrir roteiro', 'guia'))}</div><div class="stack">${panel(
+      operational ? 'Fluxo de referência' : 'Pedidos por etapa',
+      operational
+        ? '<ol class="guide-list"><li>Pedido aprovado</li><li>Ficha emitida e OP iniciada</li><li>Produção e consumo por lote</li><li>Inspeção e liberação</li><li>Faturamento e despacho</li></ol>'
+        : phases
+            .map(p => {
+              const n = list.filter(o => D.stage(state, o) === p).length
+              return `<div class="queue-row"><span class="stage-count">${n}</span><div><strong>${p}</strong><div class="progress-track"><span style="width:${list.length ? (n / list.length) * 100 : 0}%"></span></div></div></div>`
+            })
+            .join('')
+    )}${panel('Sobre os dados', '<p class="muted small">Indicadores calculados a partir dos registros. Valores e composições são exemplos de teste.</p>')}</div></div>`
+  )
+}
+function ordersView() {
+  return (
+    intro(
+      'Pedidos comerciais',
+      'Preços vêm da tabela liberada. Após aprovação, o pedido fica preservado.',
+      actionButton('+ Novo pedido', 'saveOrder')
+    ) +
+    `<div class="toolbar"><label>Buscar pedido ou cliente<input id="orderSearch" placeholder="Número, cliente ou etapa..."></label>${select('Status', 'filterStatus', [['', 'Todos'], ...['rascunho', 'aguardandoAprovacao', 'aprovado', 'emProducao', 'faturado', 'cancelado'].map(s => [s, D.labels[s]])])}</div>` +
+    panel(
+      'Todos os pedidos',
+      `<div id="orderResults">${table(['Pedido', 'Cliente', 'Status', 'Próxima etapa', 'Valor', 'Entrega'], orderRows(orders().slice().reverse()))}</div>`
+    )
+  )
+}
+function orderView(id) {
+  const o = find(orders(), id),
+    ops = state.ordens.filter(x => x.pedidoId === id),
+    issues = D.billingIssues(state, o),
+    showCommission = user.perfil !== 'comercial'
+  const done = [
+    true,
+    ['liberado', 'liberadoComRestricao'].includes(o.statusAnalise),
+    !!o.aprovacao,
+    ops.length === o.itens.length && ops.every(x => x.status === 'concluida'),
+    ops.length > 0 &&
+      ops.every(
+        x =>
+          x.lotes.length &&
+          x.lotes.every(id => find(state.lotes, id).status === 'liberado')
+      ),
+    !!o.faturamento,
+    !!o.despacho
+  ]
+  let buttons = ''
+  if (o.status === 'rascunho')
+    buttons += actionButton('Editar pedido', 'saveOrder', id)
+  if (o.status === 'rascunho')
+    buttons += actionButton('Enviar ao financeiro', 'submitOrder', id, true)
+  if (o.status === 'aguardandoAprovacao') {
+    buttons += actionButton('Analisar crédito', 'analyze', id, true)
+    if (['liberado', 'liberadoComRestricao'].includes(o.statusAnalise))
+      buttons += actionButton(
+        'Aprovar comercialmente',
+        'approveOrder',
+        id,
+        true
+      )
+  }
+  if (o.status === 'aprovado')
+    buttons += actionButton('Gerar OP por item', 'createOps', id, true)
+  if (o.aprovacao)
+    buttons += can('saveOrder')
+      ? btn('Pedido complementar', 'complement', id)
+      : ''
+  if (!['cancelado', 'faturado'].includes(o.status) && !ops.length)
+    buttons += actionButton('Cancelar pedido', 'cancelOrder', id)
+  if (!o.faturamento && !issues.length)
+    buttons += actionButton('Registrar faturamento', 'bill', id, true)
+  if (o.faturamento && !o.despacho)
+    buttons += actionButton('Registrar despacho', 'dispatch', id, true)
+  return `<div class="stack">${intro(o.numero, `${o.clienteNome} · ${D.stage(state, o)}`, link('← Todos os pedidos', 'pedidos'))}<ol class="flow-steps">${['Pedido', 'Financeiro', 'Comercial', 'Produção', 'Qualidade', 'Faturamento', 'Despacho'].map((s, i) => `<li class="${done[i] ? 'done' : i === done.indexOf(false) ? 'current' : ''}"><b>${done[i] ? '✓' : String(i + 1).padStart(2, '0')}</b>${s}</li>`).join('')}</ol>${o.status === 'cancelado' ? notice('Pedido cancelado. ' + esc(o.cancelamento?.justificativa), 'danger') : ''}${o.aprovacao ? notice('Pedido bloqueado para edição. Preço e versão estão preservados; alterações exigem pedido complementar.') : ''}${panel('Dados do pedido', fields([['Cliente', esc(o.clienteNome)], ['Vendedor', esc(find(state.usuarios, o.vendedorId).nome)], ['Prazo de entrega', fmtDate(o.prazoEntrega)], ['Condições comerciais', esc(o.condicoesComerciais)], ['Status', badge(o.status)], ['Análise financeira', badge(o.statusAnalise)], ['Valor total', money(D.orderTotal(o))], ...(showCommission ? [['Comissão prevista', money(D.commission(o))]] : []), ['Observações', esc(o.observacoes || '—')]]) + (o.complementarDe ? `<p>Complementa ${link(find(state.pedidos, o.complementarDe).numero, 'pedidos', o.complementarDe)}</p>` : ''))}${panel(
+    'Itens e valores congelados',
+    table(
+      [
+        'Produto',
+        'Quantidade',
+        'Peso total',
+        'Preço / UN',
+        ...(showCommission ? ['Comissão'] : []),
+        'Subtotal'
+      ],
+      o.itens.map(i => [
+        `${esc(i.nome)}${technical() ? `<small>${esc(i.formula.codigo)} · v${i.formula.versao}</small>` : ''}`,
+        `${qty(i.quantidade)} UN`,
+        `${qty(i.quantidade * i.pesoKg)} kg`,
+        money(i.precoCentavos),
+        ...(showCommission ? [`${qty(i.comissaoBps / 100)}%`] : []),
+        money(i.precoCentavos * i.quantidade)
+      ])
+    )
+  )}<div class="actions">${buttons || '<p class="muted">Nenhuma ação disponível para este perfil nesta etapa.</p>'}</div>${
+    ops.length
+      ? panel(
+          'Ordens vinculadas',
+          table(
+            ['OP', 'Produto', 'Previsto', 'Produzido', 'Status'],
+            ops.map(x => [
+              allowed('producao')
+                ? link(x.numero, 'producao', x.id)
+                : esc(x.numero),
+              esc(x.produtoNome),
+              `${x.quantidadePrevista} UN · ${qty(x.quantidadePrevista * x.pesoKg)} kg`,
+              `${x.quantidadeProduzida} UN`,
+              badge(x.status)
+            ])
+          )
+        )
+      : ''
+  }${
+    !o.faturamento
+      ? notice(
+          'Para faturar: ' +
+            (issues.length
+              ? issues.map(esc).join(' · ')
+              : 'todos os requisitos atendidos.'),
+          issues.length ? 'warn' : 'success'
+        )
+      : panel(
+          'Faturamento e expedição',
+          fields([
+            ['Referência interna', esc(o.faturamento.referencia)],
+            ['Faturado em', fmtTime(o.faturamento.data)],
+            [
+              'Transportadora',
+              esc(o.despacho?.transportadora || 'Ainda não despachado')
+            ],
+            ['Rastreamento', esc(o.despacho?.rastreamento || '—')],
+            [
+              'Frete informativo',
+              o.despacho ? money(o.despacho.valorCentavos) : '—'
+            ],
+            ['Saída', fmtDate(o.despacho?.dataSaida)]
+          ])
+        )
+  }${panel('Histórico de decisões', `<ol class="timeline">${o.analises.map(a => `<li>${badge(a.decisao)}<small>${esc(a.usuario)} · ${fmtTime(a.data)}</small><p>${esc(a.justificativa || 'Sem ressalvas.')}</p></li>`).join('')}${o.aprovacao ? `<li><b>Aprovação comercial</b><small>${esc(o.aprovacao.usuario)} · ${fmtTime(o.aprovacao.data)}</small></li>` : ''}${!o.analises.length ? '<li class="muted">O histórico será preenchido ao registrar as análises.</li>' : ''}</ol>`)}</div>`
+}
+
