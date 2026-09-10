@@ -130,3 +130,11 @@ textarea { min-height:84px; }
 /* Documento operacional: abas simples e impressão do conteúdo consultado. */
 .doc-tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border,#e6ebf2);padding-bottom:10px}.doc-tabs .active{background:#eaf2ff;color:#1d4ed8;border-color:#93b4ef}
 @media print{body *{visibility:hidden!important}#flowDialog,#flowDialog *{visibility:visible!important}#flowDialog{position:absolute;inset:0;width:100%;max-width:none;max-height:none;border:0;box-shadow:none}#flowDialog button,#flowDialog footer,.doc-tabs,[data-doc-panel="etiqueta"]{display:none!important}[data-doc-panel="demonstracao"]{display:block!important}}
+
+.technical-sheet { display:grid; gap:20px; }
+.technical-sheet-head { display:flex; gap:14px; align-items:center; border-bottom:2px solid var(--primary); padding-bottom:16px; }
+.technical-sheet-head h2,.technical-sheet-head p,.technical-product h3 { margin:0; }
+.technical-product { break-inside:avoid; border-top:1px solid var(--line); padding-top:16px; }
+.technical-product h4 { margin-bottom:8px; }
+.technical-note { font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:12px; }
+@media print { .technical-sheet { font-size:11pt; } .technical-sheet .brand-mark { print-color-adjust:exact; } .technical-sheet table { font-size:9pt; } }

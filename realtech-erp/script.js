@@ -670,6 +670,8 @@ function orderView(id) {
     buttons += can('saveOrder')
       ? btn('Pedido complementar', 'complement', id)
       : ''
+  if (['administrador', 'qualidade'].includes(user.perfil))
+    buttons += btn('Gerar ficha técnica', 'technicalSheet', id)
   if (!['cancelado', 'faturado'].includes(o.status) && !ops.length)
     buttons += actionButton('Cancelar pedido', 'cancelOrder', id)
   if (!o.faturamento && !issues.length)
@@ -742,4 +744,3 @@ function orderView(id) {
         )
   }${panel('Histórico de decisões', `<ol class="timeline">${o.analises.map(a => `<li>${badge(a.decisao)}<small>${esc(a.usuario)} · ${fmtTime(a.data)}</small><p>${esc(a.justificativa || 'Sem ressalvas.')}</p></li>`).join('')}${o.aprovacao ? `<li><b>Aprovação comercial</b><small>${esc(o.aprovacao.usuario)} · ${fmtTime(o.aprovacao.data)}</small></li>` : ''}${!o.analises.length ? '<li class="muted">O histórico será preenchido ao registrar as análises.</li>' : ''}</ol>`)}</div>`
 }
-
