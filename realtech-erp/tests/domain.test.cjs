@@ -29,9 +29,23 @@ function create(
     clienteId: client,
     itens: items,
     prazoEntrega: D.day(15),
+    condicoesPagamentoDias: [14, 20],
     condicoesComerciais: '30/60 dias'
   })
 }
+test('permite salvar pedido com parcelas sem condições comerciais adicionais', () => {
+  const h = harness()
+  const id = h.run('saveOrder', {
+    clienteId: 'c1',
+    itens: [{ produtoId: 'p1', quantidade: 20 }],
+    prazoEntrega: D.day(15),
+    condicoesPagamentoDias: [30, 60]
+  })
+
+  const order = D.get(h.s.pedidos, id)
+  assert.equal(order.condicoesComerciais, '')
+  assert.deepEqual(order.condicoesPagamentoDias, [30, 60])
+})
 function approve(h, id) {
   h.run('submitOrder', { id })
   h.run('analyze', { id, decisao: 'liberado' }, 'financeiro')
@@ -74,6 +88,7 @@ function dispatchData(id) {
     valor: 150,
     rastreamento: 'TESTE123',
     comprovante: 'COMP-DEMO',
+    tomadorFrete: 'destinatario',
     dataSaida: D.today(),
     prazo: D.day(3)
   }
@@ -100,7 +115,13 @@ test('Fluxo completo com dois itens, perfis, produção parcial, perdas, sobras,
   assert.deepEqual(D.billingIssues(h.s, h.s.pedidos[0]), [])
   h.run('bill', { id, referencia: 'FAT-001' }, 'fiscal')
   h.run('dispatch', dispatchData(id), 'fiscal')
-  assert.equal(D.stage(h.s, h.s.pedidos[0]), 'Despachado')
+  assert.equal(D.stage(h.s, h.s.pedidos[0]), 'Em faturamento · Despachado')
+  h.run(
+    'confirmDelivery',
+    { id, dataEntrega: D.today(), recebidoPor: 'Cliente teste' },
+    'fiscal'
+  )
+  assert.equal(D.stage(h.s, h.s.pedidos[0]), 'Entregue · Em faturamento')
   assert.ok(
     h.s.lotes.filter(l => l.tipo === 'produto').every(l => l.saldo === 0)
   )
@@ -113,7 +134,10 @@ test('Fluxo completo com dois itens, perfis, produção parcial, perdas, sobras,
     { id: recebivel.id, recebidoEm: D.today(), referencia: 'PIX-DEMO' },
     'financeiro'
   )
-  assert.equal(h.s.recebiveis[0].comissaoCentavos, 10900)
+  assert.equal(
+    h.s.recebiveis.reduce((sum, r) => sum + r.comissaoCentavos, 0),
+    10900
+  )
   assert.equal(h.s.recebiveis[0].status, 'pago')
   assert.ok(h.s.auditoria.some(a => a.perfil === 'financeiro'))
   assert.ok(h.s.auditoria.some(a => a.perfil === 'qualidade'))
@@ -125,6 +149,275 @@ test('Fluxo completo com dois itens, perfis, produção parcial, perdas, sobras,
     .filter(m => m.tipo === 'consumo')
     .reduce((n, m) => n - m.quantidade, 0)
   assert.ok(Math.abs(materialInput - 202) < 0.001)
+})
+test('Simulação de preço considera custo primário, encargos fixos e margem de venda', () => {
+  const h = harness()
+  const p = D.get(h.s.produtos, 'p1')
+  const sim = D.priceSimulation(h.s, p, 60)
+
+  assert.equal(sim.margemPercentual, 60)
+  assert.ok(sim.custoPrimarioCentavos > 0)
+  assert.ok(sim.custoFixosCentavos > 0)
+  assert.ok(sim.precoCentavos > sim.custoPrimarioCentavos)
+  assert.ok(sim.custoFinalCentavos >= sim.custoPrimarioCentavos)
+})
+
+test('Precificação usa markup sobre custo e gross-up sobre encargos da venda', () => {
+  const h = harness()
+  const p = D.get(h.s.produtos, 'p1')
+  p.pesoKg = 1
+  p.embalagemCentavos = 0
+  p.precificacao = {
+    margemPercentual: 60,
+    embalagemCentavosKg: 103.654,
+    financeiroCentavosKg: 125,
+    maoDeObraCentavosKg: 75,
+    encargosFixos: [
+      { nome: 'Nota fiscal', percentual: 10.5 },
+      { nome: 'Comissão técnica', percentual: 5 },
+      { nome: 'Comissão comercial', percentual: 5 },
+      { nome: 'Comissão extra cliente', percentual: 0 }
+    ]
+  }
+  const sim = D.priceSimulation(h.s, p, 60)
+
+  assert.equal(sim.custoPrimarioCentavos, 849)
+  assert.equal(sim.valorLucroCentavos, 509)
+  assert.equal(sim.baseComLucroCentavos, 1358)
+  assert.equal(sim.encargosPercentual, 20.5)
+  assert.equal(sim.precoKgCentavos, 1709)
+  assert.equal(sim.precoApresentacoes[1].precoCentavos, 855)
+})
+
+test('Parâmetros globais de precificação são usados pelos produtos', () => {
+  const h = harness()
+  h.run(
+    'savePricingSettings',
+    {
+      margemPadrao: 50,
+      cenariosLucratividade: [25, 50, 75],
+      financeiroCentavosKg: 2,
+      maoDeObraCentavosKg: 3,
+      outrosCustosCentavosKg: 0,
+      encargosFixos: [
+        { nome: 'Nota fiscal', percentual: 10 },
+        { nome: 'Comissão técnica', percentual: 5 },
+        { nome: 'Comissão comercial', percentual: 0 },
+        { nome: 'Comissão extra cliente', percentual: 0 }
+      ]
+    },
+    'quimica'
+  )
+  const p = D.get(h.s.produtos, 'p1')
+  delete p.precificacao.margemPercentual
+  const sim = D.priceSimulation(h.s, p)
+  assert.equal(sim.margemPercentual, 50)
+  assert.equal(sim.encargosPercentual, 15)
+  assert.deepEqual(
+    D.priceScenarios(h.s, p).map(row => row.margem),
+    [25, 50, 75]
+  )
+})
+
+test('Produto pode ser criado por cópia e preço aprovado gera snapshot', () => {
+  const h = harness()
+  const id = h.run(
+    'createProduct',
+    {
+      sourceProductId: 'p1',
+      codigo: 'PROD-COPIA',
+      nome: 'Produto copiado',
+      categoria: 'Testes',
+      formulaCodigo: 'FORM-COPIA',
+      formulaNome: 'Fórmula copiada'
+    },
+    'quimica'
+  )
+  const product = D.get(h.s.produtos, id)
+  assert.equal(product.precoLiberado, false)
+  assert.notEqual(product.formulaId, 'f1v2')
+  assert.equal(
+    D.get(h.s.formulas, product.formulaId).status,
+    'emDesenvolvimento'
+  )
+
+  h.run(
+    'activateVersion',
+    {
+      id: product.formulaId,
+      justificativa: 'Validação da fórmula copiada'
+    },
+    'quimica'
+  )
+  h.run(
+    'releasePrice',
+    {
+      id,
+      margem: 60,
+      financeiroCentavosKg: 125,
+      maoDeObraCentavosKg: 75,
+      outrosCustosCentavosKg: 0,
+      embalagemCentavosKg: 100,
+      encargosFixos: [
+        { nome: 'Nota fiscal', percentual: 10.5 },
+        { nome: 'Comissão técnica', percentual: 5 },
+        { nome: 'Comissão comercial', percentual: 5 },
+        { nome: 'Comissão extra cliente', percentual: 0 }
+      ],
+      motivoAjuste: ''
+    },
+    'quimica'
+  )
+  const approved = D.get(h.s.produtos, id)
+  assert.equal(approved.precificacao.historico.length, 1)
+  assert.equal(approved.precificacao.historico[0].status, 'APROVADO')
+  assert.equal(
+    approved.precificacao.historico[0].precoVendaKgCentavos,
+    approved.precoVendaKgCentavos
+  )
+})
+
+test('Pedido calcula volumes por tipo, unidades por volume e arredonda o restante', () => {
+  const h = harness(),
+    id = create(h)
+  const order = D.get(h.s.pedidos, id)
+  assert.equal(D.volumeCount(order.itens[0]), 2)
+  assert.equal(D.volumeCount(order.itens[1]), 3)
+  assert.equal(D.orderVolumeCount(order), 5)
+  assert.equal(order.itens[0].volumeTipo, 'Pacote')
+  assert.equal(order.itens[1].limiteUnidadesPorVolume, 2)
+  h.set(s => (s.produtos[0].limiteUnidadesPorVolume = 9))
+  assert.throws(
+    () => create(h, 'c1', [{ produtoId: 'p1', quantidade: 1 }]),
+    /Configuração de volume/
+  )
+})
+test('Parcelas nascem no pedido, dividem centavos exatamente e não bloqueiam despacho', () => {
+  const h = harness(),
+    id = create(h, 'c1', [{ produtoId: 'p1', quantidade: 1 }])
+  const order = D.get(h.s.pedidos, id),
+    plan = D.installmentPlan(D.orderTotal(order), order.condicoesPagamentoDias)
+  assert.deepEqual(
+    plan.map(p => p.prazoDias),
+    [14, 20]
+  )
+  assert.equal(
+    plan.reduce((sum, p) => sum + p.valorCentavos, 0),
+    D.orderTotal(order)
+  )
+  ready(h, id)
+  report(h, h.s.ordens[0].id, 1)
+  inspectAll(h)
+  h.run('bill', { id, referencia: 'FAT-PARCELADA' })
+  assert.equal(h.s.recebiveis.length, 2)
+  assert.equal(h.s.pedidos[0].faturamento.status, 'emAndamento')
+  h.run('dispatch', dispatchData(id))
+  assert.equal(D.stage(h.s, h.s.pedidos[0]), 'Em faturamento · Despachado')
+  for (const r of h.s.recebiveis)
+    h.run(
+      'registerReceipt',
+      { id: r.id, recebidoEm: D.today(), referencia: `P-${r.parcelaNumero}` },
+      'financeiro'
+    )
+  assert.equal(h.s.pedidos[0].faturamento.status, 'concluido')
+})
+test('Pedido aprovado aguarda lote e só libera geração de OP com estoque suficiente', () => {
+  const h = harness(),
+    id = create(h, 'c1', [{ produtoId: 'p1', quantidade: 20 }])
+  approve(h, id)
+  h.set(s =>
+    s.lotes
+      .filter(l => l.tipo === 'ingrediente' && l.ingredienteId === 'i1')
+      .forEach(l => (l.saldo = 0))
+  )
+  const order = D.get(h.s.pedidos, id)
+  assert.equal(D.orderStockAvailability(h.s, order).available, false)
+  assert.equal(D.stage(h.s, order), 'Aguardando lote')
+  assert.throws(
+    () => h.run('createOps', { id }, 'producao'),
+    /Estoque insuficiente.*Aguardando lote/
+  )
+  h.run(
+    'receiveLot',
+    {
+      ingredienteId: 'i1',
+      fornecedorId: 's1',
+      codigo: 'REC-ESTOQUE-TESTE',
+      quantidade: 100,
+      fabricacao: D.today(),
+      validade: D.day(90)
+    },
+    'estoque'
+  )
+  assert.equal(D.orderStockAvailability(h.s, order).available, true)
+  assert.equal(D.stage(h.s, order), 'Gerar OPs')
+  h.run('createOps', { id }, 'producao')
+  assert.equal(h.s.ordens.length, 1)
+})
+test('Histórico de versões identifica a versão atual e mantém releases íntegros', () => {
+  const current = D.releases.filter(release => release.current)
+  assert.equal(current.length, 1)
+  assert.equal(current[0].version, `v${D.VERSION}`)
+  assert.equal(
+    new Set(D.releases.map(release => release.version)).size,
+    D.releases.length
+  )
+  assert.ok(
+    D.releases.every(
+      release =>
+        release.date &&
+        release.title &&
+        release.changes.length > 0 &&
+        release.changes.every(
+          change => change.area && change.title && change.status
+        )
+    )
+  )
+})
+test('Pedido nasce no sistema, recebe prioridade e limite de produção em 7 dias', () => {
+  const h = harness(),
+    id = create(h)
+  const order = D.get(h.s.pedidos, id)
+  assert.equal(order.origem, 'sistema')
+  assert.equal(D.productionDeadline(order), D.addDays(order.criadoEm, 7))
+  h.set(s => (s.pedidos[0].origem = 'externo'))
+  assert.throws(() => h.run('submitOrder', { id }), /Pedido externo/)
+})
+test('Despacho exige tomador válido e entrega só é confirmada após a saída', () => {
+  const h = harness(),
+    id = create(h, 'c1', [{ produtoId: 'p1', quantidade: 1 }])
+  ready(h, id)
+  report(h, h.s.ordens[0].id, 1)
+  inspectAll(h)
+  h.run('bill', { id, referencia: 'FAT' })
+  assert.throws(
+    () => h.run('dispatch', { ...dispatchData(id), tomadorFrete: 'terceiro' }),
+    /Tomador/
+  )
+  h.run('dispatch', dispatchData(id))
+  assert.throws(
+    () =>
+      h.run('confirmDelivery', {
+        id,
+        dataEntrega: D.day(1),
+        recebidoPor: 'Cliente'
+      }),
+    /entre a saída e hoje/
+  )
+  h.run('confirmDelivery', {
+    id,
+    dataEntrega: D.today(),
+    recebidoPor: 'Cliente'
+  })
+  assert.throws(
+    () =>
+      h.run('confirmDelivery', {
+        id,
+        dataEntrega: D.today(),
+        recebidoPor: 'Cliente'
+      }),
+    /já confirmada/
+  )
 })
 test('Autorizações são verificadas no domínio, não apenas nos botões', () => {
   const h = harness(),
@@ -330,7 +623,7 @@ test('Reprovação de um lote bloqueia faturamento e não pode ser apagada por r
 test('Faturamento, despacho e recebimento não podem duplicar', () => {
   const h = harness(),
     id = create(h, 'c1', [{ produtoId: 'p1', quantidade: 1 }])
-  assert.throws(() => h.run('dispatch', dispatchData(id)), /faturado/)
+  assert.throws(() => h.run('dispatch', dispatchData(id)), /pendência/)
   ready(h, id)
   report(h, h.s.ordens[0].id, 1)
   inspectAll(h)
@@ -451,3 +744,24 @@ test('Modo sem dados mantém referências sintéticas e remove os registros oper
   assert.doesNotThrow(() => D.validateState(JSON.parse(JSON.stringify(s))))
 })
 
+test('Modelo de etiqueta grande preserva os textos fixos editáveis', () => {
+  const h = harness()
+  h.run('saveLabel', {
+    id: 'etq2',
+    nome: 'Etiqueta grande aprovada para teste',
+    conteudo: 'Produto, cliente, lote e validade',
+    descricaoProduto: 'Descrição revisada',
+    textoRegulatorio: 'Texto regulatório em validação',
+    alergicos: 'Pode conter soja.',
+    gluten: 'Não contém glúten.',
+    modoUso: '2% sobre a massa.',
+    conservacao: 'Manter em local seco.',
+    fabricante: 'REALTECH LTDA',
+    slogan: 'QUALIDADE EM PRODUTOS E SERVIÇOS',
+    observacoes: 'Uso demonstrativo.'
+  })
+  const model = h.s.etiquetas.find(x => x.id === 'etq2')
+  assert.equal(model.modoUso, '2% sobre a massa.')
+  assert.equal(model.fabricante, 'REALTECH LTDA')
+  assert.equal(model.slogan, 'QUALIDADE EM PRODUTOS E SERVIÇOS')
+})

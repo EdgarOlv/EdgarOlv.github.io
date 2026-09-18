@@ -6,7 +6,7 @@
   else root.Realtech = api
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict'
-  const VERSION = 3
+  const VERSION = 6
   const clone = value => JSON.parse(JSON.stringify(value))
   const round = value => Math.round(value * 1000) / 1000
   const today = () => localDate(new Date())
@@ -17,6 +17,32 @@
     const d = new Date()
     d.setDate(d.getDate() + offset)
     return localDate(d)
+  }
+  function addDays(value, offset) {
+    const d = new Date(`${String(value).slice(0, 10)}T12:00:00`)
+    requireThat(!isNaN(d), 'Data base inválida.')
+    d.setDate(d.getDate() + offset)
+    return localDate(d)
+  }
+  function productionDeadline(o) {
+    return o.prazoProducao || addDays(o.criadoEm, 7)
+  }
+  function productionPriority(o) {
+    const deadline = productionDeadline(o)
+    const remaining = Math.ceil(
+      (new Date(`${deadline}T12:00:00`) - new Date(`${today()}T12:00:00`)) /
+        86400000
+    )
+    return {
+      deadline,
+      remaining,
+      label:
+        remaining < 0
+          ? `Atrasado ${Math.abs(remaining)} dia(s)`
+          : remaining === 0
+            ? 'Vence hoje'
+            : `${remaining} dia(s) restante(s)`
+    }
   }
   const labels = {
     rascunho: 'Rascunho',
@@ -41,6 +67,175 @@
     restricao: 'Restrição',
     inadimplente: 'Inadimplente'
   }
+  const releases = [
+    {
+      version: 'v6',
+      date: '2026-09-17',
+      current: true,
+      title: 'Etiqueta grande editável no pedido',
+      summary:
+        'O modelo grande reproduz a referência física, permite editar os textos fixos e pode ser aberto em cada item do pedido para impressão.',
+      changes: [
+        {
+          area: 'Pedidos e etiquetas',
+          title: 'Prévia da etiqueta direto no pedido',
+          description:
+            'Cada item do pedido abre a etiqueta grande com produto, cliente, fórmula e peso já preenchidos; lote e datas ficam pendentes até a produção.',
+          rules: ['RN-ETQ-001', 'RN-ETQ-002'],
+          status: 'Demonstrada; homologação regulatória pendente',
+          route: 'pedidos'
+        }
+      ]
+    },
+    {
+      version: 'v5',
+      date: '2026-09-14',
+      current: false,
+      title: 'Faturamento parcelado e financeiro paralelo',
+      summary:
+        'O faturamento permite configurar vários vencimentos, divide o valor automaticamente e acompanha cada parcela sem bloquear a expedição.',
+      changes: [
+        {
+          area: 'Faturamento e financeiro',
+          title: 'Parcelas configuráveis por prazo',
+          description:
+            'O usuário adiciona prazos em dias; o sistema divide o total com fechamento exato dos centavos e cria um recebível por parcela. Condições comerciais são texto adicional opcional.',
+          rules: ['RN-FAT-002', 'RN-FIN-002'],
+          status: 'Demonstrada',
+          route: 'faturamento'
+        }
+      ]
+    },
+    {
+      version: 'v4',
+      date: '2026-09-14',
+      current: false,
+      title: 'Prioridade, prazo e confirmação de entrega',
+      summary:
+        'O pedido nasce obrigatoriamente no sistema, recebe prioridade por data, limite de produção, tomador do frete e confirmação final de entrega.',
+      changes: [
+        {
+          area: 'Pedidos e produção',
+          title: 'Entrada oficial e limite de 7 dias',
+          description:
+            'Somente pedidos cadastrados no sistema avançam. A entrada define a prioridade e gera automaticamente o limite demonstrativo de produção em 7 dias corridos.',
+          rules: ['RN-PED-005', 'RN-PRD-002'],
+          status: 'Demonstrada',
+          route: 'producao'
+        },
+        {
+          area: 'Logística',
+          title: 'Tomador do frete e entrega confirmada',
+          description:
+            'O despacho exige indicar emitente ou destinatário como tomador e a expedição registra a confirmação de entrega depois da saída.',
+          rules: ['RN-LOG-001', 'RN-LOG-002'],
+          status: 'Demonstrada',
+          route: 'despacho'
+        }
+      ]
+    },
+    {
+      version: 'v3',
+      date: '2026-09-10',
+      current: false,
+      title: 'Disponibilidade, logística e transparência',
+      summary:
+        'Evolução do fluxo comercial até a produção, com rastreabilidade das regras demonstradas para homologação.',
+      changes: [
+        {
+          area: 'Pedidos e logística',
+          title: 'Volumes para transporte no pedido',
+          description:
+            'O pedido calcula volumes inteiros conforme o tipo de embalagem e mostra pacotes ou sacos por item e no total.',
+          rules: ['RN-PED-004'],
+          status: 'Demonstrada',
+          route: 'pedidos'
+        },
+        {
+          area: 'Estoque e produção',
+          title: 'Trava de estoque antes da OP',
+          description:
+            'Pedidos sem matéria-prima suficiente ficam em “Aguardando lote”. A geração de OP é liberada automaticamente após uma entrada suficiente.',
+          rules: ['RN-EST-001', 'RN-EST-003'],
+          status: 'Demonstrada',
+          route: 'producao'
+        },
+        {
+          area: 'Qualidade',
+          title: 'Ficha Técnica demonstrativa',
+          description:
+            'A Qualidade pode consultar e imprimir uma ficha vinculada ao pedido ou lote, preservando o contexto técnico apresentado.',
+          rules: ['RN-QUA-002', 'RN-QUA-003', 'RN-QUA-004'],
+          status: 'Demonstrada com conteúdo pendente',
+          route: 'qualidade'
+        },
+        {
+          area: 'Experiência de uso',
+          title: 'Resumo do novo pedido reorganizado',
+          description:
+            'Preço, pacotes, peso e volumes receberam hierarquia e espaçamento responsivos para leitura sem quebras.',
+          rules: [],
+          status: 'Entregue',
+          route: 'pedidos'
+        },
+        {
+          area: 'Governança',
+          title: 'Histórico de versões dentro do protótipo',
+          description:
+            'As entregas passam a ser apresentadas por versão e conectadas às regras de negócio e às áreas atualizadas.',
+          rules: ['RN-GOV-001'],
+          status: 'Demonstrada',
+          route: 'atualizacoes'
+        }
+      ]
+    },
+    {
+      version: 'v2',
+      date: '2026-08-31',
+      current: false,
+      title: 'Fluxo operacional integrado',
+      summary:
+        'Consolidação do percurso entre Comercial, Financeiro, Produção, Qualidade, Faturamento e Despacho.',
+      changes: [
+        {
+          area: 'Pedidos',
+          title: 'Bloqueio após envio ao Financeiro',
+          description:
+            'Pedido e valores ficam preservados após o envio; correções seguem por pedido complementar.',
+          rules: ['RN-PED-001', 'RN-PED-002', 'RN-PED-003'],
+          status: 'Confirmada e demonstrada',
+          route: 'pedidos'
+        },
+        {
+          area: 'Financeiro',
+          title: 'Análise, crédito e comissão',
+          description:
+            'Restrições exigem justificativa, o crédito é revalidado e a comissão final deriva de recebimentos confirmados.',
+          rules: ['RN-FIN-001', 'RN-COM-001'],
+          status: 'Confirmada com exceções pendentes',
+          route: 'financeiro'
+        },
+        {
+          area: 'Produção',
+          title: 'Uma OP por item e documento operacional',
+          description:
+            'Cada item gera uma OP independente, com documento obrigatório antes do início da produção.',
+          rules: ['RN-OP-001'],
+          status: 'Confirmada',
+          route: 'producao'
+        },
+        {
+          area: 'Rastreabilidade',
+          title: 'Percurso do fornecedor ao cliente',
+          description:
+            'Lotes, consumos, produção, pedido, cliente e despacho podem ser consultados nos dois sentidos.',
+          rules: ['RN-RAS-001'],
+          status: 'Confirmada',
+          route: 'estoque'
+        }
+      ]
+    }
+  ]
   const profiles = {
     administrador: {
       label: 'Administrador',
@@ -166,6 +361,7 @@
     inspect: ['qualidade'],
     bill: ['fiscal'],
     dispatch: ['fiscal'],
+    confirmDelivery: ['fiscal'],
     receiveLot: ['estoque'],
     adjustLot: ['estoque'],
     saveClient: ['comercial'],
@@ -175,8 +371,10 @@
     saveOpLabels: ['producao'],
     createVersion: ['pd'],
     activateVersion: ['pd'],
+    createProduct: ['pd'],
+    savePricingSettings: ['pd'],
     releasePrice: ['pd'],
-    registerReceipt: ['financeiro'],
+    registerReceipt: ['financeiro', 'fiscal'],
     toggleUser: []
   }
   function can(user, action) {
@@ -231,6 +429,44 @@
       (sum, i) => sum + Math.round(i.quantidade * i.precoCentavos),
       0
     )
+  }
+  function volumeCount(item) {
+    const units = item.unidadesPorVolume || 1
+    return Math.ceil(item.quantidade / units)
+  }
+  function orderVolumeCount(o) {
+    return o.itens.reduce((sum, item) => sum + volumeCount(item), 0)
+  }
+  function installmentPlan(totalCentavos, deadlines) {
+    requireThat(
+      Number.isSafeInteger(totalCentavos) && totalCentavos > 0,
+      'Valor do faturamento inválido.'
+    )
+    requireThat(
+      Array.isArray(deadlines) &&
+        deadlines.length > 0 &&
+        deadlines.length <= 24,
+      'Informe entre 1 e 24 parcelas.'
+    )
+    const days = deadlines.map((value, index) => {
+      const n = number(value, `Prazo da parcela ${index + 1}`, 0)
+      requireThat(
+        Number.isInteger(n),
+        'Os prazos das parcelas devem ser dias inteiros.'
+      )
+      return n
+    })
+    requireThat(
+      new Set(days).size === days.length,
+      'Cada parcela deve ter um prazo diferente.'
+    )
+    const base = Math.floor(totalCentavos / days.length),
+      remainder = totalCentavos % days.length
+    return days.map((prazoDias, index) => ({
+      numero: index + 1,
+      prazoDias,
+      valorCentavos: base + (index < remainder ? 1 : 0)
+    }))
   }
   function commission(o) {
     return o.itens.reduce(
@@ -302,6 +538,37 @@
       return rows
     })
   }
+  function orderStockAvailability(s, o) {
+    const requiredByIngredient = new Map()
+    o.itens.forEach(item => {
+      requirements(
+        { formula: item.formula },
+        item.quantidade * item.pesoKg
+      ).forEach(r =>
+        requiredByIngredient.set(
+          r.ingredienteId,
+          round((requiredByIngredient.get(r.ingredienteId) || 0) + r.quantidade)
+        )
+      )
+    })
+    const items = [...requiredByIngredient].map(
+      ([ingredienteId, necessario]) => {
+        const disponivel = round(
+          eligibleLots(s, ingredienteId).reduce(
+            (sum, lot) => sum + lot.saldo,
+            0
+          )
+        )
+        return {
+          ingredienteId,
+          necessario,
+          disponivel,
+          falta: round(Math.max(0, necessario - disponivel))
+        }
+      }
+    )
+    return { available: items.every(item => item.falta === 0), items }
+  }
   function billingIssues(s, o) {
     const ops = s.ordens.filter(op => op.pedidoId === o.id)
     const issues = []
@@ -339,21 +606,32 @@
   }
   function stage(s, o) {
     if (o.status === 'cancelado') return 'Cancelado'
+    if (o.entrega && o.faturamento?.status !== 'concluido')
+      return 'Entregue · Em faturamento'
+    if (o.entrega) return 'Entregue'
+    if (o.despacho && o.faturamento?.status !== 'concluido')
+      return 'Em faturamento · Despachado'
     if (o.despacho) return 'Despachado'
-    if (o.faturamento) return 'Aguardando despacho'
+    if (o.faturamento?.status === 'emAndamento')
+      return 'Em faturamento · Aguardando despacho'
+    if (o.faturamento?.status === 'concluido')
+      return 'Faturado · Aguardando despacho'
     if (o.status === 'rascunho') return 'Rascunho'
     if (o.statusAnalise === 'bloqueado') return 'Bloqueado no financeiro'
     if (o.statusAnalise === 'pendente') return 'Análise financeira'
     if (!o.aprovacao) return 'Aprovação comercial'
     const ops = s.ordens.filter(x => x.pedidoId === o.id)
-    if (ops.length < o.itens.length) return 'Gerar OPs'
+    if (ops.length < o.itens.length)
+      return orderStockAvailability(s, o).available
+        ? 'Gerar OPs'
+        : 'Aguardando lote'
     if (ops.some(x => x.status !== 'concluida')) return 'Produção'
     if (
       ops.some(x => x.lotes.some(id => get(s.lotes, id).status === 'reprovado'))
     )
       return 'Bloqueado na qualidade'
     if (billingIssues(s, o).length) return 'Qualidade / liberação'
-    return 'Pronto para faturar'
+    return 'Pronto para faturar e despachar'
   }
   function seed() {
     const users = [
@@ -422,6 +700,23 @@
     const s = {
       schemaVersion: VERSION,
       revision: 0,
+      configuracoes: {
+        precificacao: {
+          margemPadrao: 60,
+          cenariosLucratividade: [
+            10, 20, 30, 40, 45, 50, 55, 60, 65, 70, 75, 80
+          ],
+          encargosFixos: [
+            { nome: 'Nota fiscal', percentual: 10.5 },
+            { nome: 'Comissão técnica', percentual: 5 },
+            { nome: 'Comissão comercial', percentual: 5 },
+            { nome: 'Comissão extra cliente', percentual: 0 }
+          ],
+          financeiroCentavosKg: 125,
+          maoDeObraCentavosKg: 75,
+          outrosCustosCentavosKg: 0
+        }
+      },
       usuarios: users,
       ingredientes: ingredients,
       formulas,
@@ -438,13 +733,17 @@
           unidade: 'UN',
           pesoKg: 5,
           embalagem: 'Balde 5 kg',
+          volumeTipo: 'Pacote',
+          unidadesPorVolume: 10,
+          limiteUnidadesPorVolume: 10,
           embalagemCentavos: 450,
           formulaId: 'f1v2',
           status: 'ativo',
           precoCentavos: 5500,
           comissaoBps: 500,
           precoLiberado: true,
-          tabela: 'Tabela demonstração 2026'
+          tabela: 'Tabela demonstração 2026',
+          precificacao: { margemPercentual: 60 }
         },
         {
           id: 'p2',
@@ -454,13 +753,17 @@
           unidade: 'UN',
           pesoKg: 20,
           embalagem: 'Bombona 20 kg',
+          volumeTipo: 'Saco',
+          unidadesPorVolume: 2,
+          limiteUnidadesPorVolume: 2,
           embalagemCentavos: 1200,
           formulaId: 'f2v1',
           status: 'ativo',
           precoCentavos: 24000,
           comissaoBps: 450,
           precoLiberado: true,
-          tabela: 'Tabela demonstração 2026'
+          tabela: 'Tabela demonstração 2026',
+          precificacao: { margemPercentual: 60 }
         },
         {
           id: 'p3',
@@ -470,6 +773,9 @@
           unidade: 'KG',
           pesoKg: 1,
           embalagem: 'Saco',
+          volumeTipo: 'Saco',
+          unidadesPorVolume: 1,
+          limiteUnidadesPorVolume: 1,
           embalagemCentavos: 200,
           formulaId: null,
           status: 'emDesenvolvimento',
@@ -555,11 +861,23 @@
         },
         {
           id: 'etq2',
-          nome: 'Etiqueta grande padrão',
+          nome: 'Etiqueta grande REAL MAX',
           tamanho: 'Grande',
           conteudo:
-            'Produto, lote, fabricação, validade, peso líquido e instruções',
-          observacoes: 'Modelo preliminar para validação.'
+            'Produto, cliente, ingredientes, lote, fabricação, validade, peso líquido e instruções',
+          descricaoProduto:
+            'Condimento preparado para produtos cárneos com aditivos.',
+          textoRegulatorio:
+            'Para uso exclusivo em alimentos. Dispensado de registro conforme RDC 843/2024 e IN 281/2024.',
+          alergicos: 'Pode conter soja.',
+          gluten: 'Não contém glúten.',
+          modoUso: '2% sobre a massa. Atender RTIQ do produto pronto.',
+          conservacao: 'Manter em local seco, fresco e arejado.',
+          fabricante:
+            'REALTECH INDÚSTRIA E COMÉRCIO DE PRODUTOS ALIMENTÍCIOS LTDA\nAV CLEMENTE TALARICO, 190 - SÃO CARLOS - SP\nCEP: 13563-882 - CNPJ: 60.708.408/0001-44\nCOMERCIALIZADO POR: CNPJ 56.155.744/0001-60.',
+          slogan: 'QUALIDADE EM PRODUTOS E SERVIÇOS',
+          observacoes:
+            'Modelo reproduzido da referência enviada; textos regulatórios e medidas ainda requerem homologação.'
         }
       ],
       recebiveis: [],
@@ -613,17 +931,126 @@
       ) / f.rendimento
     )
   }
-  function priceSimulation(s, p, margin) {
-    const m = number(margin, 'Margem', 0)
-    requireThat(m < 95, 'Margem deve ser menor que 95%.')
-    const cost = Math.round(
-      formulaCost(s, get(s.formulas, p.formulaId)) * p.pesoKg +
-        p.embalagemCentavos
-    )
+  function pricingProfile(s, p) {
+    const formula = p.formulaId ? get(s.formulas, p.formulaId) : null
+    const global = s.configuracoes?.precificacao
+    const legacy = p?.precificacao || {}
+    const basePercentages = formula
+      ? formula.itens.map(i => ({
+          ingredienteId: i.ingredienteId,
+          nome: get(s.ingredientes, i.ingredienteId).nome,
+          percentual: round((i.quantidade / formula.rendimento) * 100),
+          custoCentavos: Math.round(
+            (i.quantidade / formula.rendimento) *
+              get(s.ingredientes, i.ingredienteId).custoCentavos *
+              100
+          )
+        }))
+      : []
+    const fixedCharges = Array.isArray(global?.encargosFixos)
+      ? global.encargosFixos.map(item => ({
+          nome: item.nome || 'Encargo',
+          percentual: Number(item.percentual || 0)
+        }))
+      : Array.isArray(legacy.encargosFixos)
+        ? legacy.encargosFixos.map(item => ({
+            nome: item.nome || 'Encargo',
+            percentual: Number(item.percentual || 0)
+          }))
+        : [
+            { nome: 'Nota fiscal', percentual: 10.5 },
+            { nome: 'Comissão técnica', percentual: 5 },
+            { nome: 'Comissão comercial', percentual: 5 },
+            { nome: 'Comissão extra cliente', percentual: 0 }
+          ]
     return {
-      custoCentavos: cost,
-      precoCentavos: Math.ceil(cost / (1 - m / 100))
+      margemPercentual: Number(
+        legacy.margemPercentual ?? global?.margemPadrao ?? 60
+      ),
+      financeiroCentavosKg: Number(
+        global?.financeiroCentavosKg ?? legacy.financeiroCentavosKg ?? 125
+      ),
+      maoDeObraCentavosKg: Number(
+        global?.maoDeObraCentavosKg ?? legacy.maoDeObraCentavosKg ?? 75
+      ),
+      outrosCustosCentavosKg: Number(
+        global?.outrosCustosCentavosKg ?? legacy.outrosCustosCentavosKg ?? 0
+      ),
+      encargosFixos: fixedCharges,
+      composicao: basePercentages
     }
+  }
+  function priceSimulation(s, p, margin) {
+    const m = number(
+      margin ?? pricingProfile(s, p).margemPercentual,
+      'Margem',
+      0
+    )
+    requireThat(m < 10000, 'Lucratividade deve ser menor que 10.000%.')
+    const formula = get(s.formulas, p.formulaId)
+    const profile = pricingProfile(s, p)
+    const materiaPrima = formulaCost(s, formula)
+    const embalagem = Number(
+      p.precificacao?.embalagemCentavosKg ??
+        (p.embalagemCentavos || 0) / (p.pesoKg || 1)
+    )
+    const materiais = materiaPrima + embalagem
+    const primaryCost = Math.round(
+      materiais +
+        profile.financeiroCentavosKg +
+        profile.maoDeObraCentavosKg +
+        profile.outrosCustosCentavosKg
+    )
+    const fixedCharges = profile.encargosFixos.reduce(
+      (sum, charge) => sum + Number(charge.percentual || 0),
+      0
+    )
+    requireThat(
+      fixedCharges < 100,
+      'Encargos sobre venda devem ser menores que 100%.'
+    )
+    const profit = Math.round(primaryCost * (m / 100))
+    const baseWithProfit = primaryCost + profit
+    const finalPrice = Math.ceil(baseWithProfit / (1 - fixedCharges / 100))
+    const presentation = weight => Math.round(finalPrice * Number(weight))
+    return {
+      materiaPrimaCentavosKg: Math.round(materiaPrima),
+      embalagemCentavosKg: Math.round(embalagem),
+      materiaisCentavosKg: Math.round(materiais),
+      financeiroCentavosKg: profile.financeiroCentavosKg,
+      maoDeObraCentavosKg: profile.maoDeObraCentavosKg,
+      outrosCustosCentavosKg: profile.outrosCustosCentavosKg,
+      custoPrimarioCentavos: primaryCost,
+      custoFixosCentavos: Math.round(
+        profile.financeiroCentavosKg +
+          profile.maoDeObraCentavosKg +
+          profile.outrosCustosCentavosKg
+      ),
+      valorLucroCentavos: profit,
+      baseComLucroCentavos: baseWithProfit,
+      encargosPercentual: fixedCharges,
+      custoFinalCentavos: baseWithProfit,
+      margemPercentual: m,
+      precoKgCentavos: finalPrice,
+      precoCentavos: Math.round(finalPrice * p.pesoKg),
+      precoApresentacoes: [
+        { pesoKg: 1, precoCentavos: presentation(1) },
+        { pesoKg: 0.5, precoCentavos: presentation(0.5) },
+        { pesoKg: 0.25, precoCentavos: presentation(0.25) }
+      ],
+      custoCentavos: primaryCost,
+      encargosFixos: profile.encargosFixos,
+      composicao: profile.composicao
+    }
+  }
+  function priceScenarios(s, p) {
+    const margins = s.configuracoes?.precificacao?.cenariosLucratividade || [
+      10, 20, 30, 40, 45, 50, 55, 60, 65, 70, 75, 80
+    ]
+    return margins.map(margem => {
+      const sim = priceSimulation(s, p, margem)
+      return { margem, precoKgCentavos: sim.precoKgCentavos }
+    })
   }
   function validCnpj(value) {
     const n = value.replace(/\D/g, '')
@@ -735,12 +1162,31 @@
             Number.isInteger(q),
             'Produtos em UN exigem quantidade inteira.'
           )
+          const unitsPerVolume = number(
+            p.unidadesPorVolume,
+            'Unidades por volume',
+            1
+          )
+          const maxUnitsPerVolume = number(
+            p.limiteUnidadesPorVolume,
+            'Limite de unidades por volume',
+            1
+          )
+          requireThat(
+            Number.isInteger(unitsPerVolume) &&
+              Number.isInteger(maxUnitsPerVolume) &&
+              unitsPerVolume <= maxUnitsPerVolume,
+            'Configuração de volume inválida para o produto.'
+          )
           return {
             id: uid(),
             produtoId: p.id,
             nome: p.nome,
             unidade: p.unidade,
             pesoKg: p.pesoKg,
+            volumeTipo: p.volumeTipo,
+            unidadesPorVolume: unitsPerVolume,
+            limiteUnidadesPorVolume: maxUnitsPerVolume,
             quantidade: q,
             precoCentavos: p.precoCentavos,
             comissaoBps: p.comissaoBps,
@@ -757,14 +1203,21 @@
           vendedorId: c.vendedorId,
           itens: items,
           prazoEntrega: due,
+          condicoesPagamentoDias: installmentPlan(
+            orderTotal({ itens: items }),
+            payload.condicoesPagamentoDias
+          ).map(p => p.prazoDias),
           condicoesComerciais: text(
             payload.condicoesComerciais,
-            'Condições comerciais'
+            'Condições comerciais',
+            false
           ),
           observacoes: text(payload.observacoes, 'Observações', false),
+          origem: 'sistema',
           status: 'rascunho',
           statusAnalise: 'pendente',
           criadoEm: old?.criadoEm || now,
+          prazoProducao: old?.prazoProducao || addDays(now, 7),
           aprovacao: null,
           analises: old?.analises || [],
           complementarDe: old?.complementarDe || payload.complementarDe || null
@@ -782,6 +1235,10 @@
       }
       case 'submitOrder': {
         const o = order()
+        requireThat(
+          o.origem === 'sistema',
+          'Pedido externo não pode avançar. Cadastre-o primeiro no sistema.'
+        )
         requireThat(
           o.status === 'rascunho',
           'Somente rascunhos podem ser enviados.'
@@ -867,12 +1324,27 @@
       case 'createOps': {
         const o = order()
         requireThat(
+          o.origem === 'sistema',
+          'Pedido externo não pode gerar produção. Cadastre-o primeiro no sistema.'
+        )
+        requireThat(
           o.status === 'aprovado' && o.aprovacao,
           'Pedido precisa de aprovação comercial.'
         )
         requireThat(
           !s.ordens.some(x => x.pedidoId === o.id),
           'OPs já geradas para este pedido.'
+        )
+        const stock = orderStockAvailability(s, o)
+        requireThat(
+          stock.available,
+          `Estoque insuficiente para gerar OP. Aguardando lote: ${stock.items
+            .filter(item => item.falta > 0)
+            .map(
+              item =>
+                `${get(s.ingredientes, item.ingredienteId).nome} (faltam ${item.falta} kg)`
+            )
+            .join(', ')}.`
         )
         o.itens.forEach(i => {
           requireThat(
@@ -891,6 +1363,8 @@
             pesoKg: i.pesoKg,
             quantidadePrevista: i.quantidade,
             quantidadeProduzida: 0,
+            prioridadeEm: o.criadoEm,
+            prazoProducao: productionDeadline(o),
             perdasKg: 0,
             sobrasKg: 0,
             status: 'aguardando',
@@ -1080,30 +1554,55 @@
       }
       case 'bill': {
         const o = order()
+        requireThat(
+          o.origem === 'sistema',
+          'Pedido externo não pode ser faturado neste fluxo.'
+        )
         requireThat(!o.faturamento, 'Pedido já faturado.')
         const issues = billingIssues(s, o)
         requireThat(
           !issues.length,
           'Faturamento bloqueado: ' + issues.join('; ')
         )
+        const plan = installmentPlan(orderTotal(o), o.condicoesPagamentoDias)
         o.faturamento = {
           referencia: text(payload.referencia, 'Referência interna'),
           data: now,
           usuario: user.nome,
-          valorCentavos: orderTotal(o)
-        }
-        o.status = 'faturado'
-        s.recebiveis.push({
-          id: uid(),
-          pedidoId: o.id,
-          clienteId: o.clienteId,
-          vendedorId: o.vendedorId,
           valorCentavos: orderTotal(o),
-          comissaoCentavos: commission(o),
-          vencimento: day(30),
-          recebidoEm: null,
-          status: 'aberto'
-        })
+          status: 'emAndamento',
+          parcelas: plan.map(p => ({
+            ...p,
+            vencimento: addDays(now, p.prazoDias)
+          }))
+        }
+        const totalCommission = commission(o)
+        plan.forEach(p =>
+          s.recebiveis.push({
+            id: uid(),
+            pedidoId: o.id,
+            faturamentoReferencia: o.faturamento.referencia,
+            parcelaNumero: p.numero,
+            parcelasTotal: plan.length,
+            prazoDias: p.prazoDias,
+            clienteId: o.clienteId,
+            vendedorId: o.vendedorId,
+            valorCentavos: p.valorCentavos,
+            comissaoCentavos: Math.floor(
+              (totalCommission * p.valorCentavos) / orderTotal(o)
+            ),
+            vencimento: addDays(now, p.prazoDias),
+            recebidoEm: null,
+            status: 'aberto'
+          })
+        )
+        const commissionDifference =
+          totalCommission -
+          s.recebiveis
+            .filter(r => r.pedidoId === o.id)
+            .reduce((sum, r) => sum + r.comissaoCentavos, 0)
+        s.recebiveis.find(r => r.pedidoId === o.id).comissaoCentavos +=
+          commissionDifference
         break
       }
       case 'registerReceipt': {
@@ -1129,23 +1628,31 @@
         r.referencia = text(payload.referencia, 'Referência do recebimento')
         r.registradoPor = user.nome
         r.registradoEm = now
+        const orderReceivables = s.recebiveis.filter(x => x.pedidoId === o.id)
+        if (
+          o.faturamento &&
+          orderReceivables.length &&
+          orderReceivables.every(x => x.status === 'pago')
+        ) {
+          o.faturamento.status = 'concluido'
+          o.faturamento.concluidoEm = now
+          o.status = 'faturado'
+        }
         break
       }
       case 'dispatch': {
         const o = order()
         requireThat(
-          o.faturamento && !o.despacho,
-          'Pedido deve estar faturado e ainda não despachado.'
+          o.origem === 'sistema',
+          'Pedido externo não pode ser despachado neste fluxo.'
         )
+        requireThat(!o.despacho, 'Pedido já despachado.')
         requireThat(
           !billingIssues(s, o).length,
           'Há pendência de liberação ou validade nos lotes.'
         )
         const exit = date(payload.dataSaida, 'Data de saída')
-        requireThat(
-          exit <= today() && exit >= localDate(new Date(o.faturamento.data)),
-          'Saída deve ocorrer entre o faturamento e hoje.'
-        )
+        requireThat(exit <= today(), 'Data de saída não pode estar no futuro.')
         const due = date(payload.prazo, 'Prazo do frete')
         requireThat(due >= exit, 'Prazo do frete anterior à saída.')
         const lots = s.ordens
@@ -1158,17 +1665,47 @@
           ),
           rastreamento: text(payload.rastreamento, 'Rastreamento'),
           comprovante: text(payload.comprovante, 'Referência do comprovante'),
+          tomadorFrete: text(payload.tomadorFrete, 'Tomador do frete'),
           dataSaida: exit,
           prazo: due,
           data: now,
           usuario: user.nome,
           lotes: lots
         }
+        requireThat(
+          ['emitente', 'destinatario'].includes(o.despacho.tomadorFrete),
+          'Tomador do frete deve ser emitente ou destinatário.'
+        )
         lots.forEach(id => {
           const l = get(s.lotes, id)
           move(l, -l.saldo, 'despacho', o.numero, 'UN')
           l.saldo = 0
         })
+        break
+      }
+      case 'confirmDelivery': {
+        const o = order()
+        requireThat(
+          o.despacho,
+          'Registre o despacho antes de confirmar a entrega.'
+        )
+        requireThat(!o.entrega, 'Entrega já confirmada.')
+        const delivered = date(payload.dataEntrega, 'Data da entrega')
+        requireThat(
+          delivered >= o.despacho.dataSaida && delivered <= today(),
+          'Entrega deve ocorrer entre a saída e hoje.'
+        )
+        o.entrega = {
+          dataEntrega: delivered,
+          recebidoPor: text(payload.recebidoPor, 'Recebido por'),
+          comprovante: text(
+            payload.comprovanteEntrega,
+            'Referência do comprovante',
+            false
+          ),
+          confirmadoEm: now,
+          usuario: user.nome
+        }
         break
       }
       case 'receiveLot': {
@@ -1249,12 +1786,123 @@
         result = target.id
         break
       }
+      case 'savePricingSettings': {
+        const margins = (payload.cenariosLucratividade || []).map(
+          (value, index) => number(value, `Lucratividade ${index + 1}`, 0)
+        )
+        requireThat(
+          margins.length > 0,
+          'Informe ao menos um cenário de lucratividade.'
+        )
+        requireThat(
+          new Set(margins).size === margins.length,
+          'Os cenários de lucratividade não podem se repetir.'
+        )
+        const charges = (payload.encargosFixos || []).map(item => ({
+          nome: text(item.nome, 'Nome do encargo'),
+          percentual: number(item.percentual, 'Percentual do encargo')
+        }))
+        requireThat(
+          charges.reduce((sum, item) => sum + item.percentual, 0) < 100,
+          'A soma dos encargos deve ser menor que 100%.'
+        )
+        target = s.configuracoes || (s.configuracoes = {})
+        before = clone(target.precificacao || null)
+        target.precificacao = {
+          margemPadrao: number(payload.margemPadrao, 'Lucratividade padrão'),
+          cenariosLucratividade: margins,
+          encargosFixos: charges,
+          financeiroCentavosKg: Math.round(
+            number(payload.financeiroCentavosKg, 'Financeiro por kg', 0) * 100
+          ),
+          maoDeObraCentavosKg: Math.round(
+            number(payload.maoDeObraCentavosKg, 'Mão de obra por kg', 0) * 100
+          ),
+          outrosCustosCentavosKg: Math.round(
+            number(payload.outrosCustosCentavosKg, 'Outros custos por kg', 0) *
+              100
+          )
+        }
+        break
+      }
+      case 'createProduct': {
+        const source = get(
+          s.produtos,
+          payload.sourceProductId || s.produtos.find(p => p.formulaId)?.id
+        )
+        const sourceFormula = get(s.formulas, source.formulaId)
+        const code = text(payload.codigo, 'Código do produto')
+        const name = text(payload.nome, 'Nome do produto')
+        requireThat(
+          !s.produtos.some(p => p.codigo.toLowerCase() === code.toLowerCase()),
+          'Código do produto já cadastrado.'
+        )
+        const formula = {
+          ...clone(sourceFormula),
+          id: uid(),
+          codigo: text(
+            payload.formulaCodigo || `${code}-FORM`,
+            'Código da fórmula'
+          ),
+          nome: text(payload.formulaNome || name, 'Nome da fórmula'),
+          versao: 1,
+          status: 'emDesenvolvimento',
+          observacoes: text(
+            payload.observacoes ||
+              'Fórmula criada a partir de produto existente.',
+            'Observações',
+            false
+          )
+        }
+        requireThat(
+          !s.formulas.some(
+            f => f.codigo.toLowerCase() === formula.codigo.toLowerCase()
+          ),
+          'Código da fórmula já cadastrado.'
+        )
+        s.formulas.push(formula)
+        const productPricing = {
+          margemPercentual: Number(
+            payload.margem ?? source.precificacao?.margemPercentual ?? 60
+          ),
+          historico: []
+        }
+        if (source.precificacao?.embalagemCentavosKg != null)
+          productPricing.embalagemCentavosKg =
+            source.precificacao.embalagemCentavosKg
+        target = {
+          ...clone(source),
+          id: uid(),
+          codigo: code,
+          nome: name,
+          categoria: text(payload.categoria || source.categoria, 'Categoria'),
+          formulaId: formula.id,
+          status: 'emDesenvolvimento',
+          precoCentavos: 0,
+          precoLiberado: false,
+          precificacao: productPricing
+        }
+        s.produtos.push(target)
+        result = target.id
+        break
+      }
       case 'saveLabel': {
         const e = get(s.etiquetas, payload.id)
         target = e
         before = clone(e)
         e.nome = text(payload.nome, 'Nome')
         e.conteudo = text(payload.conteudo, 'Dados da etiqueta')
+        for (const field of [
+          'descricaoProduto',
+          'textoRegulatorio',
+          'alergicos',
+          'gluten',
+          'modoUso',
+          'conservacao',
+          'fabricante',
+          'slogan'
+        ])
+          e[field] = text(payload[field], field, false)
         e.observacoes = text(payload.observacoes, 'Observações', false)
         break
       }
@@ -1345,15 +1993,72 @@
           p.formulaId && get(s.formulas, p.formulaId).status === 'ativa',
           'Produto precisa de fórmula ativa.'
         )
-        const sim = priceSimulation(s, p, payload.margem)
-        p.precoCentavos = sim.precoCentavos
-        p.precoLiberado = true
-        p.liberacaoPreco = {
-          ...sim,
-          margem: Number(payload.margem),
+        const volumeTipo = text(
+            payload.volumeTipo ?? p.volumeTipo,
+            'Tipo de volume'
+          ),
+          unitsPerVolume = number(
+            payload.unidadesPorVolume ?? p.unidadesPorVolume,
+            'Unidades por volume',
+            1
+          ),
+          maxUnitsPerVolume = number(
+            payload.limiteUnidadesPorVolume ?? p.limiteUnidadesPorVolume,
+            'Limite de unidades por volume',
+            1
+          )
+        requireThat(
+          Number.isInteger(unitsPerVolume) &&
+            Number.isInteger(maxUnitsPerVolume) &&
+            unitsPerVolume <= maxUnitsPerVolume,
+          'Configuração de volume inválida para o produto.'
+        )
+        const pricingProduct = {
+          ...p,
+          precificacao: {
+            ...(p.precificacao || {}),
+            margemPercentual: payload.margem
+          }
+        }
+        const sim = priceSimulation(s, pricingProduct, payload.margem)
+        const approvedKg = payload.precoVendaKg
+          ? Math.round(
+              number(payload.precoVendaKg, 'Preço comercial por kg', 0) * 100
+            )
+          : sim.precoKgCentavos
+        const snapshot = {
+          ...clone(sim),
+          formulaId: p.formulaId,
+          produtoId: p.id,
+          precoCalculadoKgCentavos: sim.precoKgCentavos,
+          precoVendaKgCentavos: approvedKg,
+          motivoAjuste: text(
+            payload.motivoAjuste,
+            'Motivo do ajuste',
+            approvedKg !== sim.precoKgCentavos
+          ),
+          status: 'APROVADO',
           data: now,
           usuario: user.nome
         }
+        p.volumeTipo = volumeTipo
+        p.unidadesPorVolume = unitsPerVolume
+        p.limiteUnidadesPorVolume = maxUnitsPerVolume
+        p.precoCentavos = sim.precoCentavos
+        p.precoLiberado = true
+        p.precificacao = {
+          ...(p.precificacao || {}),
+          margemPercentual: Number(payload.margem),
+          historico: p.precificacao?.historico || []
+        }
+        p.precificacao.historico = [
+          ...(p.precificacao.historico || []),
+          snapshot
+        ]
+        p.liberacaoPreco = snapshot
+        p.precoCalculadoKgCentavos = sim.precoKgCentavos
+        p.precoVendaKgCentavos = approvedKg
+        p.precoCentavos = Math.round(approvedKg * p.pesoKg)
         break
       }
       case 'toggleUser': {
@@ -1391,6 +2096,7 @@
         clienteId: client,
         itens: items,
         prazoEntrega: day(15),
+        condicoesPagamentoDias: [14, 20],
         condicoesComerciais: '30/60 dias',
         observacoes: note
       })
@@ -1466,30 +2172,38 @@
     VERSION,
     profiles,
     labels,
+    releases,
     permissions,
     can,
     clone,
     today,
     day,
+    addDays,
+    productionDeadline,
+    productionPriority,
     get,
     seed,
     demoSeed,
     emptySeed,
     execute,
     orderTotal,
+    volumeCount,
+    orderVolumeCount,
+    installmentPlan,
     commission,
     credit,
     requirements,
     eligibleLots,
     suggestConsumption,
+    orderStockAvailability,
     billingIssues,
     stage,
     visibleOrders,
     visibleClients,
     formulaCost,
     priceSimulation,
+    priceScenarios,
     validCnpj,
     validateState
   }
 })
-

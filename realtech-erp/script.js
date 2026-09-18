@@ -1,8 +1,8 @@
 'use strict'
 // Presentation and repository adapter. Business rules stay in domain.js.
 const D = Realtech,
-  DEMO_KEY = 'realtech.prototype.v3',
-  EMPTY_KEY = 'realtech.prototype.v3.empty',
+  DEMO_KEY = 'realtech.prototype.v5',
+  EMPTY_KEY = 'realtech.prototype.v5.empty',
   MODE_KEY = 'realtech.prototype.data-mode'
 const $ = s => document.querySelector(s)
 const esc = v =>
@@ -74,8 +74,7 @@ const names = {
   pedidos: 'Pedidos',
   clientes: 'Clientes',
   produtos: 'Produtos',
-  formulas: 'Fórmulas',
-  precificacao: 'Precificação',
+  formulas: 'P&D · Fórmulas e precificação',
   producao: 'Ordens de produção',
   etiquetas: 'Etiquetas',
   estoque: 'Estoque e lotes',
@@ -87,7 +86,8 @@ const names = {
   relatorios: 'Relatórios',
   auditoria: 'Auditoria',
   usuarios: 'Usuários',
-  guia: 'Guia de demonstração'
+  guia: 'Guia de demonstração',
+  atualizacoes: 'Atualizações do protótipo'
 }
 const navGroups = [
   ['Visão geral', [['dashboard', '◈']]],
@@ -100,13 +100,7 @@ const navGroups = [
       ['comissoes', '◉']
     ]
   ],
-  [
-    'Pesquisa e desenvolvimento',
-    [
-      ['formulas', '⚗'],
-      ['precificacao', '◇']
-    ]
-  ],
+  ['Pesquisa e desenvolvimento', [['formulas', '⚗']]],
   [
     'Operação',
     [
@@ -130,7 +124,8 @@ const navGroups = [
       ['relatorios', '▥'],
       ['auditoria', '◷'],
       ['usuarios', '♙'],
-      ['guia', '?']
+      ['guia', '?'],
+      ['atualizacoes', '↻']
     ]
   ]
 ]
@@ -149,16 +144,21 @@ const actionNames = {
   bill: 'Faturamento',
   registerReceipt: 'Recebimento do cliente',
   dispatch: 'Despacho',
+  confirmDelivery: 'Entrega confirmada',
   cancelOrder: 'Cancelamento',
   receiveLot: 'Recebimento',
   adjustLot: 'Ajuste de estoque',
   saveClient: 'Cadastro de cliente',
+  createProduct: 'Novo produto',
+  savePricingSettings: 'Parâmetros globais de precificação',
   createVersion: 'Nova versão',
   activateVersion: 'Ativação de versão',
   releasePrice: 'Liberação de preço',
   toggleUser: 'Acesso atualizado'
 }
-const allowed = r => !!user && D.profiles[user.perfil].modules.includes(r)
+const allowed = r =>
+  !!user &&
+  (D.profiles[user.perfil].modules.includes(r) || r === 'atualizacoes')
 const can = a => D.can(user, a)
 const technical = () =>
   ['administrador', 'pd', 'producao', 'qualidade'].includes(user.perfil)
@@ -263,7 +263,7 @@ function modal(t, b, fn, label = 'Confirmar') {
   $('#confirmDialog').textContent = label
   $('#confirmDialog').hidden = !fn
   modalSubmit = fn
-  $('#flowDialog').showModal()
+  if (!$('#flowDialog').open) $('#flowDialog').showModal()
 }
 function closeModal() {
   $('#flowDialog').close()
@@ -290,6 +290,10 @@ $('#dialogForm').onsubmit = e => {
   }
 }
 function renderProfiles() {
+  const currentRelease = D.releases.find(release => release.current)
+  const prototypeStamp = $('#prototypeStamp') || $('.prototype-stamp')
+  if (prototypeStamp)
+    prototypeStamp.innerHTML = `Protótipo interativo · ${esc(currentRelease?.version || `v${D.VERSION}`)}<br>Dados sintéticos · somente local`
   $('#demoProfiles').innerHTML = [
     ['admin', '◈', 'Administrador'],
     ['vendedor', '🛒', 'Comercial'],
@@ -432,7 +436,8 @@ function render() {
     relatorios: reportsView,
     auditoria: auditView,
     usuarios: usersView,
-    guia: guideView
+    guia: guideView,
+    atualizacoes: updatesView
   }
   try {
     $('#content').innerHTML = views[route]()
@@ -447,7 +452,7 @@ function orderRows(list) {
     badge(o.status),
     esc(D.stage(state, o)),
     money(D.orderTotal(o)),
-    fmtDate(o.prazoEntrega)
+    `${fmtDate(o.prazoEntrega)}<small>Produção até ${fmtDate(D.productionDeadline(o))}</small>`
   ])
 }
 function dashboardView() {
@@ -479,10 +484,10 @@ function dashboardView() {
         'clientes'
       ],
       [
-        'Pedidos faturados',
-        list.filter(o => o.faturamento).length,
-        '▤',
-        'relatorios'
+        'Aguardando lote',
+        list.filter(o => D.stage(state, o) === 'Aguardando lote').length,
+        '📦',
+        'pedidos'
       ]
     ]
   else if (role === 'financeiro')
@@ -558,7 +563,7 @@ function dashboardView() {
         allowed('producao') ? 'producao' : 'relatorios'
       ],
       [
-        'Prontos para faturar',
+        'Prontos para faturar / despachar',
         list.filter(o => !o.faturamento && !D.billingIssues(state, o).length)
           .length,
         '✓',
@@ -568,12 +573,17 @@ function dashboardView() {
   const phases = [
     'Análise financeira',
     'Aprovação comercial',
+    'Aguardando lote',
     'Gerar OPs',
     'Produção',
     'Qualidade / liberação',
-    'Pronto para faturar',
-    'Aguardando despacho',
-    'Despachado'
+    'Pronto para faturar e despachar',
+    'Em faturamento · Aguardando despacho',
+    'Faturado · Aguardando despacho',
+    'Em faturamento · Despachado',
+    'Despachado',
+    'Entregue · Em faturamento',
+    'Entregue'
   ]
   const work = operational
     ? panel(
@@ -634,6 +644,7 @@ function orderView(id) {
   const o = find(orders(), id),
     ops = state.ordens.filter(x => x.pedidoId === id),
     issues = D.billingIssues(state, o),
+    stock = D.orderStockAvailability(state, o),
     showCommission = user.perfil !== 'comercial'
   const done = [
     true,
@@ -646,8 +657,9 @@ function orderView(id) {
           x.lotes.length &&
           x.lotes.every(id => find(state.lotes, id).status === 'liberado')
       ),
-    !!o.faturamento,
-    !!o.despacho
+    o.faturamento?.status === 'concluido',
+    !!o.despacho,
+    !!o.entrega
   ]
   let buttons = ''
   if (o.status === 'rascunho')
@@ -665,7 +677,11 @@ function orderView(id) {
       )
   }
   if (o.status === 'aprovado')
-    buttons += actionButton('Gerar OP por item', 'createOps', id, true)
+    buttons += stock.available
+      ? actionButton('Gerar OP por item', 'createOps', id, true)
+      : can('createOps')
+        ? '<button type="button" class="primary-btn" disabled title="Aguardando entrada de lotes liberados">Gerar OP por item</button>'
+        : ''
   if (o.aprovacao)
     buttons += can('saveOrder')
       ? btn('Pedido complementar', 'complement', id)
@@ -675,27 +691,46 @@ function orderView(id) {
   if (!['cancelado', 'faturado'].includes(o.status) && !ops.length)
     buttons += actionButton('Cancelar pedido', 'cancelOrder', id)
   if (!o.faturamento && !issues.length)
-    buttons += actionButton('Registrar faturamento', 'bill', id, true)
-  if (o.faturamento && !o.despacho)
+    buttons += actionButton('Iniciar faturamento', 'bill', id, true)
+  if (!o.despacho && !issues.length)
     buttons += actionButton('Registrar despacho', 'dispatch', id, true)
-  return `<div class="stack">${intro(o.numero, `${o.clienteNome} · ${D.stage(state, o)}`, link('← Todos os pedidos', 'pedidos'))}<ol class="flow-steps">${['Pedido', 'Financeiro', 'Comercial', 'Produção', 'Qualidade', 'Faturamento', 'Despacho'].map((s, i) => `<li class="${done[i] ? 'done' : i === done.indexOf(false) ? 'current' : ''}"><b>${done[i] ? '✓' : String(i + 1).padStart(2, '0')}</b>${s}</li>`).join('')}</ol>${o.status === 'cancelado' ? notice('Pedido cancelado. ' + esc(o.cancelamento?.justificativa), 'danger') : ''}${o.aprovacao ? notice('Pedido bloqueado para edição. Preço e versão estão preservados; alterações exigem pedido complementar.') : ''}${panel('Dados do pedido', fields([['Cliente', esc(o.clienteNome)], ['Vendedor', esc(find(state.usuarios, o.vendedorId).nome)], ['Prazo de entrega', fmtDate(o.prazoEntrega)], ['Condições comerciais', esc(o.condicoesComerciais)], ['Status', badge(o.status)], ['Análise financeira', badge(o.statusAnalise)], ['Valor total', money(D.orderTotal(o))], ...(showCommission ? [['Comissão prevista', money(D.commission(o))]] : []), ['Observações', esc(o.observacoes || '—')]]) + (o.complementarDe ? `<p>Complementa ${link(find(state.pedidos, o.complementarDe).numero, 'pedidos', o.complementarDe)}</p>` : ''))}${panel(
+  if (o.despacho && !o.entrega)
+    buttons += actionButton('Confirmar entrega', 'confirmDelivery', id, true)
+  return `<div class="stack">${intro(o.numero, `${o.clienteNome} · ${D.stage(state, o)}`, link('← Todos os pedidos', 'pedidos'))}<ol class="flow-steps">${['Pedido', 'Financeiro', 'Comercial', 'Produção', 'Qualidade', 'Faturamento', 'Despacho', 'Entrega'].map((s, i) => `<li class="${done[i] ? 'done' : i === done.indexOf(false) ? 'current' : ''}"><b>${done[i] ? '✓' : String(i + 1).padStart(2, '0')}</b>${s}</li>`).join('')}</ol>${o.status === 'cancelado' ? notice('Pedido cancelado. ' + esc(o.cancelamento?.justificativa), 'danger') : ''}${!issues.length ? notice('Faturamento e despacho seguem em paralelo: parcelas em aberto não bloqueiam a expedição.', 'success') : ''}${
+    o.status === 'aprovado' && !ops.length && !stock.available
+      ? notice(
+          `<strong>Aguardando lote para gerar OP.</strong> ${stock.items
+            .filter(item => item.falta > 0)
+            .map(
+              item =>
+                `${esc(find(state.ingredientes, item.ingredienteId).nome)}: faltam ${qty(item.falta)} kg`
+            )
+            .join(' · ')}`,
+          'warn'
+        )
+      : ''
+  }${o.aprovacao ? notice('Pedido bloqueado para edição. Preço e versão estão preservados; alterações exigem pedido complementar.') : ''}${panel('Dados do pedido', fields([['Origem', 'Registrado no sistema'], ['Entrada / prioridade', fmtTime(o.criadoEm)], ['Limite da produção', `${fmtDate(D.productionDeadline(o))} · ${esc(D.productionPriority(o).label)}`], ['Cliente', esc(o.clienteNome)], ['Vendedor', esc(find(state.usuarios, o.vendedorId).nome)], ['Prazo de entrega', fmtDate(o.prazoEntrega)], ['Parcelas previstas', `${o.condicoesPagamentoDias.length} · ${o.condicoesPagamentoDias.map(d => `${d} dias`).join(', ')}${o.faturamento ? ` · ${btn('Abrir faturamento', 'invoiceInstallments', o.id)}` : ''}`], ['Condições adicionais', esc(o.condicoesComerciais || '—')], ['Status', badge(o.status)], ['Análise financeira', badge(o.statusAnalise)], ['Disponibilidade para OP', o.status === 'aprovado' && !ops.length ? (stock.available ? badge('liberado') : badge('Aguardando lote')) : '—'], ['Valor total', money(D.orderTotal(o))], ['Volumes para transporte', D.orderVolumeCount(o)], ...(showCommission ? [['Comissão prevista', money(D.commission(o))]] : []), ['Observações', esc(o.observacoes || '—')]]) + (o.complementarDe ? `<p>Complementa ${link(find(state.pedidos, o.complementarDe).numero, 'pedidos', o.complementarDe)}</p>` : ''))}${panel(
     'Itens e valores congelados',
     table(
       [
         'Produto',
         'Quantidade',
         'Peso total',
+        'Volumes',
         'Preço / UN',
         ...(showCommission ? ['Comissão'] : []),
-        'Subtotal'
+        'Subtotal',
+        'Etiqueta'
       ],
       o.itens.map(i => [
         `${esc(i.nome)}${technical() ? `<small>${esc(i.formula.codigo)} · v${i.formula.versao}</small>` : ''}`,
         `${qty(i.quantidade)} UN`,
         `${qty(i.quantidade * i.pesoKg)} kg`,
+        `${D.volumeCount(i)} ${esc(i.volumeTipo || 'volume')}${D.volumeCount(i) === 1 ? '' : 's'}<small>${i.unidadesPorVolume || 1} UN/volume</small>`,
         money(i.precoCentavos),
         ...(showCommission ? [`${qty(i.comissaoBps / 100)}%`] : []),
-        money(i.precoCentavos * i.quantidade)
+        money(i.precoCentavos * i.quantidade),
+        btn('Abrir etiqueta', 'viewOrderLabel', `${o.id}:${o.itens.indexOf(i)}`)
       ])
     )
   )}<div class="actions">${buttons || '<p class="muted">Nenhuma ação disponível para este perfil nesta etapa.</p>'}</div>${
@@ -717,7 +752,7 @@ function orderView(id) {
         )
       : ''
   }${
-    !o.faturamento
+    !o.faturamento && !o.despacho
       ? notice(
           'Para faturar: ' +
             (issues.length
@@ -728,18 +763,49 @@ function orderView(id) {
       : panel(
           'Faturamento e expedição',
           fields([
-            ['Referência interna', esc(o.faturamento.referencia)],
-            ['Faturado em', fmtTime(o.faturamento.data)],
+            [
+              'Referência interna',
+              esc(o.faturamento?.referencia || 'Ainda não iniciado')
+            ],
+            ['Faturamento iniciado em', fmtTime(o.faturamento?.data)],
+            [
+              'Situação financeira',
+              o.faturamento?.status === 'concluido'
+                ? badge('Faturado')
+                : badge('Em faturamento')
+            ],
+            [
+              'Parcelas',
+              o.faturamento
+                ? `${o.faturamento.parcelas.length} · ${btn('Abrir parcelas', 'invoiceInstallments', o.id)}`
+                : 'Ainda não iniciadas'
+            ],
             [
               'Transportadora',
               esc(o.despacho?.transportadora || 'Ainda não despachado')
             ],
             ['Rastreamento', esc(o.despacho?.rastreamento || '—')],
             [
+              'Tomador do frete',
+              esc(
+                o.despacho?.tomadorFrete === 'destinatario'
+                  ? 'Destinatário'
+                  : o.despacho?.tomadorFrete === 'emitente'
+                    ? 'Emitente'
+                    : '—'
+              )
+            ],
+            [
               'Frete informativo',
               o.despacho ? money(o.despacho.valorCentavos) : '—'
             ],
-            ['Saída', fmtDate(o.despacho?.dataSaida)]
+            ['Saída', fmtDate(o.despacho?.dataSaida)],
+            [
+              'Entrega confirmada',
+              o.entrega
+                ? `${fmtDate(o.entrega.dataEntrega)} · ${esc(o.entrega.recebidoPor)}`
+                : 'Pendente'
+            ]
           ])
         )
   }${panel('Histórico de decisões', `<ol class="timeline">${o.analises.map(a => `<li>${badge(a.decisao)}<small>${esc(a.usuario)} · ${fmtTime(a.data)}</small><p>${esc(a.justificativa || 'Sem ressalvas.')}</p></li>`).join('')}${o.aprovacao ? `<li><b>Aprovação comercial</b><small>${esc(o.aprovacao.usuario)} · ${fmtTime(o.aprovacao.data)}</small></li>` : ''}${!o.analises.length ? '<li class="muted">O histórico será preenchido ao registrar as análises.</li>' : ''}</ol>`)}</div>`

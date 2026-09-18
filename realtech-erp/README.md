@@ -1,5 +1,9 @@
 # Protótipo interativo REALTECH
 
+Para a visão geral do projeto, o vocabulário comum e a lista de divergências entre protótipo, Flutter e SQL, consulte [`../REFERENCIA_PROJETO.md`](../REFERENCIA_PROJETO.md).
+
+> Este protótipo é a referência navegável para descoberta e homologação. A tradução formal das regras está em [`docs/`](docs/README.md); mudanças funcionais devem atualizar código, regra, teste e histórico juntos.
+
 Preserva o estilo visual original e conecta os módulos com estado local. **Somente demonstração com dados sintéticos.** Não publicar documentos de negócio, banco, Flutter ou credenciais reais junto aos arquivos estáticos.
 
 ## Abrir localmente
@@ -41,13 +45,14 @@ Essas credenciais não protegem o protótipo. Todos os dados podem ser inspecion
 
 Use o **Guia de demonstração** dentro do app. Há três pedidos iniciais: dois na análise financeira (um com cliente em restrição) e um com OP aguardando. Para um teste novo:
 
-1. Comercial cria pedido AlimNorte com 20 UN de Tempero 5 kg e 5 UN de Realçador 20 kg. Total R$ 2.300; massa 200 kg. A criação não antecipa comissão.
+1. Comercial cria pedido AlimNorte com 20 UN de Tempero 5 kg e 5 UN de Realçador 20 kg, adicionando parcelas de 14 e 20 dias. O valor é dividido automaticamente e a criação não antecipa comissão.
 2. Envia ao Financeiro; nesse momento a edição já fica bloqueada. Troca perfil e registra análise.
 3. Comercial aprova; edição fica bloqueada.
 4. Administrador ou Produção gera duas OPs, gera/consulta os Documentos da OP, define quantidades preliminares de etiquetas, inicia e aponta cada produção.
 5. Qualidade aprova todos os lotes finais.
-6. Administrador ou Fiscal registra faturamento interno, frete e despacho.
-7. Confere movimentos, rastreabilidade, histórico financeiro do cliente, comissão final por recebimentos e auditoria.
+6. Administrador ou Fiscal inicia o faturamento parcelado e registra frete, tomador e despacho sem aguardar os pagamentos.
+7. Financeiro baixa cada parcela; o pedido permanece “Em faturamento” até todas estarem pagas.
+8. Confirma a entrega com data e recebedor, mesmo com parcela aberta.
 
 Produção parcial cria um lote por apontamento. Lotes reprovados bloqueiam o pedido. Não há faturamento parcial ou retrabalho implementado.
 
@@ -80,4 +85,3 @@ Hospedar apenas estes sete arquivos estáticos, mantendo-os na mesma pasta:
 Não é necessário build. Rotas usam hash e não exigem regra de rewrite. Não existem chamadas externas. Definir hospedagem/URL e proteção de acesso com o usuário antes da publicação. Se o público precisar compartilhar pedidos entre computadores, este pacote estático não atende: é preciso ambiente de homologação com backend.
 
 Cada navegador recebe uma cópia independente. “Trocar perfil” preserva os dados; “Reiniciar demonstração”, disponível no guia para Administrador, repõe os três cenários iniciais após confirmação. Limpar dados do navegador ou trocar de origem também separa/remove o armazenamento.
-
