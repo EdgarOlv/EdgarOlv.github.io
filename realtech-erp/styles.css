@@ -640,6 +640,31 @@ tr:last-child td { border-bottom: 0; }
 
 .status.ok     { color: #0f7a39; background: #dcfce7; }
 .status.warn   { color: #965600; background: #fef3c7; }
+
+.product-pricing-card {
+  margin: 18px 0;
+  padding: 20px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+}
+.draft-version-card {
+  margin: 18px 0;
+  padding: 20px;
+  border: 1px solid #a7f3d0;
+  border-radius: 16px;
+  background: #ecfdf5;
+}
+.draft-version-note { margin-top: 6px; color: #047857; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.section-heading h3 { margin: 2px 0; }
+.formula-editor { margin: 18px 0; }
+.formula-ingredient-row { display: grid; grid-template-columns: minmax(220px, 2fr) minmax(150px, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 10px; }
+.remove-formula-ingredient { margin-bottom: 2px; min-height: 42px; }
+@media (max-width: 680px) {
+  .formula-ingredient-row { grid-template-columns: 1fr; }
+  .section-heading { align-items: flex-start; flex-direction: column; }
+}
 .status.info   { color: #1d4ed8; background: #dbeafe; }
 .status.danger { color: #991b1b; background: #fee2e2; }
 

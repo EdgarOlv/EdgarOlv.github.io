@@ -31,13 +31,17 @@ Cada produto pode guardar:
 - taxa de margem desejada
 - listagem de encargos fixos (nota fiscal, comissão técnica, comissão comercial, etc.)
 
-No protótipo, os parâmetros compartilhados ficam em `configuracoes.precificacao`. O produto guarda apenas a lucratividade escolhida, a embalagem específica e o histórico:
+No protótipo, os parâmetros padrão ficam em `configuracoes.precificacao`. O produto recebe esses valores como ponto de partida, mas pode salvar suas próprias variações de custos e encargos, além da lucratividade, embalagem e histórico:
 
 ```js
 precificacao: {
   margemPercentual: 60,
   historico: [],
   embalagemCentavosKg: 103.654,
+  financeiroCentavosKg: 125,
+  maoDeObraCentavosKg: 75,
+  outrosCustosCentavosKg: 0,
+  encargosFixos: [],
 }
 
 configuracoes: {
@@ -68,11 +72,11 @@ configuracoes: {
 7. Aplica gross-up de nota fiscal e comissões sobre o preço de venda.
 8. Gera o preço por kg e os preços das apresentações.
 
-Fórmula e preço aparecem juntos no mesmo painel. Os percentuais fixos e a tabela de lucratividade são editados no modal **Parâmetros de precificação**, aberto pelo botão da tela de produtos e fórmulas. Cada produto escolhe um cenário de lucratividade e compõe o preço com a política global vigente.
+Fórmula e preço aparecem juntos no mesmo painel. O modal **Parâmetros de precificação** mantém a política padrão. Em **Editar formação de preço**, um card azul suave carrega esses padrões em campos editáveis; os valores salvos passam a valer somente para aquele produto.
 
 ## Versionamento da fórmula
 
-Uma fórmula ativa não é editada diretamente quando já está vinculada a um produto. A ação **Editar fórmula / criar versão** abre uma cópia em desenvolvimento. Depois da revisão dos ingredientes e do rendimento, o P&D ativa a nova versão.
+Uma fórmula ativa não é editada diretamente quando já está vinculada a um produto. A ação **Editar fórmula / criar versão** abre uma cópia em desenvolvimento. A composição é uma lista dinâmica, permite adicionar e remover ingredientes e aceita quantidades com até cinco casas decimais. A tela informa a soma, a falta ou o excesso em relação ao rendimento e só cria a versão quando os valores fecham. Depois da revisão, o P&D ativa a nova versão.
 
 Ao ativar uma nova versão:
 

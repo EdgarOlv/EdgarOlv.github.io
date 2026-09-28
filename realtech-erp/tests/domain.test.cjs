@@ -93,6 +93,67 @@ function dispatchData(id) {
     prazo: D.day(3)
   }
 }
+test('mantém cadastro de ingrediente e protege exclusão quando está em uso', () => {
+  const h = harness()
+  const id = h.run('saveIngredient', {
+    codigo: 'ING-TESTE',
+    nome: 'Antioxidante de demonstração',
+    ins: '300',
+    categoria: 'Antioxidante'
+  }, 'estoque')
+
+  assert.deepEqual(
+    (({ codigo, nome, ins, categoria }) => ({ codigo, nome, ins, categoria }))(
+      D.get(h.s.ingredientes, id)
+    ),
+    {
+      codigo: 'ING-TESTE',
+      nome: 'Antioxidante de demonstração',
+      ins: '300',
+      categoria: 'Antioxidante'
+    }
+  )
+
+  h.run('saveIngredient', {
+    id,
+    codigo: 'ING-TESTE',
+    nome: 'Antioxidante atualizado',
+    ins: '',
+    categoria: 'Antioxidante'
+  }, 'quimica')
+  assert.equal(D.get(h.s.ingredientes, id).nome, 'Antioxidante atualizado')
+
+  h.run('deleteIngredient', { id }, 'estoque')
+  assert.equal(h.s.ingredientes.some(i => i.id === id), false)
+  assert.throws(
+    () => h.run('deleteIngredient', { id: 'i1' }, 'estoque'),
+    /vinculado a uma fórmula/
+  )
+})
+
+test('cria produto com composição informada a partir dos ingredientes disponíveis', () => {
+  const h = harness()
+  const id = h.run('createProduct', {
+    sourceProductId: 'p1',
+    codigo: 'PROD-TESTE',
+    nome: 'Produto teste',
+    categoria: 'Teste',
+    formulaCodigo: 'FORM-TESTE',
+    formulaNome: 'Fórmula teste',
+    rendimento: 100,
+    itens: [
+      { ingredienteId: 'i1', quantidade: 25 },
+      { ingredienteId: 'i3', quantidade: 75 }
+    ],
+    observacoes: 'Composição demonstrativa.'
+  }, 'quimica')
+  const product = D.get(h.s.produtos, id)
+  const formula = D.get(h.s.formulas, product.formulaId)
+  assert.deepEqual(formula.itens, [
+    { ingredienteId: 'i1', quantidade: 25 },
+    { ingredienteId: 'i3', quantidade: 75 }
+  ])
+})
 test('Fluxo completo com dois itens, perfis, produção parcial, perdas, sobras, faturamento e despacho', () => {
   const h = harness(),
     id = create(h)
@@ -217,6 +278,93 @@ test('Parâmetros globais de precificação são usados pelos produtos', () => {
     D.priceScenarios(h.s, p).map(row => row.margem),
     [25, 50, 75]
   )
+})
+
+test('Produto salva parâmetros próprios sem alterar os padrões globais', () => {
+  const h = harness()
+  const globalBefore = D.clone(h.s.configuracoes.precificacao)
+  h.run('releasePrice', {
+    id: 'p1',
+    margem: 42,
+    embalagemCentavosKg: 1.2345,
+    financeiroCentavosKg: 2.5,
+    maoDeObraCentavosKg: 3.75,
+    outrosCustosCentavosKg: 0.25,
+    encargosFixos: [
+      { nome: 'Nota fiscal', percentual: 9 },
+      { nome: 'Comissão técnica', percentual: 4 },
+      { nome: 'Comissão comercial', percentual: 3 },
+      { nome: 'Comissão extra cliente', percentual: 1 }
+    ]
+  }, 'quimica')
+  const p = D.get(h.s.produtos, 'p1')
+  const profile = D.pricingProfile(h.s, p)
+  assert.equal(profile.financeiroCentavosKg, 250)
+  assert.equal(profile.maoDeObraCentavosKg, 375)
+  assert.equal(profile.outrosCustosCentavosKg, 25)
+  assert.equal(profile.encargosFixos.reduce((sum, item) => sum + item.percentual, 0), 17)
+  assert.deepEqual(h.s.configuracoes.precificacao, globalBefore)
+})
+
+test('Nova versão aceita lista dinâmica e quantidades com cinco casas decimais', () => {
+  const h = harness()
+  h.run('createVersion', {
+    id: 'f1v2',
+    rendimento: 100,
+    itens: [
+      { ingredienteId: 'i1', quantidade: 0.12345 },
+      { ingredienteId: 'i2', quantidade: 99.87655 }
+    ],
+    justificativa: 'Ajuste fino e remoção de ingredientes'
+  }, 'quimica')
+  const version = h.s.formulas.at(-1)
+  assert.deepEqual(version.itens, [
+    { ingredienteId: 'i1', quantidade: 0.12345 },
+    { ingredienteId: 'i2', quantidade: 99.87655 }
+  ])
+  assert.throws(() => h.run('createVersion', {
+    id: 'f1v2',
+    rendimento: 100,
+    itens: [{ ingredienteId: 'i1', quantidade: 99.5 }],
+    justificativa: 'Total incorreto'
+  }, 'quimica'), /soma dos ingredientes é 99\.50000 kg.*Restam|Ajuste 0\.50000 kg/)
+})
+
+test('Produto monta Contém por categoria e INS, salva validade e congela os dados na OP', () => {
+  const h = harness()
+  h.run('saveProduct', {
+    id: 'p1',
+    validade: '18 meses',
+    contemItens: ['i1', 'i4'],
+    contem: '',
+    descricaoProduto: 'Condimento para teste',
+    alergenicosAtivo: true,
+    alergenicosTexto: 'Contém derivados de soja.',
+    naoContemGluten: true,
+    modoUso: 'Usar 1% sobre a massa.',
+    conservacao: 'Manter em local seco.'
+  }, 'quimica')
+  const product = D.get(h.s.produtos, 'p1')
+  assert.equal(product.validade, '18 meses')
+  assert.equal(product.contem, 'Acidulante INS 330; Realçador de sabor: Extrato de levedura')
+
+  const orderId = create(h, 'c1', [{ produtoId: 'p1', quantidade: 20 }])
+  approve(h, orderId)
+  h.run('createOps', { id: orderId }, 'producao')
+  const op = h.s.ordens[0]
+  assert.equal(op.validade, '18 meses')
+  assert.equal(op.contem, product.contem)
+  assert.equal(op.alergenicosTexto, 'Contém derivados de soja.')
+  assert.equal(op.naoContemGluten, true)
+  assert.equal(op.modoUso, 'Usar 1% sobre a massa.')
+  assert.equal(op.conservacao, 'Manter em local seco.')
+  assert.deepEqual(op.etiquetas, [
+    { etiquetaId: 'etq1', quantidade: 1 },
+    { etiquetaId: 'etq2', quantidade: 2 }
+  ])
+  assert.throws(() => h.run('saveProduct', {
+    id: 'p1', validade: '12 meses', contemItens: ['ingrediente-fora-da-formula'], contem: ''
+  }, 'quimica'), /só pode usar ingredientes da fórmula atual/)
 })
 
 test('Produto pode ser criado por cópia e preço aprovado gera snapshot', () => {
@@ -744,7 +892,7 @@ test('Modo sem dados mantém referências sintéticas e remove os registros oper
   assert.doesNotThrow(() => D.validateState(JSON.parse(JSON.stringify(s))))
 })
 
-test('Modelo de etiqueta grande preserva os textos fixos editáveis', () => {
+test('Modelo de etiqueta preserva apenas os textos fixos compartilhados', () => {
   const h = harness()
   h.run('saveLabel', {
     id: 'etq2',
@@ -761,7 +909,7 @@ test('Modelo de etiqueta grande preserva os textos fixos editáveis', () => {
     observacoes: 'Uso demonstrativo.'
   })
   const model = h.s.etiquetas.find(x => x.id === 'etq2')
-  assert.equal(model.modoUso, '2% sobre a massa.')
+  assert.equal(model.textoRegulatorio, 'Texto regulatório em validação')
   assert.equal(model.fabricante, 'REALTECH LTDA')
   assert.equal(model.slogan, 'QUALIDADE EM PRODUTOS E SERVIÇOS')
 })

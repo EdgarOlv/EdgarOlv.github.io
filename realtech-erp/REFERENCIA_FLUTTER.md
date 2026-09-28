@@ -1,6 +1,6 @@
 # REALTECH — referência do protótipo para Flutter
 
-Atualizado em 31/08/2026. Referência de comportamento e aparência, não especificação homologada. As decisões desta rodada estão detalhadas em `DECISOES_2026-08-31.md`.
+Atualizado em 31/08/2026. Referência de comportamento e aparência, não especificação homologada. As decisões desta rodada estão detalhadas em [`docs/decisoes/2026-08-31-ajustes-negocio.md`](docs/decisoes/2026-08-31-ajustes-negocio.md). O índice completo está em [`docs/decisoes/README.md`](docs/decisoes/README.md).
 
 A referência geral de alinhamento do projeto está em [`../REFERENCIA_PROJETO.md`](../REFERENCIA_PROJETO.md). Este arquivo detalha apenas a tradução do protótipo para Flutter; estados, vocabulário, regras de dados, limites e divergências comuns devem ser conferidos no documento geral.
 
@@ -73,6 +73,8 @@ Tradução para uma arquitetura futura: widgets → casos de uso/Riverpod → re
 9. **Comissão por recebimento.** O pedido conserva percentual/base aplicada, mas a comissão final mensal nasce de recebíveis efetivamente pagos no período. Faturamento apenas cria o recebível aberto. Baixas parciais, estornos e fechamento de competência continuam como decisões abertas.
 10. **Dinheiro.** A demo usa centavos inteiros e comissão em basis points (500 = 5%), arredondada por item. Quantidades técnicas usam três casas. Na API/MySQL, seguir `DECIMAL(18,6)` do refinamento; definir o momento de arredondamento e usar tipo decimal apropriado no Dart.
 11. **Sem atalhos de segurança.** Perfil é verificado na navegação, no desenho das ações e nos comandos do domínio. Diretor não recebe fórmula/custo por acesso gerencial implícito; seu detalhe de auditoria é resumido. Como todos os dados estão no JavaScript/localStorage, isso simula permissões, não protege segredos.
+12. **Dados de Qualidade no produto.** Validade e declaração “Contém” pertencem ao produto, mas pedido e OP preservam snapshots. A declaração guarda os ingredientes selecionados e o texto final editável; a sugestão por categoria/INS não substitui validação regulatória.
+13. **Etiqueta por data.** Na prévia, lote é a data atual e fabricação não aparece separadamente. A validade vem do lote final quando existente ou do cadastro do produto. A futura emissão precisa persistir o snapshot e não recalcular silenciosamente um documento histórico.
 
 ## Correspondência com o Flutter existente
 
@@ -83,9 +85,11 @@ Tradução para uma arquitetura futura: widgets → casos de uso/Riverpod → re
 | `analyze`                                          | `features/financeiro`                          | Não reconstruir pedido perdendo campos; guardar decisões históricas                       |
 | `createOps`, `issueSheet`, `reportProduction`      | `features/producao`, `ordensProvider`          | Peso por embalagem, ficha explícita e lista de apontamentos/lotes                         |
 | `receiveLot`, `adjustLot`                          | `features/estoque`, lotes/movimentos           | Saldo e movimentos na mesma transação; motivo obrigatório                                 |
+| `saveIngredient`, `deleteIngredient`               | modelos/providers de ingredientes e nova tela  | Código único, INS opcional, categoria e bloqueio de exclusão por fórmula/lote              |
 | `inspect`                                          | `features/qualidade`                           | Bloquear lote reprovado sem apagar histórico                                              |
 | `bill`, `dispatch`                                 | `features/faturamento`, `features/despacho`    | Validar todas as OPs, não só a primeira; evitar duplicações                               |
 | `createVersion`, `activateVersion`, `releasePrice` | fórmulas e precificação                        | Preservar versão; marcar preço como não liberado após troca técnica                       |
+| RN-PD-001/002/003                               | fórmulas, produtos e precificação               | Lista dinâmica, 5 casas decimais, fechamento do rendimento e parâmetros próprios por produto |
 | `trace`                                            | consulta a lotes, OPs e consumos               | Navegação direta/reversa até fornecedor e cliente                                         |
 | `technicalSheet`                                   | Qualidade, Pedidos e futuro serviço documental | Criar nutrição versionada, snapshot, permissão, PDF persistido e auditoria                |
 
@@ -98,10 +102,11 @@ Na leitura do `LocalDataService` atual, `criarOrdemProducao` recebe a quantidade
 - Análise usa exposição inicial sintética + pedidos comprometidos. Não há pagamentos bancários nem contas a receber. Novos clientes têm limite zero.
 - Cancelar depois de gerar OP exige estorno/replanejamento não simulado. Reprovação não implementa retrabalho. Sobras não implementam destinação.
 - Ativação de nova versão mantém anteriores ativas para não impedir OPs já planejadas; inativação/obsolescência por processo não está implementada. Validar a política de corte de versões com P&D.
+- O protótipo já aceita lista dinâmica e cinco casas decimais, mas o Flutter ainda precisa portar o editor e persistir sobrescritas de precificação por produto. Usar decimal exato na futura API/banco; `double` permanece apenas como limitação da demo Flutter.
 - Administração tem exceção de acesso total para apresentação. Somente P&D e Administrador fazem ações técnicas. A matriz técnica cita `dispatch.read` para Fiscal, mas a demo permite escrita; confirmar o perfil de expedição.
 - Laudo e comprovante são referências textuais; nenhum upload ou documento fiscal é gerado. O Documento da OP e a Ficha Técnica demonstrativa podem ser impressos/salvos como PDF pelo navegador, sem assinatura ou persistência. A Ficha Técnica inclui pedido, cliente, itens, pesos e nutrição sintética; o contrato oficial depende de homologação.
 - Não implementa autenticação real, autorização real, backend, MySQL, multiusuário, sincronização, SQLite, criptografia, logs imutáveis, NF-e ou integrações externas.
-- Cadastro de cliente é reduzido; usuários são predefinidos e ativáveis; ingredientes, fornecedores, embalagens e produtos têm consulta, sem CRUD completo. Relatórios são recortes básicos exportáveis.
+- Cadastro de cliente é reduzido; usuários são predefinidos e ativáveis; ingredientes possuem CRUD demonstrativo, enquanto fornecedores, embalagens e produtos não têm CRUD completo. Relatórios são recortes básicos exportáveis.
 - `localStorage` preserva alterações entre recargas e perfis no mesmo navegador/origem. Sessão sempre volta ao login ao recarregar. Há aviso de outra aba e detecção de revisão obsoleta, mas não há lock/transação entre abas. Testar em uma aba por vez.
 
 ## Fontes e precedência

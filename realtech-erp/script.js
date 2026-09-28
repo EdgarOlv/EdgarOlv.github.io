@@ -1,8 +1,8 @@
 'use strict'
 // Presentation and repository adapter. Business rules stay in domain.js.
 const D = Realtech,
-  DEMO_KEY = 'realtech.prototype.v5',
-  EMPTY_KEY = 'realtech.prototype.v5.empty',
+  DEMO_KEY = 'realtech.prototype.v8',
+  EMPTY_KEY = 'realtech.prototype.v8.empty',
   MODE_KEY = 'realtech.prototype.data-mode'
 const $ = s => document.querySelector(s)
 const esc = v =>
@@ -19,6 +19,8 @@ const money = n =>
   )
 const qty = n =>
   new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 }).format(n)
+const formulaQty = n =>
+  new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 5 }).format(n)
 const fmtDate = s =>
   s
     ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString(
@@ -74,6 +76,7 @@ const names = {
   pedidos: 'Pedidos',
   clientes: 'Clientes',
   produtos: 'Produtos',
+  ingredientes: 'Ingredientes',
   formulas: 'P&D · Fórmulas e precificação',
   producao: 'Ordens de produção',
   etiquetas: 'Etiquetas',
@@ -104,6 +107,7 @@ const navGroups = [
   [
     'Operação',
     [
+      ['ingredientes', '◌'],
       ['producao', '⚙'],
       ['etiquetas', '▣'],
       ['estoque', '📦'],
@@ -148,8 +152,11 @@ const actionNames = {
   cancelOrder: 'Cancelamento',
   receiveLot: 'Recebimento',
   adjustLot: 'Ajuste de estoque',
+  saveIngredient: 'Ingrediente salvo',
+  deleteIngredient: 'Ingrediente excluído',
   saveClient: 'Cadastro de cliente',
   createProduct: 'Novo produto',
+  saveProduct: 'Dados do produto atualizados',
   savePricingSettings: 'Parâmetros globais de precificação',
   createVersion: 'Nova versão',
   activateVersion: 'Ativação de versão',
@@ -423,6 +430,7 @@ function render() {
     pedidos: () => (selectedId ? orderView(selectedId) : ordersView()),
     clientes: clientsView,
     produtos: productsView,
+    ingredientes: ingredientsView,
     formulas: formulasView,
     precificacao: pricingView,
     producao: () => (selectedId ? opView(selectedId) : productionView()),

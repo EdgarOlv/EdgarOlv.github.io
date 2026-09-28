@@ -1,4 +1,19 @@
-# Design QA — etiqueta grande
+# Design QA — Fórmula para produção e etiquetas — 28/09/2026
+
+**final result: blocked**
+
+A implementação foi ajustada a partir das imagens fornecidas, mas a comparação final entre referência e renderização ficou bloqueada: o navegador de validação recusou abrir o protótipo local por política de URL. Sintaxe e testes de domínio foram validados; a fidelidade visual e as medidas físicas ainda precisam de conferência manual no navegador e na impressão.
+
+## Escopo desta revisão
+
+- Fórmula para produção com aparência de planilha, grade compacta, cabeçalho, totais, vistos e CSS de impressão.
+- Etiqueta grande com hierarquia, divisórias e destaques variáveis próximos à foto.
+- Modelo pequeno distinto e duas prévias na aba de etiquetas.
+- Seleção no topo com padrão de 1 pequena e 2 grandes.
+
+---
+
+# Registro anterior — etiqueta grande
 
 - Source visual truth: `C:\Users\edgar\AppData\Local\Temp\codex-clipboard-a6b80512-c6e8-4e03-a22e-ab1f036cc70b.png`
 - Implementation: `http://127.0.0.1:4173/Sistema/Prototipo/index.html`, pedido `PED-01001`, primeiro item, ação `Abrir etiqueta`

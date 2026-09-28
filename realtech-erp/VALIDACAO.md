@@ -5,14 +5,14 @@
 | Critério do refinamento    | Situação neste protótipo                                                                                                                                                                                              |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1. Usuários e perfis       | Perfis predefinidos, login demo, ativação/desativação e ações restritas. Sem cadastro completo ou segurança real.                                                                                                     |
-| 2. Cadastros               | Cliente básico e recebimento de lotes; demais cadastros são dados de consulta. Parcial.                                                                                                                               |
-| 3. Fórmulas e versões      | Consulta, criação de nova versão, ativação e preservação de histórico. Sem inativação/obsolescência via UI.                                                                                                           |
-| 4. Custos e preços         | Simulação de insumos/embalagem e margem sobre venda; liberação de tabela. Sem tributos/despesas completos.                                                                                                            |
-| 5. Produto e fórmula       | Valida fórmula ativa, produto ativo e preço liberado; vínculo atualizado ao ativar versão. Sem edição geral de produto.                                                                                               |
+| 2. Cadastros               | Cliente básico; ingredientes com CRUD de nome, código, INS e categoria; recebimento de lotes usa o cadastro central. Demais cadastros são de consulta. Parcial.                                                       |
+| 3. Fórmulas e versões      | Consulta, composição dinâmica, quantidades com 5 casas decimais, conferência de soma × rendimento, criação de versão, ativação e preservação de histórico. Sem inativação/obsolescência via UI.                      |
+| 4. Custos e preços         | Simulação de insumos/embalagem, parâmetros padrão com variações salvas por produto e liberação com snapshot. Sem tributos/despesas completos.                                                                         |
+| 5. Produto e fórmula       | Valida fórmula ativa, produto ativo e preço liberado; novo produto compõe a fórmula inicial com ingredientes disponíveis. Validade, “Contém”, descrição, alérgicos/glúten, modo de uso e conservação são editáveis. |
 | 6. Pedidos e análises      | Criação multi-item como entrada oficial, prioridade, prazo de produção e condições de pagamento com uma ou mais parcelas definidas por dias e valor automático. Texto de condições comerciais é opcional e adicional. |
 | 7. OP por item             | Geração independente, sem duplicação e bloqueada enquanto lotes válidos/liberados não cobrirem a necessidade agregada de matérias-primas.                                                                             |
-| 8. Documento da OP         | Geração registrada, consulta da ficha de demonstração e aba de etiquetas com prévia baseada no modelo e nos dados da OP; impressão/PDF pelo navegador. Não confundir com Ficha Técnica da Qualidade.                  |
-| 8a. Etiqueta no pedido     | Cada item do pedido abre a etiqueta grande com produto, cliente, ingredientes e peso; lote e datas ficam `A definir` antes da produção. Textos fixos são editáveis no módulo Etiquetas.                              |
+| 8. Documento da OP         | Geração registrada; Fórmula para produção e Etiquetas possuem botões e telas independentes. O documento traz cabeçalho, embalagem, “Contém”, modo de uso e composição percentual/em kg da batida.                  |
+| 8a. Etiqueta no pedido     | Cada item abre a etiqueta grande; lote recebe a data atual, fabricação não é exibida e validade usa o cadastro do produto até existir lote produzido. Textos fixos continuam editáveis.                             |
 | 9. Produção/perdas/consumo | Apontamento parcial, múltiplos lotes, perdas, sobras e custos de insumos. Sem reaproveitamento de sobras.                                                                                                             |
 | 10. Estoque                | Entradas, ajustes justificados, validade, saldo, movimentos e fila de pedidos aguardando lote. Sem inventário completo, reserva ou prioridade entre pedidos.                                                          |
 | 11. Qualidade              | Inspeção pendente/aprovada/reprovada, motivo e laudo; Ficha Técnica demonstrativa por pedido/lote, com itens e nutrição. Sem assinatura ou conteúdo regulatório homologado.                                           |
@@ -24,6 +24,13 @@
 | 17. Versões do protótipo   | Página de atualizações disponível a todos os perfis, com v3 atual, histórico v2, IDs de regras e atalhos para as áreas afetadas.                                                                                      |
 
 ## Testes executados em 14/09/2026
+
+### Revisão incremental em 24/09/2026
+
+- Sintaxe de `domain.js` e `interactions.js` verificada.
+- Suíte de domínio: **34 testes passaram, zero falhas**, incluindo CRUD protegido de ingredientes, composição inicial do produto, parâmetros próprios, lista dinâmica e cinco casas decimais.
+- Revisão de 28/09/2026: **35 testes passaram, zero falhas**, incluindo validade, montagem do “Contém” por categoria/INS e preservação desses dados na OP. Sintaxe dos quatro arquivos JavaScript verificada.
+- A inspeção visual do novo card e do editor responsivo permanece recomendada antes da próxima apresentação.
 
 ### Revisão incremental em 17/09/2026
 

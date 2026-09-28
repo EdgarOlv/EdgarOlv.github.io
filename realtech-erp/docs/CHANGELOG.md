@@ -2,7 +2,40 @@
 
 Este documento espelha a página **Atualizações do protótipo**. Alterações funcionais devem atualizar, na mesma entrega, a coleção `releases` em `domain.js`, o catálogo `REGRAS_DE_NEGOCIO.md`, os critérios em `VALIDACAO.md`, a matriz de impacto e este histórico.
 
-## v6 — 17/09/2026 — versão atual
+## v9 — 28/09/2026 — versão atual
+
+### Fórmula para produção e dados de Qualidade no produto
+
+- **P&D / Qualidade — RN-PD-004 — Confirmada:** produto passa a registrar validade e declaração “Contém”; checkboxes dos ingredientes montam uma sugestão baseada em categoria e INS, mantendo o texto aberto para revisão.
+- **Produção — RN-OP-002 — Confirmada:** Documento da OP foi remodelado como Fórmula para produção, com identificação, quantidades, embalagens, modo de uso, “Contém” e composição calculada para a batida.
+- **Etiquetas — RN-ETQ-003 — Confirmada:** lote assume a data do dia ao abrir a impressão, o campo fabricação deixa de ser exibido e a validade usa o produto até existir lote final.
+- **Etiquetas — RN-ETQ-001 / RN-ETQ-004 — Confirmadas:** somente os ingredientes marcados no “Contém” alimentam a lista da etiqueta; a aba abre com 1 pequena e 2 grandes, permite alterar as quantidades no topo e mostra os dois modelos preenchidos.
+- **Impressão:** Fórmula para produção recebeu estrutura compacta de planilha, bordas, cabeçalho e estilos específicos para papel; a etiqueta grande aproxima hierarquia, divisórias e destaques variáveis da referência física.
+- **P&D / Qualidade — RN-PD-005 — Confirmada:** descrição, alérgicos, glúten, modo de uso e conservação passam a pertencer ao produto e são congelados no pedido/OP.
+- **Navegação:** Fórmula para produção e Etiquetas deixaram de compartilhar a mesma tela; cada botão da OP abre somente seu documento.
+- **Identidade da etiqueta:** modelos pequeno e grande usam fundo branco e texto integralmente preto, seguindo as faixas e divisórias da nova referência.
+- **Pendências:** homologar redação regulatória do “Contém”, formato da validade, quantidade de etiquetas, dimensões de impressão e responsáveis pelos vistos.
+- **Impacto futuro:** Flutter, API e banco precisam persistir validade/declaração no produto e preservar snapshots no pedido, OP e emissão da etiqueta.
+
+## v8 — 24/09/2026
+
+### Cadastro operacional de ingredientes
+
+- **Ingredientes / Estoque — RN-ING-001 — Demonstrada:** módulo em Operação com cadastro, edição, consulta e exclusão de nome, código, INS opcional e categoria; o recebimento usa a mesma base.
+- **Ingredientes — RN-ING-002 — Demonstrada:** exclusão protegida quando há fórmula ou lote vinculado.
+- **Ingredientes / P&D — RN-ING-003 — Demonstrada:** a composição inicial do novo produto lista ingredientes com saldo em lotes liberados e válidos; a produção continua consumindo por lote.
+- **Impacto futuro:** Flutter, API e banco precisam separar o cadastro-base do ingrediente dos lotes de estoque e aplicar integridade referencial na exclusão.
+
+## v7 — 24/09/2026
+
+### Fórmulas precisas e precificação por produto
+
+- **P&D / Precificação — RN-PD-001 — Confirmada:** parâmetros padrão são apresentados em um card editável e as variações ficam salvas somente no produto.
+- **P&D / Fórmulas — RN-PD-002 — Confirmada:** o editor de nova versão permite adicionar e remover ingredientes e persiste a lista informada.
+- **P&D / Fórmulas — RN-PD-003 — Confirmada:** quantidades aceitam cinco casas decimais; soma, falta ou excesso são exibidos e a criação exige fechamento com o rendimento.
+- **Impacto futuro:** Flutter, API e banco devem representar as sobrescritas por produto e usar decimal exato para as quantidades.
+
+## v6 — 17/09/2026
 
 ### Etiqueta grande editável e acessível pelo pedido
 

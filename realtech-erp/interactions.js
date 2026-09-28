@@ -330,17 +330,50 @@ function technicalSheetBody(id) {
 }
 function labelPreview(op, model, lot, printAction = 'printLabel', order = null) {
   const product = find(state.produtos, op.produtoId),
-    ingredients = op.formula.itens
+    formulaIngredients = op.formula.itens
       .map(item => find(state.ingredientes, item.ingredienteId)?.nome)
       .filter(Boolean)
       .join(', '),
-    clientName = order?.clienteNome ||
-      (op.pedidoId ? find(state.pedidos, op.pedidoId)?.clienteNome : '') ||
-      'A definir',
     fixed = (field, fallback) => esc(model[field] || fallback),
-    manufactured = lot?.fabricacao ? fmtDate(lot.fabricacao) : 'A definir',
-    expires = lot?.validade ? fmtDate(lot.validade) : 'A definir'
-  return `<article class="label-preview label-size-${String(model.tamanho || '').toLowerCase()}" data-label-preview><header><img class="label-logo" src="../../Imagens/logo-horizontal.png" alt="REALTECH"><div class="label-product"><h2>${esc(op.produtoNome)}</h2><p>${fixed('descricaoProduto', 'Condimento preparado para produtos cárneos com aditivos.')}</p></div></header><p class="label-regulatory">${fixed('textoRegulatorio', 'Para uso exclusivo em alimentos.')}</p><section class="label-composition"><p><b>INGREDIENTES:</b> ${esc(ingredients || 'Conforme fórmula aprovada')}</p><p class="label-allergen"><b>ALÉRGICOS:</b> ${fixed('alergicos', 'A definir.')} <span>|</span> <b>${fixed('gluten', 'Informação sobre glúten a definir.')}</b></p></section><section class="label-directions"><p><b>MODO DE USO:</b> ${fixed('modoUso', 'Conforme orientação técnica.')}</p><p>${fixed('conservacao', 'Manter em local seco, fresco e arejado.')}</p></section><section class="label-client"><span>CLIENTE:</span><strong>${esc(clientName)}</strong></section><section class="label-bottom"><p class="label-manufacturer"><b>FABRICADO POR:</b><br>${fixed('fabricante', 'Dados da fabricante a definir.').replace(/\n/g, '<br>')}</p><div class="label-batch"><p><b>LOTE:</b> ${esc(lot?.codigo || 'A definir')}</p><p><b>FABRICAÇÃO:</b> ${manufactured}</p><p><b>VALIDADE:</b> ${expires}</p><p><b>PESO LÍQUIDO:</b> ${qty(op.pesoKg)} KG</p></div></section><footer>“${fixed('slogan', 'QUALIDADE EM PRODUTOS E SERVIÇOS')}”</footer></article><div class="actions label-actions">${btn('Imprimir / salvar em PDF', printAction, op.id, true)}</div>`
+    printedOn = lot?.fabricacao || D.today(),
+    expires = lot?.validade ? fmtDate(lot.validade) : (op.validade || product?.validade || 'A definir'),
+    contains = op.contem || product?.contem || formulaIngredients || 'Conforme fórmula aprovada',
+    size = String(model.tamanho || '').toLowerCase(),
+    description = op.descricaoProduto || product?.descricaoProduto || '',
+    allergens = (op.alergenicosAtivo ?? product?.alergenicosAtivo)
+      ? (op.alergenicosTexto || product?.alergenicosTexto || 'Declaração não informada.')
+      : '',
+    gluten = (op.naoContemGluten ?? product?.naoContemGluten) ? 'NÃO CONTÉM GLÚTEN.' : '',
+    usage = op.modoUso || product?.modoUso || 'Conforme orientação técnica.',
+    conservation = op.conservacao || product?.conservacao || 'Manter em local seco, fresco e arejado.'
+  return `<article class="label-preview label-size-${size}" data-label-preview><header><img class="label-logo" src="../../Imagens/logo-horizontal.png" alt="REALTECH"><div class="label-product"><h2>${esc(op.produtoNome)}</h2>${description ? `<p>${esc(description)}</p>` : ''}</div></header><section class="label-composition"><p><b>INGREDIENTES:</b> ${esc(contains)}</p></section><section class="label-allergen-row">${allergens ? `<p><b>ALÉRGICOS:</b> ${esc(allergens)}</p>` : ''}${gluten ? `<p><b>${gluten}</b></p>` : ''}</section><section class="label-directions"><p><b>MODO DE USO:</b> ${esc(usage)}</p></section><section class="label-middle"><p>${esc(conservation)}</p><p>${fixed('textoRegulatorio', 'Dispensado de registro conforme regulamentação aplicável.')}</p></section><section class="label-batch-row"><p><b>VALIDADE:</b> ${esc(expires)}</p><p><b>LOTE:</b> ${fmtDate(printedOn)}</p><p><b>PESO LÍQUIDO:</b> ${qty(op.pesoKg)} KG</p></section><footer>“${fixed('slogan', 'REALTECH: QUALIDADE EM PRODUTOS E SERVIÇOS')}”</footer></article><div class="actions label-actions">${btn('Imprimir / salvar em PDF', printAction, op.id, true)}</div>`
+}
+
+function containsEditor(formula, selectedIds = [], currentText = '') {
+  const selected = new Set(selectedIds)
+  return `<section class="contains-card"><div class="section-heading"><div><h3>Contém</h3><p class="muted small">Marque os ingredientes que devem compor a declaração. Categoria e INS vêm do cadastro do ingrediente.</p></div></div><div class="contains-options">${formula.itens.map(item => {
+    const ingredient = find(state.ingredientes, item.ingredienteId)
+    return `<label><input type="checkbox" name="containsIngredient" value="${esc(ingredient.id)}" ${selected.has(ingredient.id) ? 'checked' : ''}> <span>${esc(ingredient.nome)}<small>${esc(ingredient.categoria || 'Sem categoria')}${ingredient.ins ? ` · INS ${esc(ingredient.ins)}` : ''}</small></span></label>`
+  }).join('')}</div>${textarea('Texto final de “Contém” (editável)', 'contem', currentText)}<p class="muted small">A seleção monta uma sugestão; o texto pode ser complementado pela Qualidade.</p></section>`
+}
+
+function updateContainsText(force = false) {
+  const field = $('[name="contem"]')
+  if (!field || (!force && field.dataset.edited === 'true')) return
+  const ids = [...document.querySelectorAll('[name="containsIngredient"]:checked')].map(el => el.value)
+  field.value = D.containsText(state, ids)
+}
+
+function syncContainsOptions() {
+  const box = $('.contains-options')
+  if (!box) return
+  const checked = new Set([...box.querySelectorAll('input:checked')].map(el => el.value))
+  const ids = [...document.querySelectorAll('.formula-ingredient-row select')].map(el => el.value)
+  box.innerHTML = [...new Set(ids)].map(id => {
+    const ingredient = find(state.ingredientes, id)
+    return `<label><input type="checkbox" name="containsIngredient" value="${esc(id)}" ${checked.has(id) ? 'checked' : ''}> <span>${esc(ingredient.nome)}<small>${esc(ingredient.categoria || 'Sem categoria')}${ingredient.ins ? ` · INS ${esc(ingredient.ins)}` : ''}</small></span></label>`
+  }).join('')
+  updateContainsText()
 }
 function openAction(a, id) {
   if (a in D.permissions && !can(a))
@@ -529,7 +562,7 @@ function openAction(a, id) {
       `<div class="form-grid">${select(
         'Ingrediente',
         'ingredienteId',
-        state.ingredientes.map(i => [i.id, i.nome])
+        state.ingredientes.map(i => [i.id, `${i.codigo} · ${i.nome}`])
       )}${select(
         'Fornecedor',
         'fornecedorId',
@@ -538,6 +571,29 @@ function openAction(a, id) {
       d => commit(a, d),
       'Registrar entrada'
     )
+  if (a === 'saveIngredient') {
+    const ingredient = id ? find(state.ingredientes, id) : null
+    const categories = [
+      'Acidulante', 'Antioxidante', 'Aromatizante', 'Conservador', 'Corante',
+      'Edulcorante', 'Emulsificante', 'Espessante', 'Estabilizante',
+      'Ingrediente base', 'Realçador de sabor', 'Outros'
+    ]
+    return modal(
+      ingredient ? 'Editar ingrediente' : 'Novo ingrediente',
+      `<div class="form-grid">${input('Código', 'codigo', ingredient?.codigo || '', 'text', 'required')}${input('Nome', 'nome', ingredient?.nome || '', 'text', 'required')}${input('INS (opcional)', 'ins', ingredient?.ins || '', 'text', 'inputmode="numeric"')}${select('Categoria', 'categoria', categories.map(c => [c, c]), ingredient?.categoria || 'Outros')}</div>`,
+      d => commit(a, { id: ingredient?.id, ...d }),
+      ingredient ? 'Salvar alterações' : 'Cadastrar ingrediente'
+    )
+  }
+  if (a === 'deleteIngredient') {
+    const ingredient = find(state.ingredientes, id)
+    return modal(
+      'Excluir ingrediente',
+      notice(`Excluir <strong>${esc(ingredient.codigo)} · ${esc(ingredient.nome)}</strong>? A ação só será aceita se não houver fórmula ou lote vinculado.`, 'warn'),
+      () => commit(a, { id }),
+      'Excluir ingrediente'
+    )
+  }
   if (a === 'adjustLot')
     return modal(
       'Ajustar ' + find(state.lotes, id).codigo,
@@ -564,14 +620,26 @@ function openAction(a, id) {
   if (a === 'productDetails') {
     const p = find(state.produtos, id)
     const f = p.formulaId ? find(state.formulas, p.formulaId) : null
+    const draft = f
+      ? state.formulas
+          .filter(x => x.codigo === f.codigo && x.status === 'emDesenvolvimento' && x.id !== f.id)
+          .sort((a, b) => b.versao - a.versao)[0]
+      : null
     const sim = f ? D.priceSimulation(state, p) : null
     return modal(
       'Detalhes do produto · ' + p.nome,
-      `<div class="actions">${actionButton('Criar a partir deste produto', 'createProduct', p.id)}${f ? actionButton('Editar fórmula / criar versão', 'createVersion', f.id) : ''}${f && f.status === 'emDesenvolvimento' ? actionButton('Ativar fórmula', 'activateVersion', f.id, true) : ''}${f && f.status === 'ativa' ? actionButton('Editar formação de preço', 'releasePrice', p.id, true) : ''}</div>${fields(
+      `<div class="actions">${actionButton('Editar dados do produto', 'saveProduct', p.id)}${actionButton('Criar a partir deste produto', 'createProduct', p.id)}${f ? actionButton('Editar fórmula / criar versão', 'createVersion', draft?.id || f.id) : ''}${f && f.status === 'emDesenvolvimento' ? actionButton('Ativar fórmula', 'activateVersion', f.id, true) : ''}${f && f.status === 'ativa' ? actionButton('Editar formação de preço', 'releasePrice', p.id, true) : ''}</div>${draft ? `<section class="draft-version-card"><div class="section-heading"><div><span class="eyebrow">Alterações salvas</span><h3>Nova versão ${esc(draft.codigo)} · v${draft.versao}</h3></div>${badge(draft.status)}</div>${fields([['Rendimento', `${formulaQty(draft.rendimento)} kg`], ['Soma dos ingredientes', `${formulaQty(draft.itens.reduce((sum, item) => sum + item.quantidade, 0))} kg`], ['Justificativa', esc(draft.observacoes || '—')]])}${table(['Ingrediente', 'Quantidade'], draft.itens.map(item => [esc(find(state.ingredientes, item.ingredienteId).nome), `${formulaQty(item.quantidade)} kg`]))}<div class="actions">${actionButton('Continuar editando', 'createVersion', draft.id)}${actionButton('Ativar esta versão', 'activateVersion', draft.id, true)}</div></section>` : ''}${fields(
         [
           ['Código', esc(p.codigo)],
           ['Produto', esc(p.nome)],
           ['Categoria', esc(p.categoria)],
+          ['Validade', esc(p.validade || 'Não informada')],
+          ['Contém', esc(p.contem || 'Nenhum item selecionado')],
+          ['Descrição para etiqueta', esc(p.descricaoProduto || 'Não informada')],
+          ['Alérgicos', p.alergenicosAtivo ? esc(p.alergenicosTexto) : 'Não exibir declaração'],
+          ['Glúten', p.naoContemGluten ? 'Não contém glúten' : 'Declaração não marcada'],
+          ['Modo de uso', esc(p.modoUso || 'Não informado')],
+          ['Conservação', esc(p.conservacao || 'Não informada')],
           [
             'Fórmula',
             f
@@ -597,7 +665,7 @@ function openAction(a, id) {
                 const ingredient = find(state.ingredientes, item.ingredienteId)
                 return [
                   esc(ingredient.nome),
-                  `${qty(item.quantidade)} kg`,
+                  `${formulaQty(item.quantidade)} kg`,
                   `${qty((item.quantidade / f.rendimento) * 100)}%`,
                   money(
                     Math.round(
@@ -637,11 +705,35 @@ function openAction(a, id) {
       null
     )
   }
+  if (a === 'saveProduct') {
+    const p = find(state.produtos, id)
+    const formula = p.formulaId ? find(state.formulas, p.formulaId) : null
+    if (!formula) throw new Error('Cadastre uma fórmula antes de configurar o campo Contém.')
+    modal(
+      'Dados de qualidade · ' + p.nome,
+      `<div class="form-grid">${input('Validade do produto', 'validade', p.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${textarea('Descrição do produto na etiqueta', 'descricaoProduto', p.descricaoProduto || '')}${textarea('Modo de uso', 'modoUso', p.modoUso || '')}${textarea('Conservação', 'conservacao', p.conservacao || '')}</div><section class="product-label-options"><h3>Declarações da etiqueta</h3><label class="check-card"><input type="checkbox" name="alergenicosAtivo" ${p.alergenicosAtivo ? 'checked' : ''}><span>Exibir declaração de alérgicos</span></label>${textarea('Texto de alérgicos', 'alergenicosTexto', p.alergenicosTexto || '')}<label class="check-card"><input type="checkbox" name="naoContemGluten" ${p.naoContemGluten ? 'checked' : ''}><span>Exibir “Não contém glúten”</span></label></section>${containsEditor(formula, p.contemItens, p.contem)}`,
+      d => commit(a, {
+        id,
+        validade: d.validade,
+        contem: d.contem,
+        descricaoProduto: d.descricaoProduto,
+        modoUso: d.modoUso,
+        conservacao: d.conservacao,
+        alergenicosAtivo: !!document.querySelector('[name="alergenicosAtivo"]:checked'),
+        alergenicosTexto: d.alergenicosTexto,
+        naoContemGluten: !!document.querySelector('[name="naoContemGluten"]:checked'),
+        contemItens: [...document.querySelectorAll('[name="containsIngredient"]:checked')].map(el => el.value)
+      }),
+      'Salvar dados'
+    )
+    return
+  }
   if (a === 'createProduct') {
     const source = id
       ? find(state.produtos, id)
       : state.produtos.find(p => p.formulaId)
-    return modal(
+    const sourceFormula = source?.formulaId ? find(state.formulas, source.formulaId) : null
+    modal(
       id ? 'Criar produto a partir de ' + source.nome : 'Novo produto',
       notice(
         'O produto será criado em desenvolvimento com uma cópia da fórmula selecionada. A fórmula e o preço precisam ser revisados antes de entrar em pedidos.'
@@ -653,30 +745,55 @@ function openAction(a, id) {
             .filter(p => p.formulaId)
             .map(p => [p.id, `${p.codigo} · ${p.nome}`]),
           source?.id
-        )}${input('Código do produto', 'codigo', id ? `${source.codigo}-NOVO` : '', 'text', 'required')}${input('Nome do produto', 'nome', id ? `${source.nome} · Cópia` : '', 'text', 'required')}${input('Categoria', 'categoria', source?.categoria || '', 'text', 'required')}${input('Código da fórmula', 'formulaCodigo', id ? `${source.codigo}-FORM` : '', 'text', 'required')}${input('Nome da fórmula', 'formulaNome', id ? `${source.nome} · Fórmula` : '', 'text', 'required')}${textarea('Observações', 'observacoes', '')}</div>`,
-      d => commit(a, d),
+        )}${input('Código do produto', 'codigo', id ? `${source.codigo}-NOVO` : '', 'text', 'required')}${input('Nome do produto', 'nome', id ? `${source.nome} · Cópia` : '', 'text', 'required')}${input('Categoria', 'categoria', source?.categoria || '', 'text', 'required')}${input('Validade do produto', 'validade', source?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${input('Código da fórmula', 'formulaCodigo', id ? `${source.codigo}-FORM` : '', 'text', 'required')}${input('Nome da fórmula', 'formulaNome', id ? `${source.nome} · Fórmula` : '', 'text', 'required')}</div><section class="formula-editor" data-stock-only="true"><div class="section-heading"><div><h3>Composição inicial</h3><p class="muted small">A lista oferece ingredientes com saldo em lotes liberados e válidos.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div class="form-grid">${input('Rendimento (kg)', 'rendimento', source?.formulaId ? find(state.formulas, source.formulaId).rendimento : 100, 'number', 'required min="0.00001" step="0.00001"')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${sourceFormula ? containsEditor(sourceFormula, source.contemItens, source.contem) : ''}${textarea('Observações', 'observacoes', '')}`,
+      d => commit(a, {
+        ...d,
+        contemItens: [...document.querySelectorAll('[name="containsIngredient"]:checked')].map(el => el.value),
+        itens: [...document.querySelectorAll('.formula-ingredient-row')].map(row => ({
+          ingredienteId: row.querySelector('select').value,
+          quantidade: row.querySelector('input').value
+        }))
+      }),
       'Criar produto'
     )
+    const inStockIds = new Set(state.ingredientes.filter(i => D.eligibleLots(state, i.id).some(l => l.saldo > 0)).map(i => i.id))
+    const initialItems = (sourceFormula?.itens || []).filter(i => inStockIds.has(i.ingredienteId))
+    ;(initialItems.length ? initialItems : [{ ingredienteId: [...inStockIds][0], quantidade: sourceFormula?.rendimento || 100 }]).forEach(item => addFormulaIngredientRow(item))
+    document.querySelectorAll('[name="containsIngredient"]').forEach(el => {
+      el.checked = (source?.contemItens || []).includes(el.value)
+    })
+    if ($('[name="contem"]')) $('[name="contem"]').value = source?.contem || ''
+    updateFormulaBalance()
+    return
   }
   if (a === 'createVersion') {
     const f = find(state.formulas, id)
-    return modal(
+    const p = state.produtos.find(product => product.formulaId && find(state.formulas, product.formulaId).codigo === f.codigo)
+    modal(
       'Nova versão · ' + f.codigo,
       notice(
         'A versão atual será preservada. A nova começa em desenvolvimento. Nesta simulação, a soma dos insumos deve corresponder ao rendimento.'
       ) +
-        `<div class="form-grid">${input('Rendimento (kg)', 'rendimento', f.rendimento, 'number', 'required min="0.001" step="0.001"')}${f.itens.map(i => input(esc(find(state.ingredientes, i.ingredienteId).nome) + ' (kg)', i.ingredienteId, i.quantidade, 'number', 'required min="0" step="0.001"')).join('')}${textarea('Justificativa da versão', 'justificativa', '', true)}</div>`,
+        `<div class="form-grid">${input('Rendimento (kg)', 'rendimento', f.rendimento, 'number', 'required min="0.00001" step="0.00001"')}${input('Validade do produto', 'validade', p?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}</div><section class="formula-editor"><div class="section-heading"><div><h3>Ingredientes</h3><p class="muted small">Adicione, remova e informe cada quantidade com até 5 casas decimais.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${containsEditor(f, p?.contemItens, p?.contem)}${textarea('Justificativa da versão', 'justificativa', '', true)}`,
       d =>
         commit(a, {
           id,
           ...d,
-          itens: f.itens.map(i => ({
-            ingredienteId: i.ingredienteId,
-            quantidade: d[i.ingredienteId]
+          contemItens: [...document.querySelectorAll('[name="containsIngredient"]:checked')].map(el => el.value),
+          itens: [...document.querySelectorAll('.formula-ingredient-row')].map(row => ({
+            ingredienteId: row.querySelector('select').value,
+            quantidade: row.querySelector('input').value
           }))
         }),
       'Criar versão'
     )
+    f.itens.forEach(item => addFormulaIngredientRow(item))
+    document.querySelectorAll('[name="containsIngredient"]').forEach(el => {
+      el.checked = (p?.contemItens || []).includes(el.value)
+    })
+    if ($('[name="contem"]')) $('[name="contem"]').value = p?.contem || ''
+    updateFormulaBalance()
+    return
   }
   if (a === 'activateVersion')
     return modal(
@@ -695,23 +812,20 @@ function openAction(a, id) {
       10, 20, 30, 40, 45, 50, 55, 60, 65, 70, 75, 80
     ]
     const charges = settings.encargosFixos || defaults.encargosFixos
+    const profile = D.pricingProfile(state, p)
+    const chargeValue = name =>
+      profile.encargosFixos.find(item => item.nome === name)?.percentual ?? 0
     modal(
       'Simular preço · ' + p.nome,
       notice(
-        'Os percentuais fixos e os custos internos vêm dos parâmetros globais. Escolha apenas a lucratividade que este produto usará nesta aprovação.'
+        'Os campos abaixo começam com os parâmetros padrão da empresa e podem ser ajustados e salvos somente para este produto.'
       ) +
-        `<div class="form-grid">${select(
+        `<section class="product-pricing-card"><div class="section-heading"><div><span class="eyebrow">Parâmetros deste produto</span><h3>Formação de preço</h3></div></div><div class="form-grid">${select(
           'Lucratividade / markup (%)',
           'margem',
           scenarios.map(value => [value, `${value}%`]),
           p.precificacao?.margemPercentual ?? settings.margemPadrao ?? 60
-        )}${input('Financeiro global (R$/kg)', 'financeiroResumo', (settings.financeiroCentavosKg ?? defaults.financeiroCentavosKg) / 100, 'number', 'readonly')}${input('Mão de obra global (R$/kg)', 'maoDeObraResumo', (settings.maoDeObraCentavosKg ?? defaults.maoDeObraCentavosKg) / 100, 'number', 'readonly')}${input(
-          'Encargos globais (%)',
-          'encargosResumo',
-          charges.reduce((sum, item) => sum + Number(item.percentual || 0), 0),
-          'number',
-          'readonly'
-        )}${input('Preço comercial aprovado (R$/kg)', 'precoVendaKg', p.precoVendaKgCentavos ? p.precoVendaKgCentavos / 100 : '', 'number', 'min="0" step="0.0001"')}${input('Tipo de volume', 'volumeTipo', p.volumeTipo || 'Pacote', 'text', 'required')}${input('Unidades por volume', 'unidadesPorVolume', p.unidadesPorVolume || 1, 'number', 'required min="1" step="1"')}${input('Limite máximo por volume', 'limiteUnidadesPorVolume', p.limiteUnidadesPorVolume || 1, 'number', 'required min="1" step="1"')}${textarea('Motivo do ajuste manual', 'motivoAjuste', '')}</div><div id="priceResult"></div>` +
+        )}${input('Embalagem (R$/kg)', 'embalagemCentavosKg', defaults.embalagemCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Financeiro (R$/kg)', 'financeiroCentavosKg', profile.financeiroCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Mão de obra (R$/kg)', 'maoDeObraCentavosKg', profile.maoDeObraCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Outros custos (R$/kg)', 'outrosCustosCentavosKg', profile.outrosCustosCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Nota fiscal / impostos (%)', 'notaFiscal', chargeValue('Nota fiscal'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão técnica (%)', 'comissaoTecnica', chargeValue('Comissão técnica'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão comercial (%)', 'comissaoComercial', chargeValue('Comissão comercial'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão extra cliente (%)', 'comissaoExtra', chargeValue('Comissão extra cliente'), 'number', 'required min="0" max="100" step="0.01"')}${input('Preço comercial aprovado (R$/kg)', 'precoVendaKg', p.precoVendaKgCentavos ? p.precoVendaKgCentavos / 100 : '', 'number', 'min="0" step="0.0001"')}${input('Tipo de volume', 'volumeTipo', p.volumeTipo || 'Pacote', 'text', 'required')}${input('Unidades por volume', 'unidadesPorVolume', p.unidadesPorVolume || 1, 'number', 'required min="1" step="1"')}${input('Limite máximo por volume', 'limiteUnidadesPorVolume', p.limiteUnidadesPorVolume || 1, 'number', 'required min="1" step="1"')}${textarea('Motivo do ajuste manual', 'motivoAjuste', '')}</div></section><div id="priceResult"></div>` +
         notice(
           'A configuração define quantas unidades formam um volume e o limite máximo permitido. A nova liberação vale somente para pedidos criados ou revisados depois; histórico dos pedidos existentes não muda.'
         ),
@@ -719,7 +833,12 @@ function openAction(a, id) {
         commit(a, {
           id,
           ...d,
-          encargosFixos: undefined
+          encargosFixos: [
+            { nome: 'Nota fiscal', percentual: d.notaFiscal },
+            { nome: 'Comissão técnica', percentual: d.comissaoTecnica },
+            { nome: 'Comissão comercial', percentual: d.comissaoComercial },
+            { nome: 'Comissão extra cliente', percentual: d.comissaoExtra }
+          ]
         }),
       'Liberar preço'
     )
@@ -765,6 +884,14 @@ function openAction(a, id) {
             produtoId: item.produtoId,
             produtoNome: item.nome,
             pesoKg: item.pesoKg,
+            validade: item.validade,
+            contem: item.contem,
+            descricaoProduto: item.descricaoProduto,
+            alergenicosAtivo: item.alergenicosAtivo,
+            alergenicosTexto: item.alergenicosTexto,
+            naoContemGluten: item.naoContemGluten,
+            modoUso: item.modoUso,
+            conservacao: item.conservacao,
             formula: item.formula
           }
         : null
@@ -772,52 +899,72 @@ function openAction(a, id) {
     return modal(
       `Etiqueta · ${order.numero} · ${item.nome}`,
       notice(
-        'Prévia vinculada ao pedido. Lote, fabricação e validade serão preenchidos pela produção.',
-        'warn'
+        'Prévia vinculada ao pedido. O lote assume a data de hoje; a validade usa o cadastro do produto até existir lote produzido.'
       ) + labelPreview(op, model, null, 'printLabel', order)
     )
   }
-  if (a === 'viewSheet') {
+  if (['viewProductionFormula', 'viewOpLabels'].includes(a)) {
     if (!technical()) throw new Error('Documento da OP restrito.')
     const x = find(state.ordens, id),
-      d = x.documentoOp
+      d = x.documentoOp,
+      order = find(state.pedidos, x.pedidoId),
+      product = find(state.produtos, x.produtoId),
+      labelModel = find(state.etiquetas, 'etq2'),
+      batchKg = x.quantidadePrevista * x.pesoKg,
+      getLabelQty = eid => x.etiquetas?.find(item => item.etiquetaId === eid)?.quantidade || 0
     return modal(
-      'Consultar doc. OP · ' + x.numero,
-      `<div class="doc-tabs"><button type="button" class="ghost-btn active" data-doc-tab="demonstracao">Ficha de demonstração</button><button type="button" class="ghost-btn" data-doc-tab="etiqueta">Etiqueta</button></div><section data-doc-panel="demonstracao">${fields(
+      `${a === 'viewOpLabels' ? 'Etiquetas' : 'Fórmula para produção'} · ${x.numero}`,
+      `<section class="production-formula" data-doc-panel="demonstracao" ${a === 'viewOpLabels' ? 'hidden' : ''}><header class="production-formula-head"><div><span class="eyebrow">Documento operacional</span><h2>Fórmula para produção</h2></div><img src="../../Imagens/logo-horizontal.png" alt="Realtech"><strong>${esc(d.numero)}</strong></header>${fields(
         [
-          ['Documento', esc(d.numero)],
+          ['Data/hora de produção', fmtTime(d.data)],
+          ['Cliente / local', esc(order.clienteNome)],
+          ['Pedido', esc(order.numero)],
           ['Produto', esc(x.produtoNome)],
           [
             'Fórmula / versão',
             `${esc(x.formula.codigo)} · v${x.formula.versao}`
           ],
-          ['Emissão', fmtTime(d.data)],
+          ['Quantidade a produzir', `${qty(batchKg)} kg`],
+          ['Quantidade de batidas', '1'],
+          ['Quantidade de volumes', `${x.quantidadePrevista} ${esc(product.volumeTipo || 'volume')}(s)`],
+          ['Embalagem interna', `${qty(x.pesoKg)} kg`],
+          ['Embalagem externa', esc(product.embalagem || 'Não informada')],
+          ['Lote', fmtDate(D.today())],
+          ['Validade', esc(x.validade || product.validade || 'Não informada')],
+          ['Modo de uso', esc(x.modoUso || product.modoUso || 'Não informado')],
           ['Responsável', esc(d.usuario)],
-          [
-            'Quantidade',
-            `${x.quantidadePrevista} UN · ${qty(x.quantidadePrevista * x.pesoKg)} kg`
-          ]
+          ['Etiqueta', esc(labelModel.nome)]
         ]
-      )}${table(
-        ['Ingrediente', 'Quantidade'],
-        d.necessidades.map(r => [
-          esc(find(state.ingredientes, r.ingredienteId).nome),
-          `${qty(r.quantidade)} kg`
-        ])
-      )}${btn('Imprimir / salvar em PDF', 'printDoc', id, true)}</section><section data-doc-panel="etiqueta" hidden>${
-        x.etiquetas?.length
-          ? x.etiquetas
-              .map(i => {
-                const e = find(state.etiquetas, i.etiquetaId)
-                const lot = x.lotes
-                  ?.map(lotId => find(state.lotes, lotId))
-                  .find(Boolean)
-                return `<div class="label-instance"><div class="label-instance-head"><strong>${esc(e.nome)}</strong><span>${i.quantidade} unidade(s)</span></div>${labelPreview(x, e, lot)}</div>`
-              })
-              .join('')
-          : '<p class="muted">Nenhuma etiqueta definida para esta OP.</p>'
-      }${actionButton('Modificar quantidades', 'editOpLabels', id, true)}${notice('Proposta preliminar: o formato final e a impressão em lote ainda serão validados.', 'warn')}</section>`
+      )}<div class="production-callout">ENTREGAR ASSIM QUE FICAR PRONTO</div><section class="production-contains"><span>CONTÉM</span><p>${esc(x.contem || product.contem || 'Não informado')}</p></section>${table(
+        ['Ingrediente', 'Categoria / INS', 'Total fórmula (%)', 'Total fórmula (kg)', 'Total da batida (kg)'],
+        x.formula.itens.map(item => {
+          const ingredient = find(state.ingredientes, item.ingredienteId)
+          const required = d.necessidades.find(r => r.ingredienteId === item.ingredienteId)
+          return [
+            esc(ingredient.nome),
+            `${esc(ingredient.categoria || '—')}${ingredient.ins ? `<small>INS ${esc(ingredient.ins)}</small>` : ''}`,
+            `${formulaQty((item.quantidade / x.formula.rendimento) * 100)}%`,
+            `${formulaQty(item.quantidade)} kg`,
+            `${formulaQty(required?.quantidade || 0)} kg`
+          ]
+        })
+      )}<div class="production-total"><span>Total da fórmula</span><strong>${formulaQty(x.formula.rendimento)} kg</strong><span>Total da batida</span><strong>${formulaQty(batchKg)} kg</strong></div><div class="signature-grid"><span>Visto Administração</span><span>Visto Produção</span><span>Visto Colaborador responsável</span></div>${btn('Imprimir / salvar em PDF', 'printDoc', id, true)}</section><section class="labels-sheet" data-doc-panel="etiqueta" ${a === 'viewOpLabels' ? '' : 'hidden'}><div class="label-quantity-bar"><div><span class="eyebrow">Preparação da impressão</span><h3>Quantidade de etiquetas</h3><p class="muted small">Padrão sugerido: 1 pequena e 2 grandes.</p></div><div class="label-quantity-fields">${input('Pequenas', 'inlineSmallLabels', getLabelQty('etq1'), 'number', 'min="0" step="1"')}${input('Grandes', 'inlineLargeLabels', getLabelQty('etq2'), 'number', 'min="0" step="1"')}${can('saveOpLabels') ? btn('Atualizar prévias', 'updateOpLabelQuantities', id, true) : ''}</div></div><div class="label-preview-grid">${['etq1', 'etq2'].map(eid => {
+        const e = find(state.etiquetas, eid)
+        const lot = x.lotes?.map(lotId => find(state.lotes, lotId)).find(Boolean)
+        const quantity = getLabelQty(eid)
+        return `<div class="label-instance"><div class="label-instance-head"><strong>${esc(e.nome)}</strong><span>${quantity} unidade(s)</span></div>${labelPreview(x, e, lot)}</div>`
+      }).join('')}</div>${notice('Os dados destacados em azul são variáveis do produto, cliente e impressão. Formato físico e margens ainda precisam ser validados na impressora.', 'warn')}</section>`
     )
+  }
+  if (a === 'updateOpLabelQuantities') {
+    commit('saveOpLabels', {
+      id,
+      pequena: $('[name="inlineSmallLabels"]')?.value || 0,
+      grande: $('[name="inlineLargeLabels"]')?.value || 0
+    })
+    openAction('viewOpLabels', id)
+    toast('Quantidades e prévias atualizadas.')
+    return
   }
   if (a === 'editLabel') {
     const e = find(state.etiquetas, id)
@@ -825,12 +972,7 @@ function openAction(a, id) {
       'Modificar etiqueta · ' + e.tamanho,
       `<div class="form-grid">${input('Nome do modelo', 'nome', e.nome, 'text', 'required')}` +
         input('Dados que devem constar', 'conteudo', e.conteudo, 'text', 'required') +
-        textarea('Descrição do produto', 'descricaoProduto', e.descricaoProduto || '') +
         textarea('Texto regulatório', 'textoRegulatorio', e.textoRegulatorio || '') +
-        textarea('Alérgicos', 'alergicos', e.alergicos || '') +
-        textarea('Declaração de glúten', 'gluten', e.gluten || '') +
-        textarea('Modo de uso', 'modoUso', e.modoUso || '') +
-        textarea('Conservação', 'conservacao', e.conservacao || '') +
         textarea('Dados da fabricante', 'fabricante', e.fabricante || '') +
         input('Slogan', 'slogan', e.slogan || '') +
         textarea('Observações', 'observacoes', e.observacoes || '') +
@@ -990,11 +1132,22 @@ function updatePrice() {
   if (!el) return
   try {
     const product = find(state.produtos, $('#dialogBody').dataset.product)
+    const value = name => Number($(`[name="${name}"]`)?.value || 0)
     const current = {
       ...product,
       precificacao: {
         ...(product.precificacao || {}),
-        margemPercentual: el.value
+        margemPercentual: el.value,
+        embalagemCentavosKg: value('embalagemCentavosKg') * 100,
+        financeiroCentavosKg: value('financeiroCentavosKg') * 100,
+        maoDeObraCentavosKg: value('maoDeObraCentavosKg') * 100,
+        outrosCustosCentavosKg: value('outrosCustosCentavosKg') * 100,
+        encargosFixos: [
+          { nome: 'Nota fiscal', percentual: value('notaFiscal') },
+          { nome: 'Comissão técnica', percentual: value('comissaoTecnica') },
+          { nome: 'Comissão comercial', percentual: value('comissaoComercial') },
+          { nome: 'Comissão extra cliente', percentual: value('comissaoExtra') }
+        ]
       }
     }
     const sim = D.priceSimulation(state, current, el.value)
@@ -1008,6 +1161,27 @@ function updatePrice() {
   } catch (e) {
     $('#priceResult').innerHTML = notice(esc(e.message), 'warn')
   }
+}
+function addFormulaIngredientRow(item = {}) {
+  const used = new Set([...document.querySelectorAll('.formula-ingredient-row select')].map(el => el.value))
+  const stockOnly = !!document.querySelector('.formula-editor[data-stock-only="true"]')
+  const available = state.ingredientes.filter(i =>
+    (i.id === item.ingredienteId || !used.has(i.id)) &&
+    (!stockOnly || D.eligibleLots(state, i.id).some(l => l.saldo > 0))
+  )
+  if (!available.length) return toast('Todos os ingredientes já foram adicionados.')
+  const n = document.querySelectorAll('.formula-ingredient-row').length + 1
+  $('#formulaIngredientRows').insertAdjacentHTML('beforeend', `<div class="formula-ingredient-row">${select(`Ingrediente ${n}`, 'formulaIngredient', available.map(i => [i.id, `${i.codigo} · ${i.nome}`]), item.ingredienteId || available[0].id)}${input('Quantidade (kg)', 'formulaQuantity', item.quantidade ?? 0, 'number', 'required min="0" step="0.00001"')}<button type="button" class="ghost-btn remove-formula-ingredient" data-action="removeFormulaIngredient" aria-label="Remover ingrediente ${n}">×</button></div>`)
+  updateFormulaBalance()
+  syncContainsOptions()
+}
+function updateFormulaBalance() {
+  if (!$('#formulaBalance')) return
+  const yieldKg = Number($('[name="rendimento"]')?.value || 0)
+  const total = [...document.querySelectorAll('.formula-ingredient-row input')].reduce((sum, el) => sum + Number(el.value || 0), 0)
+  const difference = yieldKg - total
+  const matches = Math.abs(difference) < 0.00001
+  $('#formulaBalance').innerHTML = notice(`Soma dos ingredientes: <strong>${total.toFixed(5)} kg</strong> · Rendimento: <strong>${yieldKg.toFixed(5)} kg</strong>${matches ? ' · Valores conferem.' : ` · ${difference > 0 ? 'Restam' : 'Excedem'} <strong>${Math.abs(difference).toFixed(5)} kg</strong>.`}`, matches ? 'success' : 'warn')
 }
 document.addEventListener('click', e => {
   const tab = e.target.closest('[data-doc-tab]')
@@ -1041,6 +1215,16 @@ document.addEventListener('click', e => {
   if (action.dataset.action === 'removeLine') {
     action.closest('.order-line').remove()
     updateOrderTotals()
+    return
+  }
+  if (action.dataset.action === 'addFormulaIngredient') {
+    addFormulaIngredientRow()
+    return
+  }
+  if (action.dataset.action === 'removeFormulaIngredient') {
+    action.closest('.formula-ingredient-row').remove()
+    updateFormulaBalance()
+    syncContainsOptions()
     return
   }
   if (action.dataset.action === 'addPaymentTerm') {
@@ -1085,10 +1269,12 @@ function filterPdProducts() {
   })
 }
 document.addEventListener('input', e => {
+  if (e.target.name === 'contem') e.target.dataset.edited = 'true'
   if (e.target.id === 'orderSearch') filterOrders()
   if (e.target.id === 'pdProductSearch') filterPdProducts()
   if (e.target.closest('.order-line')) updateOrderTotals()
   if (e.target.closest('.payment-term-line')) updatePaymentTerms()
+  if (e.target.closest('.formula-editor') || e.target.name === 'rendimento') updateFormulaBalance()
   if (
     [
       'margem',
@@ -1110,6 +1296,8 @@ document.addEventListener('input', e => {
     drawConsumption($('#dialogBody').dataset.op)
 })
 document.addEventListener('change', e => {
+  if (e.target.name === 'containsIngredient') updateContainsText(true)
+  if (e.target.name === 'formulaIngredient') syncContainsOptions()
   if (e.target.name === 'filterStatus') filterOrders()
   if (e.target.name === 'clienteId' && $('#orderLines')) updateOrderTotals()
   if (e.target.closest('.order-line')) updateOrderTotals()

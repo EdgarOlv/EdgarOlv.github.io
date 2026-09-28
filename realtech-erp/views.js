@@ -71,6 +71,32 @@ function productsView() {
     )
   )
 }
+function ingredientsView() {
+  const stock = ingredient => D.eligibleLots(state, ingredient.id)
+    .reduce((sum, lot) => sum + lot.saldo, 0)
+  return (
+    intro(
+      'Ingredientes',
+      'Cadastro-base usado no recebimento de matéria-prima e na criação das fórmulas dos produtos.',
+      actionButton('+ Novo ingrediente', 'saveIngredient', null, true)
+    ) +
+    panel(
+      'Ingredientes cadastrados',
+      table(
+        ['Código', 'Nome', 'INS', 'Categoria', 'Disponível', 'Ações'],
+        state.ingredientes.map(i => [
+          esc(i.codigo),
+          esc(i.nome),
+          esc(i.ins || '—'),
+          esc(i.categoria || 'Não informada'),
+          `${qty(stock(i))} kg`,
+          `<div class="actions">${actionButton('Editar', 'saveIngredient', i.id)}${actionButton('Excluir', 'deleteIngredient', i.id)}</div>`
+        ])
+      )
+    ) +
+    notice('A exclusão é bloqueada quando o ingrediente já participa de uma fórmula ou possui lote registrado. O INS é opcional, pois nem toda matéria-prima possui esse código.')
+  )
+}
 function formulasView() {
   return (
     intro(
@@ -91,10 +117,15 @@ function formulasView() {
         ],
         state.produtos.map(p => {
           const f = p.formulaId ? find(state.formulas, p.formulaId) : null
+          const draft = f
+            ? state.formulas
+                .filter(x => x.codigo === f.codigo && x.status === 'emDesenvolvimento' && x.id !== f.id)
+                .sort((a, b) => b.versao - a.versao)[0]
+            : null
           return [
             `<span data-pd-product-row="${esc(`${p.nome} ${p.codigo}`.toLocaleLowerCase('pt-BR'))}">${esc(p.codigo)} · ${esc(p.nome)}</span>`,
             f
-              ? `${esc(f.codigo)} · v${f.versao}<small>${badge(f.status)}</small>`
+              ? `${esc(f.codigo)} · v${f.versao}<small>${badge(f.status)}</small>${draft ? `<small class="draft-version-note">Nova versão v${draft.versao} ${badge('emDesenvolvimento')}</small>` : ''}`
               : 'Sem fórmula',
             `${qty(p.pesoKg)} kg<small>${esc(p.embalagem || 'Sem embalagem')}</small>`,
             p.precoVendaKgCentavos
@@ -103,7 +134,7 @@ function formulasView() {
                 ? money(p.precoCentavos)
                 : 'Não liberado',
             badge(p.status),
-            `${actionButton('Abrir', 'productDetails', p.id, true)}${actionButton('Criar a partir', 'createProduct', p.id)}`
+            `${actionButton(draft ? 'Revisar nova versão' : 'Abrir', 'productDetails', p.id, true)}${actionButton('Criar a partir', 'createProduct', p.id)}`
           ]
         })
       )}</div>`
@@ -217,7 +248,7 @@ function opView(id) {
       ],
       ['Operador', esc(x.operador || 'Não iniciado')]
     ])
-  )}<div class="actions">${!x.documentoOp ? actionButton('Gerar documento da OP', 'issueSheet', id, true) : btn('Consultar doc. OP', 'viewSheet', id)}${x.status === 'aguardando' && x.documentoOp ? actionButton('Iniciar produção', 'startOp', id, true) : ''}${x.status === 'emProducao' ? actionButton('Apontar produção', 'reportProduction', id, true) : ''}${actionButton('Definir etiquetas', 'editOpLabels', id)}</div>${panel(
+  )}<div class="actions">${!x.documentoOp ? actionButton('Gerar documento da OP', 'issueSheet', id, true) : `${btn('Fórmula para produção', 'viewProductionFormula', id, true)}${btn('Etiquetas', 'viewOpLabels', id)}`}${x.status === 'aguardando' && x.documentoOp ? actionButton('Iniciar produção', 'startOp', id, true) : ''}${x.status === 'emProducao' ? actionButton('Apontar produção', 'reportProduction', id, true) : ''}</div>${panel(
     'Etiquetas solicitadas',
     x.etiquetas?.length
       ? table(

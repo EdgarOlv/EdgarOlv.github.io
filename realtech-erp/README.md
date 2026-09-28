@@ -4,6 +4,8 @@ Para a visão geral do projeto, o vocabulário comum e a lista de divergências 
 
 > Este protótipo é a referência navegável para descoberta e homologação. A tradução formal das regras está em [`docs/`](docs/README.md); mudanças funcionais devem atualizar código, regra, teste e histórico juntos.
 
+Os registros de decisões foram organizados em [`docs/decisoes/`](docs/decisoes/README.md), com índice cronológico e por área.
+
 Preserva o estilo visual original e conecta os módulos com estado local. **Somente demonstração com dados sintéticos.** Não publicar documentos de negócio, banco, Flutter ou credenciais reais junto aos arquivos estáticos.
 
 ## Abrir localmente

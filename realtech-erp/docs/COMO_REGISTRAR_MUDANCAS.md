@@ -2,13 +2,15 @@
 
 Após cada apresentação:
 
-1. registre data, participantes e pedido na linguagem da empresa;
-2. classifique como confirmado, demonstrado ou pendente;
-3. crie/atualize um ID em `REGRAS_DE_NEGOCIO.md`;
-4. descreva cenário, bloqueios, exceções, dados e permissões;
-5. ajuste protótipo e teste aplicável;
-6. atualize impacto em Flutter/API/banco;
-7. registre a entrega no histórico global.
+1. crie ou atualize um registro em `decisoes/`, usando o nome `AAAA-MM-DD-tema-curto.md`;
+2. registre data, participantes e pedido na linguagem da empresa;
+3. classifique como confirmado, demonstrado ou pendente;
+4. crie/atualize um ID em `REGRAS_DE_NEGOCIO.md`;
+5. descreva cenário, bloqueios, exceções, dados e permissões;
+6. ajuste protótipo e teste aplicável;
+7. atualize impacto em Flutter/API/banco;
+8. registre a entrega no histórico global;
+9. inclua o registro nos índices cronológico e por área de [`decisoes/README.md`](decisoes/README.md).
 
 ```md
 ### RN-AREA-000 — Nome curto

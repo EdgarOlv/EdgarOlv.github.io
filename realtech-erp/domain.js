@@ -6,9 +6,10 @@
   else root.Realtech = api
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict'
-  const VERSION = 6
+  const VERSION = 9
   const clone = value => JSON.parse(JSON.stringify(value))
   const round = value => Math.round(value * 1000) / 1000
+  const roundFormula = value => Math.round(value * 100000) / 100000
   const today = () => localDate(new Date())
   function localDate(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -69,9 +70,37 @@
   }
   const releases = [
     {
+      version: 'v9', date: '2026-09-28', current: true,
+      title: 'Fórmula para produção, composição declarada e etiqueta por data',
+      summary: 'O produto passa a guardar validade e a declaração “Contém”; o Documento da OP reúne os dados completos da fórmula para produção e a etiqueta usa a data de impressão como lote.',
+      changes: [
+        { area: 'Qualidade e P&D', title: '“Contém” dinâmico e validade no produto', description: 'A declaração é construída a partir dos ingredientes marcados, usando sua categoria e INS quando disponível, e permanece editável junto da validade do produto.', rules: ['RN-PD-004'], status: 'Confirmada; texto regulatório pendente de homologação', route: 'formulas' },
+        { area: 'Produção', title: 'Documento completo da fórmula para produção', description: 'A consulta da OP apresenta identificação, quantidades, embalagem, modo de uso, declaração “Contém” e composição calculada para a batida.', rules: ['RN-OP-002'], status: 'Confirmada; campos de assinatura pendentes', route: 'producao' },
+        { area: 'Etiquetas', title: 'Lote igual à data de impressão', description: 'A prévia abre com a data atual como lote, sem campo separado de fabricação; a validade vem do lote produzido ou do cadastro do produto.', rules: ['RN-ETQ-003'], status: 'Confirmada', route: 'etiquetas' }
+      ]
+    },
+    {
+      version: 'v8', date: '2026-09-24', current: false,
+      title: 'Cadastro operacional de ingredientes',
+      summary: 'Ingredientes passam a ter CRUD próprio e alimentam o recebimento de matéria-prima e a composição inicial de produtos conforme o estoque disponível.',
+      changes: [
+        { area: 'Operação e estoque', title: 'Cadastro central de ingredientes', description: 'Nome, código, INS e categoria são mantidos em um único cadastro; registros em uso não podem ser excluídos.', rules: ['RN-ING-001', 'RN-ING-002'], status: 'Demonstrada', route: 'ingredientes' },
+        { area: 'P&D e produtos', title: 'Composição inicial baseada no estoque', description: 'Ao criar um produto, a seleção da fórmula inicial oferece ingredientes com saldo em lotes liberados e válidos.', rules: ['RN-ING-003'], status: 'Demonstrada', route: 'formulas' }
+      ]
+    },
+    {
+      version: 'v7', date: '2026-09-24', current: false,
+      title: 'Fórmulas precisas e precificação por produto',
+      summary: 'P&D mantém composição dinâmica com cinco casas decimais e ajusta por produto os parâmetros herdados da política padrão.',
+      changes: [
+        { area: 'P&D e precificação', title: 'Parâmetros próprios por produto', description: 'A formação de preço apresenta os padrões em um card editável; a variação fica salva no produto sem alterar os padrões globais.', rules: ['RN-PD-001'], status: 'Confirmada', route: 'formulas' },
+        { area: 'P&D e fórmulas', title: 'Composição dinâmica e conferência do rendimento', description: 'Ingredientes podem ser adicionados ou removidos, quantidades aceitam cinco casas decimais e o sistema mostra soma, falta ou excesso.', rules: ['RN-PD-002', 'RN-PD-003'], status: 'Confirmada', route: 'formulas' }
+      ]
+    },
+    {
       version: 'v6',
       date: '2026-09-17',
-      current: true,
+      current: false,
       title: 'Etiqueta grande editável no pedido',
       summary:
         'O modelo grande reproduz a referência física, permite editar os textos fixos e pode ser aberto em cada item do pedido para impressão.',
@@ -250,6 +279,7 @@
         'producao',
         'etiquetas',
         'estoque',
+        'ingredientes',
         'qualidade',
         'financeiro',
         'faturamento',
@@ -296,6 +326,7 @@
         'producao',
         'etiquetas',
         'estoque',
+        'ingredientes',
         'relatorios',
         'guia'
       ]
@@ -325,6 +356,7 @@
         'produtos',
         'formulas',
         'precificacao',
+        'ingredientes',
         'relatorios',
         'guia'
       ]
@@ -332,7 +364,7 @@
     estoque: {
       label: 'Estoque',
       description: 'Receba lotes e registre ajustes justificados.',
-      modules: ['dashboard', 'estoque', 'relatorios', 'guia']
+      modules: ['dashboard', 'ingredientes', 'estoque', 'relatorios', 'guia']
     },
     diretor: {
       label: 'Diretor',
@@ -364,6 +396,8 @@
     confirmDelivery: ['fiscal'],
     receiveLot: ['estoque'],
     adjustLot: ['estoque'],
+    saveIngredient: ['estoque', 'pd'],
+    deleteIngredient: ['estoque', 'pd'],
     saveClient: ['comercial'],
     editLabel: ['producao'],
     saveLabel: ['producao'],
@@ -372,6 +406,7 @@
     createVersion: ['pd'],
     activateVersion: ['pd'],
     createProduct: ['pd'],
+    saveProduct: ['pd'],
     savePricingSettings: ['pd'],
     releasePrice: ['pd'],
     registerReceipt: ['financeiro', 'fiscal'],
@@ -653,14 +688,16 @@
       ativo: true
     }))
     const ingredients = [
-      ['i1', 'Ácido cítrico', 850],
-      ['i2', 'Glutamato monossódico', 1500],
-      ['i3', 'Cloreto de sódio', 200],
-      ['i4', 'Extrato de levedura', 4500]
-    ].map(([id, nome, custoCentavos], n) => ({
+      ['i1', 'Ácido cítrico', '330', 'Acidulante', 850],
+      ['i2', 'Glutamato monossódico', '621', 'Realçador de sabor', 1500],
+      ['i3', 'Cloreto de sódio', '', 'Ingrediente base', 200],
+      ['i4', 'Extrato de levedura', '', 'Realçador de sabor', 4500]
+    ].map(([id, nome, ins, categoria, custoCentavos], n) => ({
       id,
       codigo: `ING-00${n + 1}`,
       nome,
+      ins,
+      categoria,
       custoCentavos,
       unidade: 'KG'
     }))
@@ -743,7 +780,16 @@
           comissaoBps: 500,
           precoLiberado: true,
           tabela: 'Tabela demonstração 2026',
-          precificacao: { margemPercentual: 60 }
+          precificacao: { margemPercentual: 60 },
+          validade: '12 meses',
+          contemItens: ['i1', 'i2', 'i4'],
+          contem: 'Acidulante INS 330; Realçador de sabor INS 621; Realçador de sabor: Extrato de levedura',
+          descricaoProduto: 'Condimento preparado para produtos cárneos com aditivos.',
+          alergenicosAtivo: true,
+          alergenicosTexto: 'Contém derivados de soja.',
+          naoContemGluten: true,
+          modoUso: 'Usar 1% sobre a massa ou conforme padrão de identidade e qualidade do produto e especificação técnica.',
+          conservacao: 'Manter em local seco, fresco e arejado.'
         },
         {
           id: 'p2',
@@ -763,7 +809,16 @@
           comissaoBps: 450,
           precoLiberado: true,
           tabela: 'Tabela demonstração 2026',
-          precificacao: { margemPercentual: 60 }
+          precificacao: { margemPercentual: 60 },
+          validade: '12 meses',
+          contemItens: ['i2', 'i4'],
+          contem: 'Realçador de sabor INS 621; Realçador de sabor: Extrato de levedura',
+          descricaoProduto: 'Realçador preparado para produtos alimentícios.',
+          alergenicosAtivo: true,
+          alergenicosTexto: 'Pode conter derivados de soja.',
+          naoContemGluten: true,
+          modoUso: 'Utilizar conforme a especificação técnica do produto.',
+          conservacao: 'Manter em local seco, fresco e arejado.'
         },
         {
           id: 'p3',
@@ -782,7 +837,16 @@
           precoCentavos: 0,
           comissaoBps: 600,
           precoLiberado: false,
-          tabela: 'Não liberada'
+          tabela: 'Não liberada',
+          validade: '',
+          contemItens: [],
+          contem: '',
+          descricaoProduto: '',
+          alergenicosAtivo: false,
+          alergenicosTexto: '',
+          naoContemGluten: false,
+          modoUso: '',
+          conservacao: ''
         }
       ],
       clientes: [
@@ -856,7 +920,7 @@
           id: 'etq1',
           nome: 'Etiqueta pequena padrão',
           tamanho: 'Pequena',
-          conteudo: 'Produto, lote, fabricação, validade e peso líquido',
+          conteudo: 'Produto, lote/data de impressão, validade e peso líquido',
           observacoes: 'Modelo preliminar para validação.'
         },
         {
@@ -864,7 +928,7 @@
           nome: 'Etiqueta grande REAL MAX',
           tamanho: 'Grande',
           conteudo:
-            'Produto, cliente, ingredientes, lote, fabricação, validade, peso líquido e instruções',
+            'Produto, cliente, ingredientes, contém, lote/data de impressão, validade, peso líquido e instruções',
           descricaoProduto:
             'Condimento preparado para produtos cárneos com aditivos.',
           textoRegulatorio:
@@ -931,6 +995,12 @@
       ) / f.rendimento
     )
   }
+  function containsText(s, ingredientIds) {
+    return [...new Set(ingredientIds || [])]
+      .map(id => get(s.ingredientes, id))
+      .map(i => `${i.categoria || 'Ingrediente'}${i.ins ? ` INS ${i.ins}` : `: ${i.nome}`}`)
+      .join('; ')
+  }
   function pricingProfile(s, p) {
     const formula = p.formulaId ? get(s.formulas, p.formulaId) : null
     const global = s.configuracoes?.precificacao
@@ -947,13 +1017,13 @@
           )
         }))
       : []
-    const fixedCharges = Array.isArray(global?.encargosFixos)
-      ? global.encargosFixos.map(item => ({
+    const fixedCharges = Array.isArray(legacy.encargosFixos)
+      ? legacy.encargosFixos.map(item => ({
           nome: item.nome || 'Encargo',
           percentual: Number(item.percentual || 0)
         }))
-      : Array.isArray(legacy.encargosFixos)
-        ? legacy.encargosFixos.map(item => ({
+      : Array.isArray(global?.encargosFixos)
+        ? global.encargosFixos.map(item => ({
             nome: item.nome || 'Encargo',
             percentual: Number(item.percentual || 0)
           }))
@@ -968,13 +1038,13 @@
         legacy.margemPercentual ?? global?.margemPadrao ?? 60
       ),
       financeiroCentavosKg: Number(
-        global?.financeiroCentavosKg ?? legacy.financeiroCentavosKg ?? 125
+        legacy.financeiroCentavosKg ?? global?.financeiroCentavosKg ?? 125
       ),
       maoDeObraCentavosKg: Number(
-        global?.maoDeObraCentavosKg ?? legacy.maoDeObraCentavosKg ?? 75
+        legacy.maoDeObraCentavosKg ?? global?.maoDeObraCentavosKg ?? 75
       ),
       outrosCustosCentavosKg: Number(
-        global?.outrosCustosCentavosKg ?? legacy.outrosCustosCentavosKg ?? 0
+        legacy.outrosCustosCentavosKg ?? global?.outrosCustosCentavosKg ?? 0
       ),
       encargosFixos: fixedCharges,
       composicao: basePercentages
@@ -1191,6 +1261,15 @@
             precoCentavos: p.precoCentavos,
             comissaoBps: p.comissaoBps,
             tabela: p.tabela,
+            validade: p.validade || '',
+            contem: p.contem || '',
+            contemItens: clone(p.contemItens || []),
+            descricaoProduto: p.descricaoProduto || '',
+            alergenicosAtivo: !!p.alergenicosAtivo,
+            alergenicosTexto: p.alergenicosTexto || '',
+            naoContemGluten: !!p.naoContemGluten,
+            modoUso: p.modoUso || '',
+            conservacao: p.conservacao || '',
             formula: clone(f)
           }
         })
@@ -1360,6 +1439,15 @@
             produtoId: i.produtoId,
             produtoNome: i.nome,
             formula: clone(i.formula),
+            validade: i.validade || '',
+            contem: i.contem || '',
+            contemItens: clone(i.contemItens || []),
+            descricaoProduto: i.descricaoProduto || '',
+            alergenicosAtivo: !!i.alergenicosAtivo,
+            alergenicosTexto: i.alergenicosTexto || '',
+            naoContemGluten: !!i.naoContemGluten,
+            modoUso: i.modoUso || '',
+            conservacao: i.conservacao || '',
             pesoKg: i.pesoKg,
             quantidadePrevista: i.quantidade,
             quantidadeProduzida: 0,
@@ -1371,7 +1459,10 @@
             lotes: [],
             apontamentos: [],
             documentoOp: null,
-            etiquetas: []
+            etiquetas: [
+              { etiquetaId: 'etq1', quantidade: 1 },
+              { etiquetaId: 'etq2', quantidade: 2 }
+            ]
           })
         })
         o.status = 'emProducao'
@@ -1739,6 +1830,45 @@
         move(target, q, 'entrada', 'Recebimento de demonstração')
         break
       }
+      case 'saveIngredient': {
+        const ingredient = payload.id ? get(s.ingredientes, payload.id) : null
+        const code = text(payload.codigo, 'Código')
+        requireThat(
+          !s.ingredientes.some(
+            i => i.id !== ingredient?.id && i.codigo.toLowerCase() === code.toLowerCase()
+          ),
+          'Código de ingrediente já cadastrado.'
+        )
+        target = ingredient || {
+          id: uid(),
+          custoCentavos: 0,
+          unidade: 'KG'
+        }
+        before = ingredient ? clone(ingredient) : null
+        target.codigo = code
+        target.nome = text(payload.nome, 'Nome')
+        target.ins = text(payload.ins, 'INS', false)
+        target.categoria = text(payload.categoria, 'Categoria')
+        if (!ingredient) s.ingredientes.push(target)
+        result = target.id
+        break
+      }
+      case 'deleteIngredient': {
+        const ingredient = get(s.ingredientes, payload.id)
+        requireThat(
+          !s.formulas.some(f => f.itens.some(i => i.ingredienteId === ingredient.id)),
+          'Ingrediente vinculado a uma fórmula não pode ser excluído.'
+        )
+        requireThat(
+          !s.lotes.some(l => l.ingredienteId === ingredient.id),
+          'Ingrediente com lote registrado não pode ser excluído.'
+        )
+        target = ingredient
+        before = clone(ingredient)
+        s.ingredientes = s.ingredientes.filter(i => i.id !== ingredient.id)
+        result = ingredient.id
+        break
+      }
       case 'adjustLot': {
         const l = get(s.lotes, payload.id)
         target = l
@@ -1854,6 +1984,28 @@
             false
           )
         }
+        if (Array.isArray(payload.itens) && payload.itens.length) {
+          const rows = payload.itens.map(i => ({
+            ingredienteId: i.ingredienteId,
+            quantidade: roundFormula(number(i.quantidade, 'Quantidade de ingrediente', 0))
+          }))
+          requireThat(
+            rows.every(i => s.ingredientes.some(x => x.id === i.ingredienteId)),
+            'Ingrediente inválido.'
+          )
+          requireThat(
+            new Set(rows.map(i => i.ingredienteId)).size === rows.length,
+            'O mesmo ingrediente não pode aparecer mais de uma vez na fórmula.'
+          )
+          const yieldKg = number(payload.rendimento, 'Rendimento', 0.001)
+          const totalIngredients = roundFormula(rows.reduce((sum, i) => sum + i.quantidade, 0))
+          requireThat(
+            Math.abs(totalIngredients - yieldKg) < 0.00001,
+            `A soma dos ingredientes é ${totalIngredients.toFixed(5)} kg; o rendimento é ${yieldKg.toFixed(5)} kg.`
+          )
+          formula.rendimento = yieldKg
+          formula.itens = rows
+        }
         requireThat(
           !s.formulas.some(
             f => f.codigo.toLowerCase() === formula.codigo.toLowerCase()
@@ -1882,8 +2034,36 @@
           precoLiberado: false,
           precificacao: productPricing
         }
+        target.validade = text(payload.validade ?? source.validade, 'Validade', false)
+        target.contemItens = (payload.contemItens || source.contemItens || []).filter(id =>
+          formula.itens.some(item => item.ingredienteId === id)
+        )
+        target.contem = text(
+          payload.contem || containsText(s, target.contemItens),
+          'Contém',
+          false
+        )
         s.produtos.push(target)
         result = target.id
+        break
+      }
+      case 'saveProduct': {
+        const p = get(s.produtos, payload.id)
+        target = p
+        before = clone(p)
+        const formula = p.formulaId ? get(s.formulas, p.formulaId) : null
+        const allowedIds = new Set((formula?.itens || []).map(item => item.ingredienteId))
+        const selected = [...new Set(payload.contemItens || [])]
+        requireThat(selected.every(id => allowedIds.has(id)), 'O campo Contém só pode usar ingredientes da fórmula atual.')
+        p.validade = text(payload.validade, 'Validade', false)
+        p.contemItens = selected
+        p.contem = text(payload.contem || containsText(s, selected), 'Contém', false)
+        p.descricaoProduto = text(payload.descricaoProduto, 'Descrição do produto', false)
+        p.alergenicosAtivo = !!payload.alergenicosAtivo
+        p.alergenicosTexto = text(payload.alergenicosTexto, 'Declaração de alergênicos', p.alergenicosAtivo)
+        p.naoContemGluten = !!payload.naoContemGluten
+        p.modoUso = text(payload.modoUso, 'Modo de uso', false)
+        p.conservacao = text(payload.conservacao, 'Conservação', false)
         break
       }
       case 'saveLabel': {
@@ -1893,12 +2073,7 @@
         e.nome = text(payload.nome, 'Nome')
         e.conteudo = text(payload.conteudo, 'Dados da etiqueta')
         for (const field of [
-          'descricaoProduto',
           'textoRegulatorio',
-          'alergicos',
-          'gluten',
-          'modoUso',
-          'conservacao',
           'fabricante',
           'slogan'
         ])
@@ -1927,18 +2102,29 @@
         const f = get(s.formulas, payload.id)
         const rows = payload.itens.map(i => ({
           ingredienteId: i.ingredienteId,
-          quantidade: round(number(i.quantidade, 'Quantidade de ingrediente'))
+          quantidade: roundFormula(
+            number(i.quantidade, 'Quantidade de ingrediente', 0)
+          )
         }))
         requireThat(
-          rows.length === f.itens.length &&
-            rows.every((i, n) => i.ingredienteId === f.itens[n].ingredienteId),
-          'Ingredientes inválidos.'
+          rows.length > 0,
+          'A fórmula deve ter ao menos um ingrediente.'
+        )
+        requireThat(
+          rows.every(i => s.ingredientes.some(x => x.id === i.ingredienteId)),
+          'Ingrediente inválido.'
+        )
+        requireThat(
+          new Set(rows.map(i => i.ingredienteId)).size === rows.length,
+          'O mesmo ingrediente não pode aparecer mais de uma vez na fórmula.'
         )
         const yieldKg = number(payload.rendimento, 'Rendimento', 0.001)
+        const totalIngredients = roundFormula(
+          rows.reduce((n, i) => n + i.quantidade, 0)
+        )
         requireThat(
-          Math.abs(rows.reduce((n, i) => n + i.quantidade, 0) - yieldKg) <
-            0.001,
-          'Na demonstração, a soma dos ingredientes deve ser igual ao rendimento.'
+          Math.abs(totalIngredients - yieldKg) < 0.00001,
+          `A soma dos ingredientes é ${totalIngredients.toFixed(5)} kg; o rendimento é ${yieldKg.toFixed(5)} kg. Ajuste ${Math.abs(yieldKg - totalIngredients).toFixed(5)} kg antes de criar a versão.`
         )
         target = {
           ...clone(f),
@@ -1955,6 +2141,13 @@
           observacoes: text(payload.justificativa, 'Justificativa da versão')
         }
         s.formulas.push(target)
+        const product = s.produtos.find(p => p.formulaId === f.id)
+        if (product) {
+          product.validade = text(payload.validade ?? product.validade, 'Validade', false)
+          product.contemItens = [...new Set(payload.contemItens || product.contemItens || [])]
+            .filter(id => rows.some(item => item.ingredienteId === id))
+          product.contem = text(payload.contem || containsText(s, product.contemItens), 'Contém', false)
+        }
         break
       }
       case 'activateVersion': {
@@ -2013,11 +2206,28 @@
             unitsPerVolume <= maxUnitsPerVolume,
           'Configuração de volume inválida para o produto.'
         )
+        const currentProfile = pricingProfile(s, p)
         const pricingProduct = {
           ...p,
           precificacao: {
             ...(p.precificacao || {}),
-            margemPercentual: payload.margem
+            margemPercentual: payload.margem,
+            financeiroCentavosKg: Math.round(
+              number(payload.financeiroCentavosKg ?? currentProfile.financeiroCentavosKg / 100, 'Financeiro por kg', 0) * 100
+            ),
+            maoDeObraCentavosKg: Math.round(
+              number(payload.maoDeObraCentavosKg ?? currentProfile.maoDeObraCentavosKg / 100, 'Mão de obra por kg', 0) * 100
+            ),
+            outrosCustosCentavosKg: Math.round(
+              number(payload.outrosCustosCentavosKg ?? currentProfile.outrosCustosCentavosKg / 100, 'Outros custos por kg', 0) * 100
+            ),
+            embalagemCentavosKg: Math.round(
+              number(payload.embalagemCentavosKg ?? (p.precificacao?.embalagemCentavosKg ?? (p.embalagemCentavos || 0) / (p.pesoKg || 1)) / 100, 'Embalagem por kg', 0) * 100
+            ),
+            encargosFixos: (payload.encargosFixos || currentProfile.encargosFixos).map(item => ({
+              nome: text(item.nome, 'Nome do encargo'),
+              percentual: number(item.percentual, 'Percentual do encargo', 0)
+            }))
           }
         }
         const sim = priceSimulation(s, pricingProduct, payload.margem)
@@ -2047,7 +2257,7 @@
         p.precoCentavos = sim.precoCentavos
         p.precoLiberado = true
         p.precificacao = {
-          ...(p.precificacao || {}),
+          ...pricingProduct.precificacao,
           margemPercentual: Number(payload.margem),
           historico: p.precificacao?.historico || []
         }
@@ -2201,6 +2411,8 @@
     visibleOrders,
     visibleClients,
     formulaCost,
+    containsText,
+    pricingProfile,
     priceSimulation,
     priceScenarios,
     validCnpj,

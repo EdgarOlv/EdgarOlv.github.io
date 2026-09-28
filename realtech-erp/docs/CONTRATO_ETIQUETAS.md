@@ -13,19 +13,23 @@ A etiqueta pode ser consultada em cada item do pedido, dentro do Documento da OP
 - cliente do pedido;
 - descrição dos dados previstos no modelo;
 - ingredientes derivados da fórmula da OP;
-- lote, fabricação e validade quando houver lote de produto;
+- lote preenchido com a data atual na abertura da impressão e validade obtida do lote final ou do produto;
 - peso líquido por unidade e embalagem;
 - modelo utilizado e quantidade atribuída à OP;
+- sugestão inicial de 1 etiqueta pequena e 2 grandes, editável no topo da aba, com prévia dos dois modelos;
 - impressão ou salvamento em PDF pelo navegador.
-- textos fixos editáveis: descrição do produto, texto regulatório, alergênicos, glúten, modo de uso, conservação, fabricante e slogan.
+- textos fixos editáveis no modelo: texto regulatório, fabricante e slogan.
+- descrição do produto, alérgicos, glúten, modo de uso e conservação vêm do cadastro/snapshot do produto; texto regulatório e slogan permanecem no modelo.
 
-Quando a OP ainda não possui lote produzido, lote, fabricação e validade aparecem como `A definir` ou data vazia. Isso é uma representação provisória e não libera a etiqueta para uso comercial.
+Quando a OP ainda não possui lote produzido, o lote usa a data atual e a validade textual vem do cadastro do produto. Não existe campo separado de fabricação. A forma definitiva de calcular e formatar a validade ainda requer homologação regulatória.
 
 ## Regras demonstradas
 
 - a etiqueta é vinculada ao produto da OP, não a uma digitação independente;
+- a lista de ingredientes impressa usa o texto “Contém” construído somente com os ingredientes marcados no produto/versão;
 - a etiqueta grande pode ser aberta diretamente em cada item do pedido, antes da OP;
-- antes da produção, os campos de lote e datas aparecem como `A definir`;
+- na abertura da etiqueta, o lote corresponde à data atual; fabricação não aparece como campo separado;
+- a validade usa o lote final quando disponível e, antes disso, o cadastro do produto;
 - o modelo pode ser consultado no cadastro de Etiquetas;
 - a OP pode ter quantidades atribuídas por modelo;
 - a consulta do Documento da OP mantém a ficha de demonstração e a etiqueta em abas separadas;
@@ -35,7 +39,7 @@ Quando a OP ainda não possui lote produzido, lote, fabricação e validade apar
 
 1. O modelo possui dimensões físicas, orientação e impressora de destino.
 2. O conteúdo oficial é versionado e aprovado pela Qualidade e pelo responsável técnico.
-3. Lote, fabricação, validade e peso vêm de dados imutáveis da produção e embalagem.
+3. Lote/data de impressão, validade e peso ficam congelados no evento de emissão; a origem definitiva da validade deve ser homologada.
 4. O sistema define quantidade, sequência e agrupamento da impressão.
 5. O PDF e a impressão térmica preservam escala, margens e legibilidade.
 6. Código de barras ou QR Code, quando exigido, tem regra de origem e validação.
@@ -46,7 +50,7 @@ Quando a OP ainda não possui lote produzido, lote, fabricação e validade apar
 - confirmar medidas da etiqueta pequena e grande;
 - confirmar se o formato demonstrado de 180 × 160 mm corresponde à mídia e às margens reais da impressora;
 - confirmar ingredientes, alergênicos, conservação, instruções e textos regulatórios;
-- confirmar código de barras, QR Code, lote, validade e formato da data;
+- confirmar código de barras, QR Code, formato da data usada como lote e cálculo/formato da validade;
 - confirmar quantidade por embalagem e quantidade por folha/rolo;
 - confirmar impressora, papel, margens e necessidade de impressão em lote;
 - definir se a etiqueta pode ser emitida antes da aprovação do lote;
