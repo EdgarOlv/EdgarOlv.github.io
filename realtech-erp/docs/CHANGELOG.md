@@ -2,7 +2,17 @@
 
 Este documento espelha a página **Atualizações do protótipo**. Alterações funcionais devem atualizar, na mesma entrega, a coleção `releases` em `domain.js`, o catálogo `REGRAS_DE_NEGOCIO.md`, os critérios em `VALIDACAO.md`, a matriz de impacto e este histórico.
 
-## v9 — 28/09/2026 — versão atual
+## v10 — 28/09/2026 — versão atual
+
+### Padronização e ordenação da declaração de ingredientes
+
+- **Ingredientes / Rótulo — RN-ING-004 — Confirmada:** bases da fórmula aparecem primeiro e os demais ingredientes são agrupados por categoria funcional, sempre em ordem decrescente de participação.
+- **Cadastros — RN-ING-005 — Confirmada:** ingredientes passam a registrar categoria funcional e grupo padronizado 01–04; o produto também registra seu grupo para reaproveitamento em etiquetas, fichas e documentos.
+- **Etiquetas — RN-ETQ-005 — Confirmada:** percentuais são calculados pela fórmula e permitidos apenas para sal, nitrito de sódio (INS 250) e nitrato de sódio (INS 251).
+- **Rastreabilidade:** grupo e declaração ficam congelados no item do pedido e na OP.
+- **Pendência:** confirmar se o item manuscrito semelhante a “Max” pertence oficialmente ao grupo 02; ele não foi criado como categoria autônoma no protótipo.
+
+## v9 — 28/09/2026
 
 ### Fórmula para produção e dados de Qualidade no produto
 

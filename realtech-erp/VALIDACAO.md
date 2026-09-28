@@ -5,7 +5,7 @@
 | Critério do refinamento    | Situação neste protótipo                                                                                                                                                                                              |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1. Usuários e perfis       | Perfis predefinidos, login demo, ativação/desativação e ações restritas. Sem cadastro completo ou segurança real.                                                                                                     |
-| 2. Cadastros               | Cliente básico; ingredientes com CRUD de nome, código, INS e categoria; recebimento de lotes usa o cadastro central. Demais cadastros são de consulta. Parcial.                                                       |
+| 2. Cadastros               | Cliente básico; ingredientes com CRUD de nome, código, INS, categoria funcional, grupo padronizado e regra restrita de percentual; recebimento de lotes usa o cadastro central. Demais cadastros são de consulta. Parcial. |
 | 3. Fórmulas e versões      | Consulta, composição dinâmica, quantidades com 5 casas decimais, conferência de soma × rendimento, criação de versão, ativação e preservação de histórico. Sem inativação/obsolescência via UI.                      |
 | 4. Custos e preços         | Simulação de insumos/embalagem, parâmetros padrão com variações salvas por produto e liberação com snapshot. Sem tributos/despesas completos.                                                                         |
 | 5. Produto e fórmula       | Valida fórmula ativa, produto ativo e preço liberado; novo produto compõe a fórmula inicial com ingredientes disponíveis. Validade, “Contém”, descrição, alérgicos/glúten, modo de uso e conservação são editáveis. |
@@ -29,7 +29,7 @@
 
 - Sintaxe de `domain.js` e `interactions.js` verificada.
 - Suíte de domínio: **34 testes passaram, zero falhas**, incluindo CRUD protegido de ingredientes, composição inicial do produto, parâmetros próprios, lista dinâmica e cinco casas decimais.
-- Revisão de 28/09/2026: **35 testes passaram, zero falhas**, incluindo validade, montagem do “Contém” por categoria/INS e preservação desses dados na OP. Sintaxe dos quatro arquivos JavaScript verificada.
+- Revisão de 28/09/2026 (v10): **36 testes passaram, zero falhas**, incluindo ordenação por quantidade, agrupamento funcional, percentuais restritos a sal/INS 250/251 e preservação do grupo no pedido e na OP. Sintaxe dos quatro arquivos JavaScript verificada.
 - A inspeção visual do novo card e do editor responsivo permanece recomendada antes da próxima apresentação.
 
 ### Revisão incremental em 17/09/2026

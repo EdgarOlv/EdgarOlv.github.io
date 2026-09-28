@@ -361,7 +361,21 @@ function updateContainsText(force = false) {
   const field = $('[name="contem"]')
   if (!field || (!force && field.dataset.edited === 'true')) return
   const ids = [...document.querySelectorAll('[name="containsIngredient"]:checked')].map(el => el.value)
-  field.value = D.containsText(state, ids)
+  const rows = [...document.querySelectorAll('.formula-ingredient-row')]
+  let formula
+  if (rows.length) {
+    formula = {
+      rendimento: Number($('[name="rendimento"]')?.value || 0),
+      itens: rows.map(row => ({
+        ingredienteId: row.querySelector('select').value,
+        quantidade: Number(row.querySelector('input').value || 0)
+      }))
+    }
+  } else {
+    const product = state.produtos.find(p => p.id === $('#dialogBody')?.dataset.product)
+    formula = product?.formulaId ? find(state.formulas, product.formulaId) : null
+  }
+  field.value = D.ingredientDeclaration(state, formula, ids)
 }
 
 function syncContainsOptions() {
@@ -574,14 +588,20 @@ function openAction(a, id) {
   if (a === 'saveIngredient') {
     const ingredient = id ? find(state.ingredientes, id) : null
     const categories = [
-      'Acidulante', 'Antioxidante', 'Aromatizante', 'Conservador', 'Corante',
-      'Edulcorante', 'Emulsificante', 'Espessante', 'Estabilizante',
-      'Ingrediente base', 'Realçador de sabor', 'Outros'
+      'Base da fórmula', 'Acidulantes', 'Antioxidantes', 'Conservadores',
+      'Espessantes', 'Reguladores de acidez', 'Corantes', 'Umectantes',
+      'Realçadores de sabor', 'Estabilizantes', 'Antiumectantes', 'Outros'
+    ]
+    const standardizedGroups = [
+      ['01', '01 · Matéria-prima, aditivos únicos e especiarias'],
+      ['02', '02 · Condimentos, aditivos gerais, blends e mix'],
+      ['03', '03 · Fumaças, óleos e corantes'],
+      ['04', '04 · Pastas e molhos']
     ]
     return modal(
       ingredient ? 'Editar ingrediente' : 'Novo ingrediente',
-      `<div class="form-grid">${input('Código', 'codigo', ingredient?.codigo || '', 'text', 'required')}${input('Nome', 'nome', ingredient?.nome || '', 'text', 'required')}${input('INS (opcional)', 'ins', ingredient?.ins || '', 'text', 'inputmode="numeric"')}${select('Categoria', 'categoria', categories.map(c => [c, c]), ingredient?.categoria || 'Outros')}</div>`,
-      d => commit(a, { id: ingredient?.id, ...d }),
+      `<div class="form-grid">${input('Código', 'codigo', ingredient?.codigo || '', 'text', 'required')}${input('Nome', 'nome', ingredient?.nome || '', 'text', 'required')}${input('INS (opcional)', 'ins', ingredient?.ins || '', 'text', 'inputmode="numeric"')}${select('Categoria para rotulagem', 'categoriaRotulagem', categories.map(c => [c, c]), ingredient?.categoriaRotulagem || ingredient?.categoria || 'Outros')}${select('Grupo padronizado', 'grupoPadronizacao', standardizedGroups, ingredient?.grupoPadronizacao || '01')}</div><label class="check-card"><input type="checkbox" name="exibePercentualRotulo" ${ingredient?.exibePercentualRotulo ? 'checked' : ''}><span>Exibir percentual na etiqueta <small>Permitido somente para sal, nitrito de sódio/INS 250 e nitrato de sódio/INS 251.</small></span></label>`,
+      d => commit(a, { id: ingredient?.id, ...d, exibePercentualRotulo: !!document.querySelector('[name="exibePercentualRotulo"]:checked') }),
       ingredient ? 'Salvar alterações' : 'Cadastrar ingrediente'
     )
   }
@@ -633,6 +653,7 @@ function openAction(a, id) {
           ['Código', esc(p.codigo)],
           ['Produto', esc(p.nome)],
           ['Categoria', esc(p.categoria)],
+          ['Grupo padronizado', esc(p.grupoPadronizacao || 'Não informado')],
           ['Validade', esc(p.validade || 'Não informada')],
           ['Contém', esc(p.contem || 'Nenhum item selecionado')],
           ['Descrição para etiqueta', esc(p.descricaoProduto || 'Não informada')],
@@ -711,9 +732,10 @@ function openAction(a, id) {
     if (!formula) throw new Error('Cadastre uma fórmula antes de configurar o campo Contém.')
     modal(
       'Dados de qualidade · ' + p.nome,
-      `<div class="form-grid">${input('Validade do produto', 'validade', p.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${textarea('Descrição do produto na etiqueta', 'descricaoProduto', p.descricaoProduto || '')}${textarea('Modo de uso', 'modoUso', p.modoUso || '')}${textarea('Conservação', 'conservacao', p.conservacao || '')}</div><section class="product-label-options"><h3>Declarações da etiqueta</h3><label class="check-card"><input type="checkbox" name="alergenicosAtivo" ${p.alergenicosAtivo ? 'checked' : ''}><span>Exibir declaração de alérgicos</span></label>${textarea('Texto de alérgicos', 'alergenicosTexto', p.alergenicosTexto || '')}<label class="check-card"><input type="checkbox" name="naoContemGluten" ${p.naoContemGluten ? 'checked' : ''}><span>Exibir “Não contém glúten”</span></label></section>${containsEditor(formula, p.contemItens, p.contem)}`,
+      `<div class="form-grid">${select('Grupo padronizado do produto', 'grupoPadronizacao', [['01', '01 · Matéria-prima, aditivos únicos e especiarias'], ['02', '02 · Condimentos, aditivos gerais, blends e mix'], ['03', '03 · Fumaças, óleos e corantes'], ['04', '04 · Pastas e molhos']], p.grupoPadronizacao || '02')}${input('Validade do produto', 'validade', p.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${textarea('Descrição do produto na etiqueta', 'descricaoProduto', p.descricaoProduto || '')}${textarea('Modo de uso', 'modoUso', p.modoUso || '')}${textarea('Conservação', 'conservacao', p.conservacao || '')}</div><section class="product-label-options"><h3>Declarações da etiqueta</h3><label class="check-card"><input type="checkbox" name="alergenicosAtivo" ${p.alergenicosAtivo ? 'checked' : ''}><span>Exibir declaração de alérgicos</span></label>${textarea('Texto de alérgicos', 'alergenicosTexto', p.alergenicosTexto || '')}<label class="check-card"><input type="checkbox" name="naoContemGluten" ${p.naoContemGluten ? 'checked' : ''}><span>Exibir “Não contém glúten”</span></label></section>${containsEditor(formula, p.contemItens, p.contem)}`,
       d => commit(a, {
         id,
+        grupoPadronizacao: d.grupoPadronizacao,
         validade: d.validade,
         contem: d.contem,
         descricaoProduto: d.descricaoProduto,
@@ -726,6 +748,7 @@ function openAction(a, id) {
       }),
       'Salvar dados'
     )
+    $('#dialogBody').dataset.product = p.id
     return
   }
   if (a === 'createProduct') {
@@ -745,7 +768,7 @@ function openAction(a, id) {
             .filter(p => p.formulaId)
             .map(p => [p.id, `${p.codigo} · ${p.nome}`]),
           source?.id
-        )}${input('Código do produto', 'codigo', id ? `${source.codigo}-NOVO` : '', 'text', 'required')}${input('Nome do produto', 'nome', id ? `${source.nome} · Cópia` : '', 'text', 'required')}${input('Categoria', 'categoria', source?.categoria || '', 'text', 'required')}${input('Validade do produto', 'validade', source?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${input('Código da fórmula', 'formulaCodigo', id ? `${source.codigo}-FORM` : '', 'text', 'required')}${input('Nome da fórmula', 'formulaNome', id ? `${source.nome} · Fórmula` : '', 'text', 'required')}</div><section class="formula-editor" data-stock-only="true"><div class="section-heading"><div><h3>Composição inicial</h3><p class="muted small">A lista oferece ingredientes com saldo em lotes liberados e válidos.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div class="form-grid">${input('Rendimento (kg)', 'rendimento', source?.formulaId ? find(state.formulas, source.formulaId).rendimento : 100, 'number', 'required min="0.00001" step="0.00001"')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${sourceFormula ? containsEditor(sourceFormula, source.contemItens, source.contem) : ''}${textarea('Observações', 'observacoes', '')}`,
+        )}${input('Código do produto', 'codigo', id ? `${source.codigo}-NOVO` : '', 'text', 'required')}${input('Nome do produto', 'nome', id ? `${source.nome} · Cópia` : '', 'text', 'required')}${input('Categoria', 'categoria', source?.categoria || '', 'text', 'required')}${select('Grupo padronizado', 'grupoPadronizacao', [['01', '01 · Matéria-prima, aditivos únicos e especiarias'], ['02', '02 · Condimentos, aditivos gerais, blends e mix'], ['03', '03 · Fumaças, óleos e corantes'], ['04', '04 · Pastas e molhos']], source?.grupoPadronizacao || '02')}${input('Validade do produto', 'validade', source?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${input('Código da fórmula', 'formulaCodigo', id ? `${source.codigo}-FORM` : '', 'text', 'required')}${input('Nome da fórmula', 'formulaNome', id ? `${source.nome} · Fórmula` : '', 'text', 'required')}</div><section class="formula-editor" data-stock-only="true"><div class="section-heading"><div><h3>Composição inicial</h3><p class="muted small">A lista oferece ingredientes com saldo em lotes liberados e válidos.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div class="form-grid">${input('Rendimento (kg)', 'rendimento', source?.formulaId ? find(state.formulas, source.formulaId).rendimento : 100, 'number', 'required min="0.00001" step="0.00001"')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${sourceFormula ? containsEditor(sourceFormula, source.contemItens, source.contem) : ''}${textarea('Observações', 'observacoes', '')}`,
       d => commit(a, {
         ...d,
         contemItens: [...document.querySelectorAll('[name="containsIngredient"]:checked')].map(el => el.value),
@@ -920,6 +943,7 @@ function openAction(a, id) {
           ['Cliente / local', esc(order.clienteNome)],
           ['Pedido', esc(order.numero)],
           ['Produto', esc(x.produtoNome)],
+          ['Grupo padronizado', esc(x.grupoPadronizacao || product.grupoPadronizacao || 'Não informado')],
           [
             'Fórmula / versão',
             `${esc(x.formula.codigo)} · v${x.formula.versao}`

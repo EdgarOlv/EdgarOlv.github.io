@@ -20,6 +20,7 @@ Esta pasta guarda as decisões e propostas surgidas nas conversas de descoberta 
 | 24/09/2026 | [P&D, fórmulas e precificação](2026-09-24-pd.md) | RN-PD-001/002/003 | Confirmadas pela empresa; detalhes pendentes |
 | 24/09/2026 | [Cadastro de ingredientes](2026-09-24-ingredientes.md) | RN-ING-001/002/003 | Demonstradas; aguardando homologação |
 | 28/09/2026 | [Qualidade, fórmula para produção e etiqueta](2026-09-28-qualidade-producao-etiqueta.md) | RN-PD-004, RN-OP-002, RN-ETQ-003 | Confirmadas; detalhes regulatórios pendentes |
+| 28/09/2026 | [Padronização da declaração de ingredientes](2026-09-28-padronizacao-ingredientes.md) | RN-ING-004, RN-ING-005, RN-ETQ-005 | Confirmadas; leitura de um item manuscrito pendente |
 
 ## Índice por área
 
@@ -29,7 +30,7 @@ Esta pasta guarda as decisões e propostas surgidas nas conversas de descoberta 
 | Financeiro e comissões | [31/08](2026-08-31-ajustes-negocio.md), [faturamento de 14/09](2026-09-14-faturamento-parcelado.md) |
 | Estoque e ingredientes | [10/09](2026-09-10-estoque-governanca.md), [ingredientes de 24/09](2026-09-24-ingredientes.md) |
 | Produção e logística | [31/08](2026-08-31-ajustes-negocio.md), [14/09](2026-09-14-operacao-logistica.md), [Qualidade/produção de 28/09](2026-09-28-qualidade-producao-etiqueta.md) |
-| P&D e precificação | [24/09](2026-09-24-pd.md), [ingredientes de 24/09](2026-09-24-ingredientes.md), [Qualidade/produção de 28/09](2026-09-28-qualidade-producao-etiqueta.md) |
+| P&D e precificação | [24/09](2026-09-24-pd.md), [ingredientes de 24/09](2026-09-24-ingredientes.md), [Qualidade/produção de 28/09](2026-09-28-qualidade-producao-etiqueta.md), [padronização de ingredientes de 28/09](2026-09-28-padronizacao-ingredientes.md) |
 | Governança e documentação | [10/09](2026-09-10-estoque-governanca.md) |
 
 ## Padrão para novos registros

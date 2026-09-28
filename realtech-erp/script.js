@@ -274,6 +274,7 @@ function modal(t, b, fn, label = 'Confirmar') {
 }
 function closeModal() {
   $('#flowDialog').close()
+  delete $('#dialogBody').dataset.product
   modalSubmit = null
   editingOrder = null
   if (dialogOrigin?.isConnected) dialogOrigin.focus()

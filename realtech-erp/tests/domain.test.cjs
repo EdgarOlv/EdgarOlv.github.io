@@ -110,7 +110,7 @@ test('mantém cadastro de ingrediente e protege exclusão quando está em uso', 
       codigo: 'ING-TESTE',
       nome: 'Antioxidante de demonstração',
       ins: '300',
-      categoria: 'Antioxidante'
+      categoria: 'Antioxidantes'
     }
   )
 
@@ -129,6 +129,27 @@ test('mantém cadastro de ingrediente e protege exclusão quando está em uso', 
     () => h.run('deleteIngredient', { id: 'i1' }, 'estoque'),
     /vinculado a uma fórmula/
   )
+})
+
+test('Declaração ordena bases e grupos por quantidade e restringe percentuais', () => {
+  const h = harness()
+  const formula = D.get(h.s.formulas, 'f1v2')
+  assert.equal(
+    D.ingredientDeclaration(h.s, formula, ['i1', 'i2', 'i3', 'i4']),
+    'Sal refinado não iodado (80%), Acidulantes (INS 330), Realçadores de sabor (INS 621 e Extrato de levedura)'
+  )
+
+  const nitriteId = h.run('saveIngredient', {
+    codigo: 'ING-250', nome: 'Nitrito de sódio', ins: '250',
+    categoriaRotulagem: 'Conservadores', grupoPadronizacao: '01',
+    exibePercentualRotulo: true
+  }, 'quimica')
+  assert.equal(D.get(h.s.ingredientes, nitriteId).exibePercentualRotulo, true)
+  assert.throws(() => h.run('saveIngredient', {
+    codigo: 'ING-330-PCT', nome: 'Ácido cítrico com percentual', ins: '330',
+    categoriaRotulagem: 'Acidulantes', grupoPadronizacao: '01',
+    exibePercentualRotulo: true
+  }, 'quimica'), /Percentual na etiqueta é permitido somente/)
 })
 
 test('cria produto com composição informada a partir dos ingredientes disponíveis', () => {
@@ -335,6 +356,7 @@ test('Produto monta Contém por categoria e INS, salva validade e congela os dad
   h.run('saveProduct', {
     id: 'p1',
     validade: '18 meses',
+    grupoPadronizacao: '03',
     contemItens: ['i1', 'i4'],
     contem: '',
     descricaoProduto: 'Condimento para teste',
@@ -346,13 +368,15 @@ test('Produto monta Contém por categoria e INS, salva validade e congela os dad
   }, 'quimica')
   const product = D.get(h.s.produtos, 'p1')
   assert.equal(product.validade, '18 meses')
-  assert.equal(product.contem, 'Acidulante INS 330; Realçador de sabor: Extrato de levedura')
+  assert.equal(product.grupoPadronizacao, '03')
+  assert.equal(product.contem, 'Acidulantes (INS 330), Realçadores de sabor (Extrato de levedura)')
 
   const orderId = create(h, 'c1', [{ produtoId: 'p1', quantidade: 20 }])
   approve(h, orderId)
   h.run('createOps', { id: orderId }, 'producao')
   const op = h.s.ordens[0]
   assert.equal(op.validade, '18 meses')
+  assert.equal(op.grupoPadronizacao, '03')
   assert.equal(op.contem, product.contem)
   assert.equal(op.alergenicosTexto, 'Contém derivados de soja.')
   assert.equal(op.naoContemGluten, true)

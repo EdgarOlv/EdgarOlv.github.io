@@ -27,6 +27,8 @@ Quando a OP ainda não possui lote produzido, o lote usa a data atual e a valida
 
 - a etiqueta é vinculada ao produto da OP, não a uma digitação independente;
 - a lista de ingredientes impressa usa o texto “Contém” construído somente com os ingredientes marcados no produto/versão;
+- a lista começa pelas bases da fórmula em ordem decrescente; os demais itens são agrupados por categoria funcional, também da maior para a menor participação;
+- somente sal, nitrito de sódio (INS 250) e nitrato de sódio (INS 251) podem exibir o percentual calculado sobre o rendimento da fórmula;
 - a etiqueta grande pode ser aberta diretamente em cada item do pedido, antes da OP;
 - na abertura da etiqueta, o lote corresponde à data atual; fabricação não aparece como campo separado;
 - a validade usa o lote final quando disponível e, antes disso, o cadastro do produto;

@@ -6,7 +6,7 @@
   else root.Realtech = api
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict'
-  const VERSION = 9
+  const VERSION = 10
   const clone = value => JSON.parse(JSON.stringify(value))
   const round = value => Math.round(value * 1000) / 1000
   const roundFormula = value => Math.round(value * 100000) / 100000
@@ -70,7 +70,16 @@
   }
   const releases = [
     {
-      version: 'v9', date: '2026-09-28', current: true,
+      version: 'v10', date: '2026-09-28', current: true,
+      title: 'Padronização e ordenação da declaração de ingredientes',
+      summary: 'Ingredientes recebem grupo, categoria funcional e regra de percentual; o texto do rótulo passa a respeitar a composição da fórmula do maior para o menor.',
+      changes: [
+        { area: 'P&D, Qualidade e etiquetas', title: 'Declaração calculada pela fórmula', description: 'Bases aparecem primeiro e os demais ingredientes são agrupados pela categoria funcional e ordenados pela participação total. Percentuais ficam restritos a sal e INS 250/251.', rules: ['RN-ING-004', 'RN-ETQ-005'], status: 'Confirmada', route: 'ingredientes' },
+        { area: 'Cadastros', title: 'Grupos padronizados', description: 'Ingredientes e produtos registram o grupo 01 a 04 da padronização informada; ingredientes também usam uma categoria funcional controlada.', rules: ['RN-ING-005'], status: 'Confirmada', route: 'ingredientes' }
+      ]
+    },
+    {
+      version: 'v9', date: '2026-09-28', current: false,
       title: 'Fórmula para produção, composição declarada e etiqueta por data',
       summary: 'O produto passa a guardar validade e a declaração “Contém”; o Documento da OP reúne os dados completos da fórmula para produção e a etiqueta usa a data de impressão como lote.',
       changes: [
@@ -688,16 +697,19 @@
       ativo: true
     }))
     const ingredients = [
-      ['i1', 'Ácido cítrico', '330', 'Acidulante', 850],
-      ['i2', 'Glutamato monossódico', '621', 'Realçador de sabor', 1500],
-      ['i3', 'Cloreto de sódio', '', 'Ingrediente base', 200],
-      ['i4', 'Extrato de levedura', '', 'Realçador de sabor', 4500]
-    ].map(([id, nome, ins, categoria, custoCentavos], n) => ({
+      ['i1', 'Ácido cítrico', '330', 'Acidulantes', '01', false, 850],
+      ['i2', 'Glutamato monossódico', '621', 'Realçadores de sabor', '01', false, 1500],
+      ['i3', 'Sal refinado não iodado', '', 'Base da fórmula', '01', true, 200],
+      ['i4', 'Extrato de levedura', '', 'Realçadores de sabor', '01', false, 4500]
+    ].map(([id, nome, ins, categoriaRotulagem, grupoPadronizacao, exibePercentualRotulo, custoCentavos], n) => ({
       id,
       codigo: `ING-00${n + 1}`,
       nome,
       ins,
-      categoria,
+      categoria: categoriaRotulagem,
+      categoriaRotulagem,
+      grupoPadronizacao,
+      exibePercentualRotulo,
       custoCentavos,
       unidade: 'KG'
     }))
@@ -767,6 +779,7 @@
           codigo: 'PROD-001',
           nome: 'Tempero Especial A 5 kg',
           categoria: 'Temperos',
+          grupoPadronizacao: '02',
           unidade: 'UN',
           pesoKg: 5,
           embalagem: 'Balde 5 kg',
@@ -783,7 +796,7 @@
           precificacao: { margemPercentual: 60 },
           validade: '12 meses',
           contemItens: ['i1', 'i2', 'i4'],
-          contem: 'Acidulante INS 330; Realçador de sabor INS 621; Realçador de sabor: Extrato de levedura',
+          contem: 'Acidulantes (INS 330), Realçadores de sabor (INS 621 e Extrato de levedura)',
           descricaoProduto: 'Condimento preparado para produtos cárneos com aditivos.',
           alergenicosAtivo: true,
           alergenicosTexto: 'Contém derivados de soja.',
@@ -796,6 +809,7 @@
           codigo: 'PROD-002',
           nome: 'Realçador de Sabor B 20 kg',
           categoria: 'Realçadores',
+          grupoPadronizacao: '02',
           unidade: 'UN',
           pesoKg: 20,
           embalagem: 'Bombona 20 kg',
@@ -812,7 +826,7 @@
           precificacao: { margemPercentual: 60 },
           validade: '12 meses',
           contemItens: ['i2', 'i4'],
-          contem: 'Realçador de sabor INS 621; Realçador de sabor: Extrato de levedura',
+          contem: 'Realçadores de sabor (INS 621 e Extrato de levedura)',
           descricaoProduto: 'Realçador preparado para produtos alimentícios.',
           alergenicosAtivo: true,
           alergenicosTexto: 'Pode conter derivados de soja.',
@@ -825,6 +839,7 @@
           codigo: 'PROD-003',
           nome: 'Condimento Premium C',
           categoria: 'Condimentos',
+          grupoPadronizacao: '02',
           unidade: 'KG',
           pesoKg: 1,
           embalagem: 'Saco',
@@ -1000,6 +1015,74 @@
       .map(id => get(s.ingredientes, id))
       .map(i => `${i.categoria || 'Ingrediente'}${i.ins ? ` INS ${i.ins}` : `: ${i.nome}`}`)
       .join('; ')
+  }
+  const functionalCategoryLabels = {
+    Acidulantes: 'Acidulantes',
+    Antioxidantes: 'Antioxidantes',
+    Conservadores: 'Conservadores',
+    Espessantes: 'Espessantes',
+    'Reguladores de acidez': 'Reguladores de acidez',
+    Corantes: 'Corantes',
+    Umectantes: 'Umectantes',
+    'Realçadores de sabor': 'Realçadores de sabor',
+    Estabilizantes: 'Estabilizantes',
+    Antiumectantes: 'Antiumectantes'
+  }
+  const allowedLabelCategories = [
+    'Base da fórmula',
+    ...Object.keys(functionalCategoryLabels),
+    'Outros'
+  ]
+  const legacyLabelCategories = {
+    Acidulante: 'Acidulantes',
+    Antioxidante: 'Antioxidantes',
+    Conservador: 'Conservadores',
+    Espessante: 'Espessantes',
+    Corante: 'Corantes',
+    Umectante: 'Umectantes',
+    'Realçador de sabor': 'Realçadores de sabor',
+    Estabilizante: 'Estabilizantes',
+    Antiumectante: 'Antiumectantes'
+  }
+  function declarationPercent(value) {
+    const rounded = Math.round(value * 100) / 100
+    return rounded.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%'
+  }
+  function ingredientDeclaration(s, formula, ingredientIds) {
+    if (!formula?.rendimento) return ''
+    const selected = new Set(ingredientIds || [])
+    const rows = formula.itens
+      .filter(item => selected.has(item.ingredienteId))
+      .map(item => ({
+        ...item,
+        ingredient: get(s.ingredientes, item.ingredienteId),
+        percentual: (item.quantidade / formula.rendimento) * 100
+      }))
+    const renderItem = row =>
+      `${row.ingredient.ins ? `INS ${row.ingredient.ins}` : row.ingredient.nome}${row.ingredient.exibePercentualRotulo ? ` (${declarationPercent(row.percentual)})` : ''}`
+    const bases = rows
+      .filter(row => row.ingredient.categoriaRotulagem === 'Base da fórmula')
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .map(renderItem)
+    const grouped = new Map()
+    rows
+      .filter(row => row.ingredient.categoriaRotulagem !== 'Base da fórmula')
+      .forEach(row => {
+        const category = functionalCategoryLabels[row.ingredient.categoriaRotulagem]
+          ? row.ingredient.categoriaRotulagem
+          : (row.ingredient.categoriaRotulagem || 'Outros')
+        if (!grouped.has(category)) grouped.set(category, [])
+        grouped.get(category).push(row)
+      })
+    const groups = [...grouped.entries()]
+      .map(([category, items]) => ({
+        category,
+        items: items.sort((a, b) => b.quantidade - a.quantidade),
+        total: items.reduce((sum, item) => sum + item.quantidade, 0)
+      }))
+      .sort((a, b) => b.total - a.total)
+      .map(group => `${functionalCategoryLabels[group.category] || group.category} (${group.items.map(renderItem).join(' e ')})`)
+    return [...bases, ...groups].join(', ')
   }
   function pricingProfile(s, p) {
     const formula = p.formulaId ? get(s.formulas, p.formulaId) : null
@@ -1262,6 +1345,7 @@
             comissaoBps: p.comissaoBps,
             tabela: p.tabela,
             validade: p.validade || '',
+            grupoPadronizacao: p.grupoPadronizacao || '02',
             contem: p.contem || '',
             contemItens: clone(p.contemItens || []),
             descricaoProduto: p.descricaoProduto || '',
@@ -1440,6 +1524,7 @@
             produtoNome: i.nome,
             formula: clone(i.formula),
             validade: i.validade || '',
+            grupoPadronizacao: i.grupoPadronizacao || '02',
             contem: i.contem || '',
             contemItens: clone(i.contemItens || []),
             descricaoProduto: i.descricaoProduto || '',
@@ -1848,7 +1933,18 @@
         target.codigo = code
         target.nome = text(payload.nome, 'Nome')
         target.ins = text(payload.ins, 'INS', false)
-        target.categoria = text(payload.categoria, 'Categoria')
+        target.categoriaRotulagem = text(payload.categoriaRotulagem || payload.categoria, 'Categoria de rotulagem')
+        target.categoriaRotulagem = legacyLabelCategories[target.categoriaRotulagem] || target.categoriaRotulagem
+        requireThat(allowedLabelCategories.includes(target.categoriaRotulagem), 'Categoria de rotulagem inválida.')
+        target.categoria = target.categoriaRotulagem
+        target.grupoPadronizacao = text(payload.grupoPadronizacao || '01', 'Grupo padronizado')
+        requireThat(['01', '02', '03', '04'].includes(target.grupoPadronizacao), 'Grupo padronizado inválido.')
+        target.exibePercentualRotulo = !!payload.exibePercentualRotulo
+        const percentAllowed = target.ins === '250' || target.ins === '251' || /(^|\s)sal(\s|$)|nitrito de s[oó]dio|nitrato de s[oó]dio/i.test(target.nome)
+        requireThat(
+          !target.exibePercentualRotulo || percentAllowed,
+          'Percentual na etiqueta é permitido somente para sal, nitrito de sódio (INS 250) ou nitrato de sódio (INS 251).'
+        )
         if (!ingredient) s.ingredientes.push(target)
         result = target.id
         break
@@ -2028,18 +2124,20 @@
           codigo: code,
           nome: name,
           categoria: text(payload.categoria || source.categoria, 'Categoria'),
+          grupoPadronizacao: text(payload.grupoPadronizacao || source.grupoPadronizacao || '02', 'Grupo padronizado'),
           formulaId: formula.id,
           status: 'emDesenvolvimento',
           precoCentavos: 0,
           precoLiberado: false,
           precificacao: productPricing
         }
+        requireThat(['01', '02', '03', '04'].includes(target.grupoPadronizacao), 'Grupo padronizado do produto inválido.')
         target.validade = text(payload.validade ?? source.validade, 'Validade', false)
         target.contemItens = (payload.contemItens || source.contemItens || []).filter(id =>
           formula.itens.some(item => item.ingredienteId === id)
         )
         target.contem = text(
-          payload.contem || containsText(s, target.contemItens),
+          payload.contem || ingredientDeclaration(s, formula, target.contemItens),
           'Contém',
           false
         )
@@ -2057,7 +2155,9 @@
         requireThat(selected.every(id => allowedIds.has(id)), 'O campo Contém só pode usar ingredientes da fórmula atual.')
         p.validade = text(payload.validade, 'Validade', false)
         p.contemItens = selected
-        p.contem = text(payload.contem || containsText(s, selected), 'Contém', false)
+        p.contem = text(payload.contem || ingredientDeclaration(s, formula, selected), 'Contém', false)
+        p.grupoPadronizacao = text(payload.grupoPadronizacao || p.grupoPadronizacao, 'Grupo padronizado')
+        requireThat(['01', '02', '03', '04'].includes(p.grupoPadronizacao), 'Grupo padronizado do produto inválido.')
         p.descricaoProduto = text(payload.descricaoProduto, 'Descrição do produto', false)
         p.alergenicosAtivo = !!payload.alergenicosAtivo
         p.alergenicosTexto = text(payload.alergenicosTexto, 'Declaração de alergênicos', p.alergenicosAtivo)
@@ -2146,7 +2246,7 @@
           product.validade = text(payload.validade ?? product.validade, 'Validade', false)
           product.contemItens = [...new Set(payload.contemItens || product.contemItens || [])]
             .filter(id => rows.some(item => item.ingredienteId === id))
-          product.contem = text(payload.contem || containsText(s, product.contemItens), 'Contém', false)
+          product.contem = text(payload.contem || ingredientDeclaration(s, { ...f, rendimento: yieldKg, itens: rows }, product.contemItens), 'Contém', false)
         }
         break
       }
@@ -2412,6 +2512,7 @@
     visibleClients,
     formulaCost,
     containsText,
+    ingredientDeclaration,
     pricingProfile,
     priceSimulation,
     priceScenarios,

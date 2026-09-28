@@ -83,12 +83,14 @@ function ingredientsView() {
     panel(
       'Ingredientes cadastrados',
       table(
-        ['Código', 'Nome', 'INS', 'Categoria', 'Disponível', 'Ações'],
+        ['Código', 'Nome', 'INS', 'Categoria de rótulo', 'Grupo', '% no rótulo', 'Disponível', 'Ações'],
         state.ingredientes.map(i => [
           esc(i.codigo),
           esc(i.nome),
           esc(i.ins || '—'),
-          esc(i.categoria || 'Não informada'),
+          esc(i.categoriaRotulagem || i.categoria || 'Não informada'),
+          esc(i.grupoPadronizacao || '—'),
+          i.exibePercentualRotulo ? 'Sim' : 'Não',
           `${qty(stock(i))} kg`,
           `<div class="actions">${actionButton('Editar', 'saveIngredient', i.id)}${actionButton('Excluir', 'deleteIngredient', i.id)}</div>`
         ])
