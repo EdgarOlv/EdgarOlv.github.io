@@ -46,6 +46,58 @@ test('permite salvar pedido com parcelas sem condições comerciais adicionais',
   assert.equal(order.condicoesComerciais, '')
   assert.deepEqual(order.condicoesPagamentoDias, [30, 60])
 })
+test('amostra percorre Qualidade sem aprovação comercial ou análise financeira', () => {
+  const h = harness()
+  const id = h.run(
+    'saveOrder',
+    {
+      tipo: 'amostra',
+      clienteId: 'c1',
+      itens: [{ produtoId: 'p1', quantidade: 1 }],
+      prazoEntrega: D.day(15)
+    },
+    'qualidade'
+  )
+  let order = D.get(h.s.pedidos, id)
+  assert.equal(order.tipo, 'amostra')
+  assert.equal(order.status, 'amostra')
+  assert.equal(order.statusAnalise, 'naoAplicavel')
+  assert.equal(D.stage(h.s, order), 'Aguardando produção')
+  assert.ok(D.profiles.qualidade.modules.includes('amostras'))
+  assert.ok(D.profiles.administrador.modules.includes('amostras'))
+  assert.ok(D.profiles.pd.modules.includes('amostras'))
+  assert.throws(
+    () => h.run('submitOrder', { id }, 'vendedor'),
+    /Somente rascunhos/
+  )
+  assert.throws(() => h.run('createOps', { id }, 'producao'), /perfil/)
+
+  h.run('createOps', { id }, 'qualidade')
+  const op = h.s.ordens.find(item => item.pedidoId === id)
+  h.run('issueSheet', { id: op.id }, 'qualidade')
+  h.run('startOp', { id: op.id }, 'qualidade')
+  h.run(
+    'reportProduction',
+    {
+      id: op.id,
+      quantidade: 1,
+      perdasKg: 0,
+      sobrasKg: 0,
+      validade: D.day(180),
+      consumos: D.suggestConsumption(h.s, op, op.pesoKg)
+    },
+    'qualidade'
+  )
+  order = D.get(h.s.pedidos, id)
+  assert.equal(D.stage(h.s, order), 'Aguardando qualidade')
+  inspectAll(h)
+  assert.equal(D.stage(h.s, order), 'Pronta para despacho')
+  h.run('dispatch', dispatchData(id), 'qualidade')
+  order = D.get(h.s.pedidos, id)
+  assert.equal(D.stage(h.s, order), 'Despachada')
+  assert.equal(order.aprovacao, null)
+  assert.equal(order.faturamento, undefined)
+})
 function approve(h, id) {
   h.run('submitOrder', { id })
   h.run('analyze', { id, decisao: 'liberado' }, 'financeiro')
@@ -95,12 +147,16 @@ function dispatchData(id) {
 }
 test('mantém cadastro de ingrediente e protege exclusão quando está em uso', () => {
   const h = harness()
-  const id = h.run('saveIngredient', {
-    codigo: 'ING-TESTE',
-    nome: 'Antioxidante de demonstração',
-    ins: '300',
-    categoria: 'Antioxidante'
-  }, 'estoque')
+  const id = h.run(
+    'saveIngredient',
+    {
+      codigo: 'ING-TESTE',
+      nome: 'Antioxidante de demonstração',
+      ins: '300',
+      categoria: 'Antioxidante'
+    },
+    'estoque'
+  )
 
   assert.deepEqual(
     (({ codigo, nome, ins, categoria }) => ({ codigo, nome, ins, categoria }))(
@@ -114,17 +170,24 @@ test('mantém cadastro de ingrediente e protege exclusão quando está em uso', 
     }
   )
 
-  h.run('saveIngredient', {
-    id,
-    codigo: 'ING-TESTE',
-    nome: 'Antioxidante atualizado',
-    ins: '',
-    categoria: 'Antioxidante'
-  }, 'quimica')
+  h.run(
+    'saveIngredient',
+    {
+      id,
+      codigo: 'ING-TESTE',
+      nome: 'Antioxidante atualizado',
+      ins: '',
+      categoria: 'Antioxidante'
+    },
+    'quimica'
+  )
   assert.equal(D.get(h.s.ingredientes, id).nome, 'Antioxidante atualizado')
 
   h.run('deleteIngredient', { id }, 'estoque')
-  assert.equal(h.s.ingredientes.some(i => i.id === id), false)
+  assert.equal(
+    h.s.ingredientes.some(i => i.id === id),
+    false
+  )
   assert.throws(
     () => h.run('deleteIngredient', { id: 'i1' }, 'estoque'),
     /vinculado a uma fórmula/
@@ -139,35 +202,124 @@ test('Declaração ordena bases e grupos por quantidade e restringe percentuais'
     'Sal refinado não iodado (80%), Acidulantes (INS 330), Realçadores de sabor (INS 621 e Extrato de levedura)'
   )
 
-  const nitriteId = h.run('saveIngredient', {
-    codigo: 'ING-250', nome: 'Nitrito de sódio', ins: '250',
-    categoriaRotulagem: 'Conservadores', grupoPadronizacao: '01',
-    exibePercentualRotulo: true
-  }, 'quimica')
+  const nitriteId = h.run(
+    'saveIngredient',
+    {
+      codigo: 'ING-250',
+      nome: 'Nitrito de sódio',
+      ins: '250',
+      categoriaRotulagem: 'Conservadores',
+      grupoPadronizacao: '01',
+      exibePercentualRotulo: true
+    },
+    'quimica'
+  )
   assert.equal(D.get(h.s.ingredientes, nitriteId).exibePercentualRotulo, true)
-  assert.throws(() => h.run('saveIngredient', {
-    codigo: 'ING-330-PCT', nome: 'Ácido cítrico com percentual', ins: '330',
-    categoriaRotulagem: 'Acidulantes', grupoPadronizacao: '01',
-    exibePercentualRotulo: true
-  }, 'quimica'), /Percentual na etiqueta é permitido somente/)
+  assert.throws(
+    () =>
+      h.run(
+        'saveIngredient',
+        {
+          codigo: 'ING-330-PCT',
+          nome: 'Ácido cítrico com percentual',
+          ins: '330',
+          categoriaRotulagem: 'Acidulantes',
+          grupoPadronizacao: '01',
+          exibePercentualRotulo: true
+        },
+        'quimica'
+      ),
+    /Percentual na etiqueta é permitido somente/
+  )
+})
+
+test('Especiarias só são identificadas acima de 25% e aromatizantes nunca abrem a composição', () => {
+  const h = harness()
+  const garlicId = h.run(
+    'saveIngredient',
+    {
+      codigo: 'ESP-ALHO',
+      nome: 'Alho em pó',
+      categoriaRotulagem: 'Especiarias',
+      grupoPadronizacao: '01'
+    },
+    'quimica'
+  )
+  const tomatoId = h.run(
+    'saveIngredient',
+    {
+      codigo: 'ESP-TOMATE',
+      nome: 'Tomate em pó',
+      categoriaRotulagem: 'Especiarias',
+      grupoPadronizacao: '01'
+    },
+    'quimica'
+  )
+  const aromaId = h.run(
+    'saveIngredient',
+    {
+      codigo: 'ARO-CARNE',
+      nome: 'Aroma de carne',
+      categoriaRotulagem: 'Aromatizantes',
+      grupoPadronizacao: '01'
+    },
+    'quimica'
+  )
+  const selected = [garlicId, tomatoId, aromaId]
+
+  assert.equal(
+    D.ingredientDeclaration(
+      h.s,
+      {
+        rendimento: 100,
+        itens: [
+          { ingredienteId: aromaId, quantidade: 30 },
+          { ingredienteId: garlicId, quantidade: 15 },
+          { ingredienteId: tomatoId, quantidade: 10 }
+        ]
+      },
+      selected
+    ),
+    'Aromatizantes, Especiarias'
+  )
+
+  assert.equal(
+    D.ingredientDeclaration(
+      h.s,
+      {
+        rendimento: 100,
+        itens: [
+          { ingredienteId: aromaId, quantidade: 30 },
+          { ingredienteId: garlicId, quantidade: 15 },
+          { ingredienteId: tomatoId, quantidade: 11 }
+        ]
+      },
+      selected
+    ),
+    'Aromatizantes, Especiarias (Alho em pó, Tomate em pó)'
+  )
 })
 
 test('cria produto com composição informada a partir dos ingredientes disponíveis', () => {
   const h = harness()
-  const id = h.run('createProduct', {
-    sourceProductId: 'p1',
-    codigo: 'PROD-TESTE',
-    nome: 'Produto teste',
-    categoria: 'Teste',
-    formulaCodigo: 'FORM-TESTE',
-    formulaNome: 'Fórmula teste',
-    rendimento: 100,
-    itens: [
-      { ingredienteId: 'i1', quantidade: 25 },
-      { ingredienteId: 'i3', quantidade: 75 }
-    ],
-    observacoes: 'Composição demonstrativa.'
-  }, 'quimica')
+  const id = h.run(
+    'createProduct',
+    {
+      sourceProductId: 'p1',
+      codigo: 'PROD-TESTE',
+      nome: 'Produto teste',
+      categoria: 'Teste',
+      formulaCodigo: 'FORM-TESTE',
+      formulaNome: 'Fórmula teste',
+      rendimento: 100,
+      itens: [
+        { ingredienteId: 'i1', quantidade: 25 },
+        { ingredienteId: 'i3', quantidade: 75 }
+      ],
+      observacoes: 'Composição demonstrativa.'
+    },
+    'quimica'
+  )
   const product = D.get(h.s.produtos, id)
   const formula = D.get(h.s.formulas, product.formulaId)
   assert.deepEqual(formula.itens, [
@@ -304,72 +456,98 @@ test('Parâmetros globais de precificação são usados pelos produtos', () => {
 test('Produto salva parâmetros próprios sem alterar os padrões globais', () => {
   const h = harness()
   const globalBefore = D.clone(h.s.configuracoes.precificacao)
-  h.run('releasePrice', {
-    id: 'p1',
-    margem: 42,
-    embalagemCentavosKg: 1.2345,
-    financeiroCentavosKg: 2.5,
-    maoDeObraCentavosKg: 3.75,
-    outrosCustosCentavosKg: 0.25,
-    encargosFixos: [
-      { nome: 'Nota fiscal', percentual: 9 },
-      { nome: 'Comissão técnica', percentual: 4 },
-      { nome: 'Comissão comercial', percentual: 3 },
-      { nome: 'Comissão extra cliente', percentual: 1 }
-    ]
-  }, 'quimica')
+  h.run(
+    'releasePrice',
+    {
+      id: 'p1',
+      margem: 42,
+      embalagemCentavosKg: 1.2345,
+      financeiroCentavosKg: 2.5,
+      maoDeObraCentavosKg: 3.75,
+      outrosCustosCentavosKg: 0.25,
+      encargosFixos: [
+        { nome: 'Nota fiscal', percentual: 9 },
+        { nome: 'Comissão técnica', percentual: 4 },
+        { nome: 'Comissão comercial', percentual: 3 },
+        { nome: 'Comissão extra cliente', percentual: 1 }
+      ]
+    },
+    'quimica'
+  )
   const p = D.get(h.s.produtos, 'p1')
   const profile = D.pricingProfile(h.s, p)
   assert.equal(profile.financeiroCentavosKg, 250)
   assert.equal(profile.maoDeObraCentavosKg, 375)
   assert.equal(profile.outrosCustosCentavosKg, 25)
-  assert.equal(profile.encargosFixos.reduce((sum, item) => sum + item.percentual, 0), 17)
+  assert.equal(
+    profile.encargosFixos.reduce((sum, item) => sum + item.percentual, 0),
+    17
+  )
   assert.deepEqual(h.s.configuracoes.precificacao, globalBefore)
 })
 
 test('Nova versão aceita lista dinâmica e quantidades com cinco casas decimais', () => {
   const h = harness()
-  h.run('createVersion', {
-    id: 'f1v2',
-    rendimento: 100,
-    itens: [
-      { ingredienteId: 'i1', quantidade: 0.12345 },
-      { ingredienteId: 'i2', quantidade: 99.87655 }
-    ],
-    justificativa: 'Ajuste fino e remoção de ingredientes'
-  }, 'quimica')
+  h.run(
+    'createVersion',
+    {
+      id: 'f1v2',
+      rendimento: 100,
+      itens: [
+        { ingredienteId: 'i1', quantidade: 0.12345 },
+        { ingredienteId: 'i2', quantidade: 99.87655 }
+      ],
+      justificativa: 'Ajuste fino e remoção de ingredientes'
+    },
+    'quimica'
+  )
   const version = h.s.formulas.at(-1)
   assert.deepEqual(version.itens, [
     { ingredienteId: 'i1', quantidade: 0.12345 },
     { ingredienteId: 'i2', quantidade: 99.87655 }
   ])
-  assert.throws(() => h.run('createVersion', {
-    id: 'f1v2',
-    rendimento: 100,
-    itens: [{ ingredienteId: 'i1', quantidade: 99.5 }],
-    justificativa: 'Total incorreto'
-  }, 'quimica'), /soma dos ingredientes é 99\.50000 kg.*Restam|Ajuste 0\.50000 kg/)
+  assert.throws(
+    () =>
+      h.run(
+        'createVersion',
+        {
+          id: 'f1v2',
+          rendimento: 100,
+          itens: [{ ingredienteId: 'i1', quantidade: 99.5 }],
+          justificativa: 'Total incorreto'
+        },
+        'quimica'
+      ),
+    /soma dos ingredientes é 99\.50000 kg.*Restam|Ajuste 0\.50000 kg/
+  )
 })
 
 test('Produto monta Contém por categoria e INS, salva validade e congela os dados na OP', () => {
   const h = harness()
-  h.run('saveProduct', {
-    id: 'p1',
-    validade: '18 meses',
-    grupoPadronizacao: '03',
-    contemItens: ['i1', 'i4'],
-    contem: '',
-    descricaoProduto: 'Condimento para teste',
-    alergenicosAtivo: true,
-    alergenicosTexto: 'Contém derivados de soja.',
-    naoContemGluten: true,
-    modoUso: 'Usar 1% sobre a massa.',
-    conservacao: 'Manter em local seco.'
-  }, 'quimica')
+  h.run(
+    'saveProduct',
+    {
+      id: 'p1',
+      validade: '18 meses',
+      grupoPadronizacao: '03',
+      contemItens: ['i1', 'i4'],
+      contem: '',
+      descricaoProduto: 'Condimento para teste',
+      alergenicosAtivo: true,
+      alergenicosTexto: 'Contém derivados de soja.',
+      naoContemGluten: true,
+      modoUso: 'Usar 1% sobre a massa.',
+      conservacao: 'Manter em local seco.'
+    },
+    'quimica'
+  )
   const product = D.get(h.s.produtos, 'p1')
   assert.equal(product.validade, '18 meses')
   assert.equal(product.grupoPadronizacao, '03')
-  assert.equal(product.contem, 'Acidulantes (INS 330), Realçadores de sabor (Extrato de levedura)')
+  assert.equal(
+    product.contem,
+    'Acidulantes (INS 330), Realçadores de sabor (Extrato de levedura)'
+  )
 
   const orderId = create(h, 'c1', [{ produtoId: 'p1', quantidade: 20 }])
   approve(h, orderId)
@@ -386,9 +564,20 @@ test('Produto monta Contém por categoria e INS, salva validade e congela os dad
     { etiquetaId: 'etq1', quantidade: 1 },
     { etiquetaId: 'etq2', quantidade: 2 }
   ])
-  assert.throws(() => h.run('saveProduct', {
-    id: 'p1', validade: '12 meses', contemItens: ['ingrediente-fora-da-formula'], contem: ''
-  }, 'quimica'), /só pode usar ingredientes da fórmula atual/)
+  assert.throws(
+    () =>
+      h.run(
+        'saveProduct',
+        {
+          id: 'p1',
+          validade: '12 meses',
+          contemItens: ['ingrediente-fora-da-formula'],
+          contem: ''
+        },
+        'quimica'
+      ),
+    /só pode usar ingredientes da fórmula atual/
+  )
 })
 
 test('Produto pode ser criado por cópia e preço aprovado gera snapshot', () => {
@@ -937,3 +1126,12 @@ test('Modelo de etiqueta preserva apenas os textos fixos compartilhados', () => 
   assert.equal(model.fabricante, 'REALTECH LTDA')
   assert.equal(model.slogan, 'QUALIDADE EM PRODUTOS E SERVIÇOS')
 })
+
+test('Modelos oficiais preservam as dimensões físicas de impressão', () => {
+  const s = D.seed()
+  const pequena = s.etiquetas.find(x => x.id === 'etq1')
+  const grande = s.etiquetas.find(x => x.id === 'etq2')
+  assert.deepEqual(pequena.dimensoesMm, { largura: 105, altura: 58 })
+  assert.deepEqual(grande.dimensoesMm, { largura: 105, altura: 105 })
+})
+

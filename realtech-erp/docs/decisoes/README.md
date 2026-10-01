@@ -20,7 +20,8 @@ Esta pasta guarda as decisões e propostas surgidas nas conversas de descoberta 
 | 24/09/2026 | [P&D, fórmulas e precificação](2026-09-24-pd.md) | RN-PD-001/002/003 | Confirmadas pela empresa; detalhes pendentes |
 | 24/09/2026 | [Cadastro de ingredientes](2026-09-24-ingredientes.md) | RN-ING-001/002/003 | Demonstradas; aguardando homologação |
 | 28/09/2026 | [Qualidade, fórmula para produção e etiqueta](2026-09-28-qualidade-producao-etiqueta.md) | RN-PD-004, RN-OP-002, RN-ETQ-003 | Confirmadas; detalhes regulatórios pendentes |
-| 28/09/2026 | [Padronização da declaração de ingredientes](2026-09-28-padronizacao-ingredientes.md) | RN-ING-004, RN-ING-005, RN-ETQ-005 | Confirmadas; leitura de um item manuscrito pendente |
+| 28–29/09/2026 | [Padronização da declaração de ingredientes](2026-09-28-padronizacao-ingredientes.md) | RN-ING-004, RN-ING-005, RN-ING-006, RN-ETQ-005 | Confirmadas; inclui Max, especiarias e aromatizantes |
+| 30/09/2026 | [Etiquetas oficiais](2026-09-30-etiquetas-oficiais.md) | RN-ETQ-006 | Dimensões e composição visual confirmadas; impressão física pendente |
 
 ## Índice por área
 

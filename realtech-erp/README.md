@@ -74,7 +74,7 @@ Os testes cobrem regras do domínio. Não equivalem aos 16 critérios integrais 
 
 ## Preparação para publicar — ainda não executada
 
-Hospedar apenas estes sete arquivos estáticos, mantendo-os na mesma pasta:
+Hospedar os arquivos estáticos abaixo, mantendo a estrutura de pastas:
 
 - `index.html`
 - `styles.css`
@@ -83,6 +83,9 @@ Hospedar apenas estes sete arquivos estáticos, mantendo-os na mesma pasta:
 - `script.js`
 - `views.js`
 - `interactions.js`
+- `assets/allergen-warning.png`
+- `assets/logo-horizontal.png`
+- `assets/label-logo.png`, `assets/label-allergen.png` e `assets/label-condensed-bold.ttf` (ativos utilizados pelos modelos oficiais).
 
 Não é necessário build. Rotas usam hash e não exigem regra de rewrite. Não existem chamadas externas. Definir hospedagem/URL e proteção de acesso com o usuário antes da publicação. Se o público precisar compartilhar pedidos entre computadores, este pacote estático não atende: é preciso ambiente de homologação com backend.
 

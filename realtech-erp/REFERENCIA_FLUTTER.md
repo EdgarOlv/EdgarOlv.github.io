@@ -75,6 +75,7 @@ Tradução para uma arquitetura futura: widgets → casos de uso/Riverpod → re
 11. **Sem atalhos de segurança.** Perfil é verificado na navegação, no desenho das ações e nos comandos do domínio. Diretor não recebe fórmula/custo por acesso gerencial implícito; seu detalhe de auditoria é resumido. Como todos os dados estão no JavaScript/localStorage, isso simula permissões, não protege segredos.
 12. **Dados de Qualidade no produto.** Validade e declaração “Contém” pertencem ao produto, mas pedido e OP preservam snapshots. A declaração guarda os ingredientes selecionados e o texto final editável; a sugestão por categoria/INS não substitui validação regulatória.
 13. **Etiqueta por data.** Na prévia, lote é a data atual e fabricação não aparece separadamente. A validade vem do lote final quando existente ou do cadastro do produto. A futura emissão precisa persistir o snapshot e não recalcular silenciosamente um documento histórico.
+14. **Exceções da declaração.** Aromatizantes não abrem seus componentes. Especiarias só listam nomes quando sua soma ultrapassa 25% do rendimento e nunca exibem percentual. A futura API deve calcular o limite com decimal exato e centralizar a regra para todos os documentos.
 
 ## Correspondência com o Flutter existente
 

@@ -1,8 +1,32 @@
 # Histórico de versões do protótipo
 
+## 01/10/2026 — Reconstrução das etiquetas oficiais
+
+- **RN-ETQ-006:** a empresa corrigiu a pequena para **105 × 58 mm**; a grande permanece em **105 × 105 mm**. A indicação anterior de 105 × 98 mm foi substituída.
+- Layouts reconstruídos com as proporções das faixas oficiais, logo circular e pictograma extraídos da referência, fonte condensada incorporada e texto escalado proporcionalmente à largura.
+- Textos e valores permanecem dinâmicos na OP. A página `conferencia-etiquetas.html` reproduz os dados das imagens exclusivamente para conferir o layout.
+- Lote usa a data atual, inclusive quando já existe lote produzido.
+
 Este documento espelha a página **Atualizações do protótipo**. Alterações funcionais devem atualizar, na mesma entrega, a coleção `releases` em `domain.js`, o catálogo `REGRAS_DE_NEGOCIO.md`, os critérios em `VALIDACAO.md`, a matriz de impacto e este histórico.
 
-## v10 — 28/09/2026 — versão atual
+## v12 — 30/09/2026 — etiquetas oficiais
+
+- **Produção / Etiquetas — RN-ETQ-006 — Confirmada:** etiqueta grande ajustada para 105 × 105 mm e etiqueta pequena para 105 × 98 mm, cada qual com composição própria conforme as duas referências oficiais recebidas.
+- **Fidelidade:** modelo grande mantém cliente destacado e pictograma de alergênicos; modelo pequeno remove o bloco de cliente, usa identificação “Produzido por” e rodapé próprio.
+- **Impressão:** cada prévia seleciona uma página CSS com a medida física correspondente, substituindo as antigas dimensões demonstrativas.
+- **Dados variáveis:** lote passa a ser exibido como `DDMMAAAA`; validade de lote em data usa `MMM/AAAA`, preservando texto livre do cadastro quando ainda não existe lote final.
+- **Impacto futuro:** Flutter/API/banco continuam sem motor de templates; a emissão futura deve versionar modelo, dimensões e snapshot dos dados impressos.
+
+## v11 — 29/09/2026 — versão atual
+
+### Especiarias e aromatizantes na declaração
+
+- **Ingredientes / Rótulo — RN-ING-006 — Confirmada:** Aromatizantes aparecem somente pelo nome do grupo, sem abertura dos componentes.
+- **Ingredientes / Rótulo — RN-ING-006 — Confirmada:** Especiarias aparecem somente pelo grupo até 25% da fórmula; quando a soma ultrapassa 25%, os nomes são listados em ordem decrescente e sem percentual.
+- **Etiquetas:** módulo ganhou lista pesquisável por OP, pedido, cliente e produto; cada resultado abre o modelo específico associado à OP.
+- **Impacto futuro:** o limite deve ser calculado com tipo decimal exato no gerador central de declarações da API, compartilhado por etiquetas, fichas e documentos.
+
+## v10 — 28/09/2026
 
 ### Padronização e ordenação da declaração de ingredientes
 
@@ -10,7 +34,7 @@ Este documento espelha a página **Atualizações do protótipo**. Alterações 
 - **Cadastros — RN-ING-005 — Confirmada:** ingredientes passam a registrar categoria funcional e grupo padronizado 01–04; o produto também registra seu grupo para reaproveitamento em etiquetas, fichas e documentos.
 - **Etiquetas — RN-ETQ-005 — Confirmada:** percentuais são calculados pela fórmula e permitidos apenas para sal, nitrito de sódio (INS 250) e nitrato de sódio (INS 251).
 - **Rastreabilidade:** grupo e declaração ficam congelados no item do pedido e na OP.
-- **Pendência:** confirmar se o item manuscrito semelhante a “Max” pertence oficialmente ao grupo 02; ele não foi criado como categoria autônoma no protótipo.
+- **Padronização confirmada:** Max integra oficialmente o grupo 02 junto de condimentos, aditivos gerais, blends e mix.
 
 ## v9 — 28/09/2026
 
@@ -24,6 +48,7 @@ Este documento espelha a página **Atualizações do protótipo**. Alterações 
 - **P&D / Qualidade — RN-PD-005 — Confirmada:** descrição, alérgicos, glúten, modo de uso e conservação passam a pertencer ao produto e são congelados no pedido/OP.
 - **Navegação:** Fórmula para produção e Etiquetas deixaram de compartilhar a mesma tela; cada botão da OP abre somente seu documento.
 - **Identidade da etiqueta:** modelos pequeno e grande usam fundo branco e texto integralmente preto, seguindo as faixas e divisórias da nova referência.
+- **Etiquetas da OP:** prévias pequena e grande separadas em blocos verticais; cada modelo pode ser impresso/salvo em PDF individualmente, com cliente, fabricante e texto regulatório na composição baseada na referência física. Exportação nativa `.nlbl` não é suportada.
 - **Pendências:** homologar redação regulatória do “Contém”, formato da validade, quantidade de etiquetas, dimensões de impressão e responsáveis pelos vistos.
 - **Impacto futuro:** Flutter, API e banco precisam persistir validade/declaração no produto e preservar snapshots no pedido, OP e emissão da etiqueta.
 
@@ -105,3 +130,4 @@ Este documento espelha a página **Atualizações do protótipo**. Alterações 
 - Validar com a empresa os textos e a seleção de entregas históricas.
 - Não apresentar regra demonstrada ou pendente como requisito homologado.
 - Manter datas e IDs idênticos entre esta página, a coleção `releases` e o catálogo de regras.
+

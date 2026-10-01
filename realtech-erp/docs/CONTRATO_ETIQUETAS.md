@@ -1,10 +1,12 @@
 # Contrato funcional — Etiquetas
 
-**Status:** demonstrado no protótipo; conteúdo e layout final pendentes de homologação.
+**Status:** dimensões e composição visual dos dois modelos confirmadas em 30/09/2026; redações regulatórias variáveis continuam sujeitas à Qualidade.
 
 ## Objetivo e acesso
 
 A etiqueta pode ser consultada em cada item do pedido, dentro do Documento da OP na aba `Etiqueta`, ou pelo módulo `Etiquetas`. O sistema usa um modelo previamente cadastrado e preenche a prévia com os dados do pedido, produto e OP, evitando redigitação.
+
+No módulo `Etiquetas`, a lista de etiquetas preparadas mostra cada modelo com quantidade maior que zero por OP. A busca localiza por OP, pedido, cliente ou produto, e a ação abre o modelo correspondente à linha selecionada.
 
 ## Conteúdo demonstrado
 
@@ -16,8 +18,10 @@ A etiqueta pode ser consultada em cada item do pedido, dentro do Documento da OP
 - lote preenchido com a data atual na abertura da impressão e validade obtida do lote final ou do produto;
 - peso líquido por unidade e embalagem;
 - modelo utilizado e quantidade atribuída à OP;
-- sugestão inicial de 1 etiqueta pequena e 2 grandes, editável no topo da aba, com prévia dos dois modelos;
-- impressão ou salvamento em PDF pelo navegador.
+- sugestão inicial de 1 etiqueta pequena e 2 grandes, editável no topo da aba, com as prévias pequena e grande separadas verticalmente;
+- impressão ou salvamento em PDF pelo navegador, com uma ação independente para cada tamanho.
+- etiqueta grande oficial em 105 × 105 mm, com cliente destacado e pictograma de alergênicos;
+- etiqueta pequena oficial em 105 × 58 mm, sem bloco de cliente e com composição horizontal própria;
 - textos fixos editáveis no modelo: texto regulatório, fabricante e slogan.
 - descrição do produto, alérgicos, glúten, modo de uso e conservação vêm do cadastro/snapshot do produto; texto regulatório e slogan permanecem no modelo.
 
@@ -29,17 +33,22 @@ Quando a OP ainda não possui lote produzido, o lote usa a data atual e a valida
 - a lista de ingredientes impressa usa o texto “Contém” construído somente com os ingredientes marcados no produto/versão;
 - a lista começa pelas bases da fórmula em ordem decrescente; os demais itens são agrupados por categoria funcional, também da maior para a menor participação;
 - somente sal, nitrito de sódio (INS 250) e nitrato de sódio (INS 251) podem exibir o percentual calculado sobre o rendimento da fórmula;
+- aromatizantes são exibidos somente como “Aromatizantes”, sem identificar os componentes;
+- especiarias são exibidas somente como “Especiarias” até 25% da fórmula; acima de 25%, seus nomes aparecem entre parênteses, em ordem decrescente e sem percentuais;
 - a etiqueta grande pode ser aberta diretamente em cada item do pedido, antes da OP;
 - na abertura da etiqueta, o lote corresponde à data atual; fabricação não aparece como campo separado;
 - a validade usa o lote final quando disponível e, antes disso, o cadastro do produto;
 - o modelo pode ser consultado no cadastro de Etiquetas;
 - a OP pode ter quantidades atribuídas por modelo;
+- a prévia reproduz os blocos da referência física: identificação e texto regulatório, ingredientes, alergênicos, uso/conservação, cliente, fabricante, lote, validade, peso e slogan;
 - a consulta do Documento da OP mantém a ficha de demonstração e a etiqueta em abas separadas;
 - a impressão atual usa o diálogo do navegador e não gera arquivo armazenado no sistema.
 
+O protótipo não importa nem exporta arquivos `.nlbl`. A saída disponível é a impressão/salvamento em PDF do navegador; o arquivo de modelo nativo continua dependente do aplicativo que o criou.
+
 ## Critérios de aceite do sistema futuro
 
-1. O modelo possui dimensões físicas, orientação e impressora de destino.
+1. O modelo preserva as dimensões físicas confirmadas: grande 105 × 105 mm e pequena 105 × 58 mm; a impressora de destino ainda deve ser definida.
 2. O conteúdo oficial é versionado e aprovado pela Qualidade e pelo responsável técnico.
 3. Lote/data de impressão, validade e peso ficam congelados no evento de emissão; a origem definitiva da validade deve ser homologada.
 4. O sistema define quantidade, sequência e agrupamento da impressão.
@@ -49,8 +58,6 @@ Quando a OP ainda não possui lote produzido, o lote usa a data atual e a valida
 
 ## Pendências para homologação
 
-- confirmar medidas da etiqueta pequena e grande;
-- confirmar se o formato demonstrado de 180 × 160 mm corresponde à mídia e às margens reais da impressora;
 - confirmar ingredientes, alergênicos, conservação, instruções e textos regulatórios;
 - confirmar código de barras, QR Code, formato da data usada como lote e cálculo/formato da validade;
 - confirmar quantidade por embalagem e quantidade por folha/rolo;

@@ -1,6 +1,6 @@
 # Catálogo de regras de negócio
 
-**Atualizado em:** 28/09/2026  
+**Atualizado em:** 29/09/2026  
 **Maturidade estimada:** 80%; os itens restantes serão descobertos e homologados com a empresa.
 
 ## Status
@@ -33,7 +33,8 @@
 | RN-ING-002 | Ingredientes           | Ingrediente que já possui lote ou participa de fórmula não pode ser excluído, preservando rastreabilidade e histórico.                                                                                                                                                     | Demonstrada                        |
 | RN-ING-003 | Ingredientes / P&D     | Na composição inicial de um novo produto, o seletor oferece ingredientes com saldo em lotes liberados e válidos; usos posteriores da produção continuam selecionando lotes.                                                                                               | Demonstrada                        |
 | RN-ING-004 | Ingredientes / Rótulo | A declaração usa somente os ingredientes marcados no produto. As bases da fórmula aparecem primeiro, em ordem decrescente de quantidade; os demais são agrupados por categoria funcional, e categorias e itens são ordenados da maior para a menor participação na fórmula. | Confirmada                         |
-| RN-ING-005 | Ingredientes / Produtos | Ingredientes registram categoria funcional de rotulagem e grupo padronizado; produtos também registram o grupo. Os grupos são: 01 — matéria-prima, aditivos únicos e especiarias; 02 — condimentos, aditivos gerais, blends e mix; 03 — fumaças, óleos e corantes; 04 — pastas e molhos. | Confirmada                         |
+| RN-ING-005 | Ingredientes / Produtos | Ingredientes registram categoria funcional de rotulagem e grupo padronizado; produtos também registram o grupo. Os grupos são: 01 — matéria-prima, aditivos únicos e especiarias; 02 — condimentos, aditivos gerais, blends, mix e Max; 03 — fumaças, óleos e corantes; 04 — pastas e molhos. | Confirmada                         |
+| RN-ING-006 | Ingredientes / Rótulo | Aromatizantes são declarados somente como “Aromatizantes”, sem identificar seus componentes. Especiarias são declaradas somente como “Especiarias” quando sua soma representa até 25% da fórmula; acima de 25%, seus nomes são listados entre parênteses, em ordem decrescente, sem percentuais. | Confirmada                         |
 | RN-QUA-001 | Qualidade              | Cada lote exige inspeção; reprovação bloqueia faturamento sem apagar histórico.                                                                                                                                                                                           | Confirmada                         |
 | RN-QUA-002 | Qualidade              | Qualidade/Administrador gera Ficha Técnica por pedido ou lote.                                                                                                                                                                                                            | Demonstrada                        |
 | RN-QUA-003 | Qualidade              | A ficha reúne pedido, cliente, lote, itens, embalagens, pesos e nutrição por produto.                                                                                                                                                                                     | Demonstrada                        |
@@ -53,6 +54,7 @@
 | RN-PD-004  | P&D / Qualidade        | O produto possui validade aberta para edição e uma declaração “Contém” editável, sugerida a partir dos ingredientes marcados na composição. A sugestão usa categoria e INS do cadastro quando disponíveis.                                                               | Confirmada; redação pendente       |
 | RN-PD-005  | P&D / Qualidade        | O produto mantém descrição de etiqueta, declaração de alérgicos habilitada por checkbox, checkbox “Não contém glúten”, modo de uso e conservação. Pedido e OP preservam esses dados para preencher Fórmula para produção e etiquetas.                                      | Confirmada                         |
 | RN-ETQ-005 | Ingredientes / Etiquetas | Na lista declarada, percentual é permitido somente para sal e para nitrito/nitrato de sódio (INS 250 e INS 251), calculado sobre o rendimento da fórmula. Os demais ingredientes e aditivos são exibidos sem percentual. | Confirmada                         |
+| RN-ETQ-006 | Produção / Etiquetas | A etiqueta grande usa o modelo oficial quadrado de 105 × 105 mm, com cliente destacado; a etiqueta pequena usa o modelo oficial de 105 × 58 mm, sem bloco de cliente. Ambas preservam cabeçalho, declarações, modo de uso, fabricante, lote, validade, peso e rodapé conforme as referências recebidas. | Confirmada |
 
 Valores, fórmulas, nutrientes, pessoas e credenciais do seed são sintéticos.
 

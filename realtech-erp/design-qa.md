@@ -1,3 +1,31 @@
+# Design QA — Etiquetas refeitas — 01/10/2026
+
+**final result: passed**
+
+## Evidência atual
+
+- Referências: imagens oficiais `codex-clipboard-7dd9b3e4-d3ec-46bb-b49d-ac34d012336f.png` (740 × 738) e `codex-clipboard-72d9a4f4-a6af-4c0a-ab50-6b4710e6d351.png` (1228 × 696), recebidas em 30/09/2026.
+- Captura renderizada: `assets/conferencia-etiquetas.png`, navegador integrado, viewport 1200 × 1400 CSS px; captura completa 1264 × 1489 px.
+- Comparação conjunta: `assets/comparacao-etiquetas.png`, referências à esquerda e implementação à direita; cada etiqueta foi normalizada à mesma largura. Esse contato registra o passe anterior ao último alinhamento vertical do cabeçalho grande.
+- Estado comparado: dados idênticos aos exemplos oficiais em página de conferência separada, sem alterar os cadastros da OP. Grande 25,0 KG, cliente Jussara; pequena 2,050 kg sem cliente.
+- Integração verificada: login, OP-00001, emissão do documento e abertura das duas etiquetas preenchidas pelo snapshot real da demonstração.
+
+## Comparação e ajustes
+
+O primeiro modelo foi reconstruído em seis faixas, e o pequeno em cinco, preservando a proporção física corrigida de 105 × 58 mm. A grande mantém 105 × 105 mm. O logo e pictograma vêm da própria referência oficial, e a fonte condensada está incorporada.
+
+Vista completa: divisórias, campos, proporções, centralização e hierarquia dos dois modelos acompanham as referências. Regiões focadas: cabeçalho, declaração de ingredientes com sal na primeira linha, pictograma, fabricante, lote/validade/peso e rodapés foram comparados conjuntamente.
+
+Tipografia: Liberation Sans Narrow Bold incorporada, com ajuste óptico de peso; há pequenas diferenças de desenho em relação à fonte original não fornecida (P3). Espaçamento: faixas proporcionais e cabeçalho grande realinhado no passe final. Cores: branco/preto, logo vermelho e preto. Ativos: extraídos da imagem oficial, sem geração aproximada. Conteúdo: dados variáveis permanecem editáveis por cadastro/snapshot e os exemplos oficiais estão isolados na conferência.
+
+Histórico: primeiro passe substituiu logo horizontal, fontes substituídas e proporções incorretas; segundo passe ajustou primeira linha dos ingredientes, separador de glúten e peso tipográfico; terceiro passe realinhou o cabeçalho e alergênicos da grande. A captura final confirma esses ajustes. Não há cortes nos dois modelos examinados.
+
+Console sem erros ou avisos. Sintaxe validada e 39 testes de domínio passaram. Nome longo usa ajuste proporcional da fonte; dimensões corrigidas são migradas sem apagar o estado salvo. A impressão física não foi executada: permanece a conferência de escala 100% na mídia/impressora do cliente.
+
+## Registro histórico — substituído pela revisão acima
+
+Os resultados abaixo descrevem a implementação de 28/09/2026 e não representam o estado atual.
+
 # Design QA — Fórmula para produção e etiquetas — 28/09/2026
 
 **final result: blocked**

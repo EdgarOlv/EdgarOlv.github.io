@@ -72,8 +72,11 @@ function productsView() {
   )
 }
 function ingredientsView() {
-  const stock = ingredient => D.eligibleLots(state, ingredient.id)
-    .reduce((sum, lot) => sum + lot.saldo, 0)
+  const stock = ingredient =>
+    D.eligibleLots(state, ingredient.id).reduce(
+      (sum, lot) => sum + lot.saldo,
+      0
+    )
   return (
     intro(
       'Ingredientes',
@@ -83,7 +86,16 @@ function ingredientsView() {
     panel(
       'Ingredientes cadastrados',
       table(
-        ['Código', 'Nome', 'INS', 'Categoria de rótulo', 'Grupo', '% no rótulo', 'Disponível', 'Ações'],
+        [
+          'Código',
+          'Nome',
+          'INS',
+          'Categoria de rótulo',
+          'Grupo',
+          '% no rótulo',
+          'Disponível',
+          'Ações'
+        ],
         state.ingredientes.map(i => [
           esc(i.codigo),
           esc(i.nome),
@@ -96,7 +108,9 @@ function ingredientsView() {
         ])
       )
     ) +
-    notice('A exclusão é bloqueada quando o ingrediente já participa de uma fórmula ou possui lote registrado. O INS é opcional, pois nem toda matéria-prima possui esse código.')
+    notice(
+      'A exclusão é bloqueada quando o ingrediente já participa de uma fórmula ou possui lote registrado. O INS é opcional, pois nem toda matéria-prima possui esse código.'
+    )
   )
 }
 function formulasView() {
@@ -121,7 +135,12 @@ function formulasView() {
           const f = p.formulaId ? find(state.formulas, p.formulaId) : null
           const draft = f
             ? state.formulas
-                .filter(x => x.codigo === f.codigo && x.status === 'emDesenvolvimento' && x.id !== f.id)
+                .filter(
+                  x =>
+                    x.codigo === f.codigo &&
+                    x.status === 'emDesenvolvimento' &&
+                    x.id !== f.id
+                )
                 .sort((a, b) => b.versao - a.versao)[0]
             : null
           return [
@@ -206,6 +225,7 @@ function productionView() {
           'Ação'
         ],
         state.ordens
+          .filter(op => find(state.pedidos, op.pedidoId).tipo !== 'amostra')
           .slice()
           .sort(
             (a, b) =>
@@ -389,6 +409,169 @@ function qualityView() {
       )
     )
   )
+}
+function samplesView() {
+  const samples = orders()
+    .filter(o => o.tipo === 'amostra')
+    .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+  return (
+    intro(
+      'Amostras · Qualidade',
+      'Produção técnica fora do fluxo comercial, com ficha, fórmula, estoque e despacho rastreados.',
+      user.perfil === 'qualidade'
+        ? actionButton('Nova amostra', 'newSample', '', true)
+        : ''
+    ) +
+    panel(
+      'Fila de amostras',
+      table(
+        [
+          'Pedido / cliente',
+          'Produto / fórmula',
+          'Etapa',
+          'Estoque',
+          'OPs',
+          'Despacho'
+        ],
+        samples.map(o => {
+          const stock = D.orderStockAvailability(state, o),
+            ops = state.ordens.filter(op => op.pedidoId === o.id)
+          return [
+            `${link(o.numero, 'amostras', o.id)}<small>${esc(o.clienteNome)}</small>`,
+            o.itens
+              .map(
+                item =>
+                  `${esc(item.nome)}<small>${esc(item.formula.codigo)} · v${item.formula.versao}</small>`
+              )
+              .join('<br>'),
+            badge(D.stage(state, o)),
+            stock.available ? badge('Liberado') : badge('Aguardando lote'),
+            `${ops.length} / ${o.itens.length}`,
+            o.despacho
+              ? `${esc(o.despacho.transportadora)}<small>${esc(o.despacho.rastreamento)}</small>`
+              : 'Pendente'
+          ]
+        })
+      )
+    )
+  )
+}
+function sampleView(id) {
+  const order = find(state.pedidos, id)
+  if (order.tipo !== 'amostra') throw new Error('Pedido não é uma amostra.')
+  const ops = state.ordens.filter(op => op.pedidoId === id),
+    stock = D.orderStockAvailability(state, order),
+    canOperateSamples = ['administrador', 'qualidade'].includes(user.perfil)
+  let actions = btn('Gerar ficha técnica', 'technicalSheet', id)
+  if (canOperateSamples && order.status === 'amostra' && !ops.length)
+    actions += stock.available
+      ? actionButton('Gerar OPs', 'createOps', id, true)
+      : '<button type="button" class="primary-btn" disabled title="Aguardando entrada de lotes liberados">Gerar OPs</button>'
+  if (
+    canOperateSamples &&
+    D.stage(state, order) === 'Pronta para despacho' &&
+    !order.despacho
+  )
+    actions += actionButton('Registrar despacho', 'dispatch', id, true)
+  if (canOperateSamples && order.despacho && !order.entrega)
+    actions += actionButton('Confirmar entrega', 'confirmDelivery', id, true)
+  return `<div class="stack">${intro(
+    order.numero,
+    `Amostra · ${order.clienteNome} · ${D.stage(state, order)}`,
+    link('← Fila de amostras', 'amostras')
+  )}${panel(
+    'Estrutura do pedido',
+    fields([
+      ['Tipo', 'Amostra'],
+      ['Cliente', esc(order.clienteNome)],
+      ['Criada em', fmtTime(order.criadoEm)],
+      ['Prazo solicitado', fmtDate(order.prazoEntrega)],
+      ['Status', badge(D.stage(state, order))],
+      ['Observações', esc(order.observacoes || '—')]
+    ])
+  )}${panel(
+    'Produto, fórmula e ficha',
+    order.itens
+      .map(item => {
+        const product = find(state.produtos, item.produtoId)
+        return `<section class="sample-item"><h3>${esc(product.codigo)} · ${esc(item.nome)}</h3>${fields(
+          [
+            ['Produto', `${esc(product.nome)} · ${esc(product.status)}`],
+            [
+              'Quantidade',
+              `${qty(item.quantidade)} UN · ${qty(item.pesoKg)} kg/un`
+            ],
+            [
+              'Fórmula preservada',
+              `${esc(item.formula.codigo)} · v${item.formula.versao}`
+            ],
+            ['Rendimento da fórmula', `${qty(item.formula.rendimento)} kg`]
+          ]
+        )}${table(
+          ['Ingrediente da fórmula', 'Quantidade (kg)'],
+          item.formula.itens.map(formulaItem => [
+            esc(find(state.ingredientes, formulaItem.ingredienteId).nome),
+            qty(formulaItem.quantidade)
+          ])
+        )}</section>`
+      })
+      .join('')
+  )}${panel(
+    'Estoque para produção',
+    table(
+      ['Ingrediente', 'Necessário (kg)', 'Disponível (kg)', 'Falta (kg)'],
+      stock.items.map(item => [
+        esc(find(state.ingredientes, item.ingredienteId).nome),
+        qty(item.necessario),
+        qty(item.disponivel),
+        item.falta > 0 ? badge(`${qty(item.falta)} kg`) : '—'
+      ])
+    )
+  )}${panel(
+    'Produção e inspeção',
+    ops.length
+      ? table(
+          [
+            'OP',
+            'Produto',
+            'Previsto / produzido',
+            'Ficha da OP',
+            'Status',
+            'Ações'
+          ],
+          ops.map(op => [
+            allowed('producao')
+              ? link(op.numero, 'producao', op.id)
+              : esc(op.numero),
+            esc(op.produtoNome),
+            `${op.quantidadePrevista} / ${op.quantidadeProduzida} UN`,
+            op.documentoOp ? esc(op.documentoOp.numero) : 'Pendente',
+            badge(op.status),
+            op.lotes
+              .map(lotId => {
+                const lot = find(state.lotes, lotId)
+                return `${esc(lot.codigo)} · ${badge(lot.status)} ${can('inspect') ? actionButton('Inspecionar lote', 'inspect', lotId) : ''}`
+              })
+              .join('<br>') || '—'
+          ])
+        )
+      : '<p class="muted">OPs ainda não geradas.</p>'
+  )}${panel(
+    'Despacho',
+    order.despacho
+      ? fields([
+          ['Transportadora', esc(order.despacho.transportadora)],
+          ['Rastreamento', esc(order.despacho.rastreamento)],
+          ['Tomador do frete', esc(order.despacho.tomadorFrete)],
+          ['Saída', fmtDate(order.despacho.dataSaida)],
+          ['Prazo', fmtDate(order.despacho.prazo)],
+          [
+            'Entrega',
+            order.entrega ? fmtDate(order.entrega.dataEntrega) : 'Pendente'
+          ]
+        ])
+      : '<p class="muted">Aguardando liberação dos lotes produzidos pela Qualidade.</p>'
+  )}<div class="actions">${actions}</div></div>`
 }
 function financialView() {
   const rows = orders().filter(o => o.status === 'aguardandoAprovacao')
@@ -593,13 +776,31 @@ function commissionsView() {
   )
 }
 function labelsView() {
-  const assigned = state.ordens.flatMap(op =>
-    (op.etiquetas || []).map(item => ({
-      op,
-      item,
-      model: find(state.etiquetas, item.etiquetaId)
-    }))
-  )
+  const assigned = state.ordens.flatMap(op => {
+    const order = find(state.pedidos, op.pedidoId)
+    return (op.etiquetas || [])
+      .filter(item => item.quantidade > 0)
+      .map(item => {
+        const model = find(state.etiquetas, item.etiquetaId)
+        return {
+          op,
+          order,
+          item,
+          model,
+          search: [
+            op.numero,
+            order?.numero,
+            order?.clienteNome,
+            op.produtoNome,
+            model?.nome,
+            model?.tamanho
+          ]
+            .filter(Boolean)
+            .join(' '),
+          key: `${op.id}:${item.etiquetaId}`
+        }
+      })
+  })
   return (
     intro(
       'Etiquetas',
@@ -620,18 +821,30 @@ function labelsView() {
     ) +
     panel(
       'Etiquetas preparadas',
-      assigned.length
-        ? table(
-            ['OP', 'Produto', 'Modelo', 'Quantidade', 'Ação'],
-            assigned.map(({ op, item, model }) => [
-              esc(op.numero),
-              esc(op.produtoNome),
-              esc(model?.nome || 'Modelo removido'),
-              item.quantidade,
-              model ? btn('Abrir etiqueta', 'viewLabel', op.id) : '—'
-            ])
-          )
-        : '<p class="muted">As etiquetas aparecem aqui quando forem definidas em uma OP.</p>'
+      `${input('Buscar por OP, pedido, cliente ou produto', 'labelSearch', '', 'search', 'autocomplete="off"')}<div id="preparedLabels">${
+        assigned.length
+          ? table(
+              [
+                'OP',
+                'Pedido',
+                'Cliente',
+                'Produto',
+                'Modelo',
+                'Quantidade',
+                'Ação'
+              ],
+              assigned.map(({ op, order, item, model, search, key }) => [
+                `<span data-label-search="${esc(search)}">${esc(op.numero)}</span>`,
+                esc(order?.numero || '—'),
+                esc(order?.clienteNome || '—'),
+                esc(op.produtoNome),
+                esc(model?.nome || 'Modelo removido'),
+                item.quantidade,
+                model ? btn('Abrir etiqueta', 'viewLabel', key) : '—'
+              ])
+            )
+          : '<p class="muted">As etiquetas aparecem aqui quando forem definidas em uma OP.</p>'
+      }</div><p id="labelSearchEmpty" class="muted" hidden>Nenhuma etiqueta corresponde à busca.</p>`
     )
   )
 }

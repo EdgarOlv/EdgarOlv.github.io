@@ -82,6 +82,7 @@ const names = {
   etiquetas: 'Etiquetas',
   estoque: 'Estoque e lotes',
   qualidade: 'Qualidade',
+  amostras: 'Amostras · Qualidade',
   financeiro: 'Análise financeira',
   faturamento: 'Faturamento',
   despacho: 'Frete e despacho',
@@ -111,7 +112,8 @@ const navGroups = [
       ['producao', '⚙'],
       ['etiquetas', '▣'],
       ['estoque', '📦'],
-      ['qualidade', '✓']
+      ['qualidade', '✓'],
+      ['amostras', '◉']
     ]
   ],
   [
@@ -170,7 +172,10 @@ const can = a => D.can(user, a)
 const technical = () =>
   ['administrador', 'pd', 'producao', 'qualidade'].includes(user.perfil)
 const costs = () => ['administrador', 'pd'].includes(user.perfil)
-const orders = () => D.visibleOrders(state, user)
+const orders = () =>
+  D.visibleOrders(state, user).filter(
+    o => user.perfil !== 'comercial' || o.tipo !== 'amostra'
+  )
 const clients = () => D.visibleClients(state, user)
 function toast(m) {
   $('#toast').textContent = m
@@ -271,7 +276,23 @@ function modal(t, b, fn, label = 'Confirmar') {
   $('#confirmDialog').hidden = !fn
   modalSubmit = fn
   if (!$('#flowDialog').open) $('#flowDialog').showModal()
+  if ($('#dialogBody [data-label-preview]')) {
+    document.fonts.ready.then(() => fitLabelText())
+  }
 }
+// Guarda a escala proporcional em %, para manter o ajuste ao trocar tela por milímetros.
+function fitLabelText() {
+  document.querySelectorAll('[data-label-preview] h2').forEach(el => {
+    el.style.fontSize = ''
+    const base = parseFloat(getComputedStyle(el).fontSize)
+    if (el.scrollWidth > el.clientWidth) {
+      const scale = Math.max(.55, el.clientWidth / el.scrollWidth)
+      const frame = el.closest('.label-frame').clientWidth
+      el.style.fontSize = `${base * scale / frame * 100}cqw`
+    }
+  })
+}
+window.addEventListener('resize', fitLabelText)
 function closeModal() {
   $('#flowDialog').close()
   delete $('#dialogBody').dataset.product
@@ -438,6 +459,7 @@ function render() {
     etiquetas: labelsView,
     estoque: stockView,
     qualidade: qualityView,
+    amostras: () => (selectedId ? sampleView(selectedId) : samplesView()),
     financeiro: financialView,
     faturamento: billingView,
     despacho: dispatchView,
@@ -638,8 +660,8 @@ function dashboardView() {
 function ordersView() {
   return (
     intro(
-      'Pedidos comerciais',
-      'Preços vêm da tabela liberada. Após aprovação, o pedido fica preservado.',
+      'Pedidos de produção',
+      'Amostras são acompanhadas separadamente no módulo da Qualidade.',
       actionButton('+ Novo pedido', 'saveOrder')
     ) +
     `<div class="toolbar"><label>Buscar pedido ou cliente<input id="orderSearch" placeholder="Número, cliente ou etapa..."></label>${select('Status', 'filterStatus', [['', 'Todos'], ...['rascunho', 'aguardandoAprovacao', 'aprovado', 'emProducao', 'faturado', 'cancelado'].map(s => [s, D.labels[s]])])}</div>` +
@@ -819,3 +841,4 @@ function orderView(id) {
         )
   }${panel('Histórico de decisões', `<ol class="timeline">${o.analises.map(a => `<li>${badge(a.decisao)}<small>${esc(a.usuario)} · ${fmtTime(a.data)}</small><p>${esc(a.justificativa || 'Sem ressalvas.')}</p></li>`).join('')}${o.aprovacao ? `<li><b>Aprovação comercial</b><small>${esc(o.aprovacao.usuario)} · ${fmtTime(o.aprovacao.data)}</small></li>` : ''}${!o.analises.length ? '<li class="muted">O histórico será preenchido ao registrar as análises.</li>' : ''}</ol>`)}</div>`
 }
+
