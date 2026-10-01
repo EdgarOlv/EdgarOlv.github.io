@@ -1,5 +1,13 @@
 # Validação da demonstração
 
+## Revisão atual — 01/10/2026
+
+- Suíte Node: **40 testes aprovados, zero falhas**. Nova regressão normaliza pequena 105×98 para 105×58 sem perder pedidos ou revisão do estado v12.
+- Sintaxe de `domain.js`, `script.js`, `views.js` e `interactions.js` verificada com `node --check`, sem erros.
+- [Roteiro final HF-01 a HF-14](docs/ROTEIRO_HOMOLOGACAO_FINAL.md) preparado; **não executado manualmente nesta revisão**.
+- Medidas confirmadas: grande 105×105 e pequena 105×58 mm. Menções antigas a 180×160/105×98 e v3 atual abaixo são históricas, substituídas por v12 e pelas medidas oficiais.
+- Flutter/build/analyze, API, concorrência real, impressão física e aprovação regulatória não validados nesta entrega. Evidências datadas abaixo não representam aceite atual.
+
 ## Cobertura do escopo de negócio
 
 | Critério do refinamento    | Situação neste protótipo                                                                                                                                                                                                            |
@@ -76,4 +84,12 @@ Executado pela UI, sem injetar estados no app:
 - Testes de domínio de P&D, estoque e cadastro não substituem homologação operacional completa de seus formulários pela empresa.
 
 Antes de enviar à empresa, revisar `REFERENCIA_FLUTTER.md` e confirmar que as premissas demonstrativas estão adequadas. Dados de teste criados no navegador de revisão não fazem parte do seed distribuído: nova origem/navegador começa com os três cenários iniciais.
+
+
+### RN-ETQ-006 — Nome do cliente (01/10/2026)
+
+Abrir etiqueta grande no pedido e na OP com cliente curto, ALIMENTOS DO NORTE — DEMONSTRAÇÃO e nome extenso. Conferir texto completo entre as divisórias em janela larga/estreita e na prévia de impressão 105 × 105 mm. Calibração física permanece pendente. A suíte de domínio não mede geometria de texto no navegador.
+
+
+Validação executada: 40 testes de domínio aprovados e conferência geométrica no Edge com quatro nomes (incluindo texto sem espaços), em larguras de 735, 360 e 397 px; 12 cenários sem transbordamento. Script: tests/check-label-layout.cjs (requer Playwright e Edge). Impressão física não executada.
 

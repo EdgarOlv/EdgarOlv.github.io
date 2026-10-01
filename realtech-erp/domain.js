@@ -79,10 +79,19 @@
         'Os dois modelos passam a seguir as referências oficiais e suas medidas físicas de 105 × 105 mm e 105 × 58 mm.',
       changes: [
         {
+          area: 'Documentação e homologação',
+          title: 'Consolidação final para Flutter — 01/10/2026',
+          description:
+            'Contrato consolidado com impactos API/banco e roteiro final de 14 cenários. A pequena foi corrigida para 105 × 58 mm; a calibração física e as pendências de negócio permanecem explícitas.',
+          rules: ['RN-ETQ-006', 'RN-GOV-001'],
+          status: 'Documentado; homologação final pendente',
+          route: 'guia'
+        },
+        {
           area: 'Produção e etiquetas',
           title: 'Dois layouts oficiais com impressão em escala física',
           description:
-            'A etiqueta grande mantém cliente e pictograma de alergênicos; a pequena usa a composição própria sem cliente. Cada modelo seleciona sua página de impressão em milímetros.',
+            'A etiqueta grande mantém cliente e pictograma de alergênicos; o nome completo do cliente ajusta a fonte à largura e altura disponíveis, sem invadir divisórias. A pequena usa a composição própria sem cliente. Cada modelo seleciona sua página de impressão em milímetros.',
           rules: ['RN-ETQ-006'],
           status: 'Confirmada; calibração da impressora pendente',
           route: 'etiquetas'

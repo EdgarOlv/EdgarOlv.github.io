@@ -291,6 +291,17 @@ function fitLabelText() {
       el.style.fontSize = `${base * scale / frame * 100}cqw`
     }
   })
+  document.querySelectorAll('[data-label-preview] .label-customer strong').forEach(el => {
+    el.style.fontSize = ''
+    const frame = el.closest('.label-frame').clientWidth
+    if (!frame || !el.clientHeight) return
+    let size = parseFloat(getComputedStyle(el).fontSize)
+    // Mede também a altura: o nome pode quebrar em várias linhas.
+    while ((el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth) && size > 1) {
+      size *= .95
+      el.style.fontSize = `${size / frame * 100}cqw`
+    }
+  })
 }
 window.addEventListener('resize', fitLabelText)
 function closeModal() {

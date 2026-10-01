@@ -1,5 +1,14 @@
 # REALTECH — referência do protótipo para Flutter
 
+## Adendo vigente — 01/10/2026
+
+Consultar [contrato consolidado](../Docs/CONSOLIDACAO_FLUTTER_2026-10-01.md) e [roteiro final](docs/ROTEIRO_HOMOLOGACAO_FINAL.md). A referência histórica abaixo permanece como contexto; em divergências, prevalecem decisões confirmadas e regras atuais.
+
+- Fórmulas aceitam **cinco casas**, distintas do arredondamento de saldo. API/banco precisam de decimal exato e escala por campo.
+- Há recebíveis locais por parcela, sem integração bancária. Financeiro e logística são paralelos: despacho não exige quitação integral; não inferir estado financeiro por estado logístico.
+- Etiquetas: grande 105×105 e pequena 105×58 mm; pequena sem cliente. Amostras possuem fluxo separado, demonstrado e sujeito a aceite.
+- Flutter ainda não porta integralmente os contratos novos; build/analyze não executado nesta revisão.
+
 Atualizado em 31/08/2026. Referência de comportamento e aparência, não especificação homologada. As decisões desta rodada estão detalhadas em [`docs/decisoes/2026-08-31-ajustes-negocio.md`](docs/decisoes/2026-08-31-ajustes-negocio.md). O índice completo está em [`docs/decisoes/README.md`](docs/decisoes/README.md).
 
 A referência geral de alinhamento do projeto está em [`../REFERENCIA_PROJETO.md`](../REFERENCIA_PROJETO.md). Este arquivo detalha apenas a tradução do protótipo para Flutter; estados, vocabulário, regras de dados, limites e divergências comuns devem ser conferidos no documento geral.

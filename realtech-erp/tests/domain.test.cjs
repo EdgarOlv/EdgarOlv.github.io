@@ -1135,3 +1135,17 @@ test('Modelos oficiais preservam as dimensões físicas de impressão', () => {
   assert.deepEqual(grande.dimensoesMm, { largura: 105, altura: 105 })
 })
 
+test('Estado v12 antigo corrige pequena 105×98 sem perder operação nem revisão', () => {
+  const s = D.seed()
+  const pequena = s.etiquetas.find(x => x.id === 'etq1')
+  pequena.nome = 'Etiqueta pequena oficial · 105 × 98 mm'
+  pequena.dimensoesMm = { largura: 105, altura: 98 }
+  const pedidos = JSON.stringify(s.pedidos)
+  const revision = s.revision
+  const normalizado = D.validateState(JSON.parse(JSON.stringify(s)))
+  assert.deepEqual(normalizado.etiquetas.find(x => x.id === 'etq1').dimensoesMm, { largura: 105, altura: 58 })
+  assert.match(normalizado.etiquetas.find(x => x.id === 'etq1').nome, /105 × 58/)
+  assert.equal(JSON.stringify(normalizado.pedidos), pedidos)
+  assert.equal(normalizado.revision, revision)
+})
+

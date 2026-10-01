@@ -238,8 +238,9 @@ textarea { min-height:84px; }
 .label-allergen-row>div { display:flex; flex-wrap:wrap; justify-content:center; gap:0 .6cqw; }
 .label-directions { display:flex; flex-direction:column; justify-content:center; gap:1.8cqw; padding:1.5cqw 3cqw; border-bottom:.24cqw solid black; text-align:center; font-size:2.85cqw; line-height:1.05; }
 .label-directions p:last-child { font-size:3.2cqw; }
-.label-customer { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:1.6cqw; border-bottom:.24cqw solid black; padding:1cqw 2cqw; text-align:center; font-size:5.2cqw; line-height:1; }
-.label-customer strong { font-size:5.4cqw; }
+.label-customer { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:.8cqw; min-height:0; border-bottom:.24cqw solid black; padding:1.2cqw 2cqw; text-align:center; font-size:4cqw; line-height:1.08; }
+.label-customer>b { flex:none; }
+.label-customer strong { display:flex; align-items:center; justify-content:center; flex:1; min-height:0; width:100%; font-size:4.2cqw; }
 .label-batch-row { display:grid; grid-template-columns:53.5% 46.5%; border-bottom:.24cqw solid black; min-height:0; }
 .label-manufacturer { display:flex; flex-direction:column; justify-content:center; padding:2.7cqw 3cqw; font-family:Arial,sans-serif; font-size:1.8cqw; line-height:1.2; }
 .label-manufacturer span { white-space:pre-line; }

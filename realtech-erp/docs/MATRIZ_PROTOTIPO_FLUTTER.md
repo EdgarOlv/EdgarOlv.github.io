@@ -1,6 +1,6 @@
 # Matriz protótipo → Flutter
 
-**Inspeção do código:** 24/09/2026. “Existe” indica estrutura encontrada, não homologação.
+**Revisão:** 01/10/2026. “Existe” indica estrutura encontrada, não homologação. [Contrato consolidado](../../Docs/CONSOLIDACAO_FLUTTER_2026-10-01.md) e [aceite por cenário](ROTEIRO_HOMOLOGACAO_FINAL.md) complementam esta matriz. Flutter não teve build/analyze executado nesta revisão.
 
 | Capacidade             | Protótipo                                                                                                | Flutter atual                                                                                               | Próxima ação                                                                                      |
 | ---------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -29,7 +29,11 @@
 | PDF/histórico          | Impressão do navegador, sem persistência                                                                 | Não identificado                                                                                            | Gerar, guardar snapshot/hash e auditar                                                            |
 | Permissões             | Perfis únicos                                                                                            | `UserProfile` único                                                                                         | Migrar para múltiplas permissões (DEC-002)                                                        |
 | Persistência           | `localStorage`                                                                                           | `LocalDataService` em memória                                                                               | API/repositórios e revisão do SQL                                                                 |
-| Versões e atualizações | Página v3 com histórico, regras relacionadas e atalhos internos                                          | Não identificada                                                                                            | Replicar apenas se a empresa considerar útil no produto final                                     |
+| Versões e atualizações | Página v12 com histórico, regras relacionadas e atalhos internos                                          | Não identificada                                                                                            | Replicar apenas se a empresa considerar útil no produto final                                     |
+
+### Amostras — RN-AMO-001
+
+Protótipo: Qualidade conduz fluxo separado, sem análise financeira/comercial, com teste de domínio do ciclo. Paridade Flutter não validada nesta revisão. Homologar autorização e isolamento comercial antes de portar (HF-13).
 
 ## Divergências documentais encontradas
 
@@ -41,3 +45,8 @@
 ## Ordem segura para a Ficha Técnica
 
 Homologar conteúdo → modelar nutrição versionada → definir permissões → criar caso de uso de snapshot → gerar/armazenar/auditar PDF → expor nas duas telas → testar ponta a ponta.
+
+### 01/10/2026 — RN-ETQ-006: cliente na etiqueta grande
+
+Protótipo: espaço reservado ao título e ajuste da fonte pelo espaço disponível. Flutter: layout oficial ainda pendente de portabilidade; aplicar ajuste equivalente no renderizador futuro. API/banco: sem alteração de dados; preservar nome completo no snapshot.
+

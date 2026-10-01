@@ -1,9 +1,15 @@
 # Catálogo de regras de negócio
 
-**Atualizado em:** 29/09/2026  
+**Atualizado em:** 01/10/2026  
 **Maturidade estimada:** 80%; os itens restantes serão descobertos e homologados com a empresa.
 
 ## Status
+
+Consolidação para Flutter: [contrato oficial](../../Docs/CONSOLIDACAO_FLUTTER_2026-10-01.md). Roteiro de aceite: [HF-01 a HF-14](ROTEIRO_HOMOLOGACAO_FINAL.md). A revisão documental não promove regras demonstradas a confirmadas.
+
+### Fluxo de amostras — RN-AMO-001 (Demonstrada)
+
+Qualidade pode criar e conduzir amostra sem análise financeira e aprovação comercial, com OP, documento e inspeção próprios. O domínio possui teste do ciclo e das permissões. A autorização definitiva e o isolamento do fluxo comercial devem ser homologados no HF-13; não copiar essa exceção para pedidos comerciais.
 
 - **Confirmada:** decisão registrada ou homologada.
 - **Demonstrada:** proposta do protótipo aguardando confirmação.
@@ -55,6 +61,8 @@
 | RN-PD-005  | P&D / Qualidade        | O produto mantém descrição de etiqueta, declaração de alérgicos habilitada por checkbox, checkbox “Não contém glúten”, modo de uso e conservação. Pedido e OP preservam esses dados para preencher Fórmula para produção e etiquetas.                                      | Confirmada                         |
 | RN-ETQ-005 | Ingredientes / Etiquetas | Na lista declarada, percentual é permitido somente para sal e para nitrito/nitrato de sódio (INS 250 e INS 251), calculado sobre o rendimento da fórmula. Os demais ingredientes e aditivos são exibidos sem percentual. | Confirmada                         |
 | RN-ETQ-006 | Produção / Etiquetas | A etiqueta grande usa o modelo oficial quadrado de 105 × 105 mm, com cliente destacado; a etiqueta pequena usa o modelo oficial de 105 × 58 mm, sem bloco de cliente. Ambas preservam cabeçalho, declarações, modo de uso, fabricante, lote, validade, peso e rodapé conforme as referências recebidas. | Confirmada |
+
+RN-ETQ-006 — ajuste visual demonstrado em 01/10/2026: o nome completo do cliente adapta a fonte à largura e altura do bloco, preservando o espaço do título e das divisórias. Legibilidade física continua sujeita à calibração.
 
 Valores, fórmulas, nutrientes, pessoas e credenciais do seed são sintéticos.
 

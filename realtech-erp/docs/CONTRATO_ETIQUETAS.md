@@ -1,10 +1,10 @@
 # Contrato funcional — Etiquetas
 
-**Status:** dimensões e composição visual dos dois modelos confirmadas em 30/09/2026; redações regulatórias variáveis continuam sujeitas à Qualidade.
+**Status:** referências visuais confirmadas em 30/09/2026; pequena corrigida pela empresa em 01/10/2026 para 105 × 58 mm, substituindo 105 × 98 mm. Grande permanece 105 × 105 mm. Redações regulatórias variáveis continuam sujeitas à Qualidade.
 
 ## Objetivo e acesso
 
-A etiqueta pode ser consultada em cada item do pedido, dentro do Documento da OP na aba `Etiqueta`, ou pelo módulo `Etiquetas`. O sistema usa um modelo previamente cadastrado e preenche a prévia com os dados do pedido, produto e OP, evitando redigitação.
+A etiqueta grande pode ser consultada em cada item do pedido; na OP, o botão Etiquetas abre as duas prévias, separadamente da Fórmula para produção; também há acesso pelo módulo Etiquetas. O sistema usa um modelo previamente cadastrado e preenche a prévia com os dados do pedido, produto e OP, evitando redigitação.
 
 No módulo `Etiquetas`, a lista de etiquetas preparadas mostra cada modelo com quantidade maior que zero por OP. A busca localiza por OP, pedido, cliente ou produto, e a ação abre o modelo correspondente à linha selecionada.
 
@@ -12,7 +12,7 @@ No módulo `Etiquetas`, a lista de etiquetas preparadas mostra cada modelo com q
 
 - marca e identificação REALTECH;
 - nome do produto;
-- cliente do pedido;
+- cliente do pedido somente no modelo grande;
 - descrição dos dados previstos no modelo;
 - ingredientes derivados da fórmula da OP;
 - lote preenchido com a data atual na abertura da impressão e validade obtida do lote final ou do produto;
@@ -41,10 +41,12 @@ Quando a OP ainda não possui lote produzido, o lote usa a data atual e a valida
 - o modelo pode ser consultado no cadastro de Etiquetas;
 - a OP pode ter quantidades atribuídas por modelo;
 - a prévia reproduz os blocos da referência física: identificação e texto regulatório, ingredientes, alergênicos, uso/conservação, cliente, fabricante, lote, validade, peso e slogan;
-- a consulta do Documento da OP mantém a ficha de demonstração e a etiqueta em abas separadas;
+- Fórmula para produção e Etiquetas possuem ações separadas na OP;
 - a impressão atual usa o diálogo do navegador e não gera arquivo armazenado no sistema.
 
 O protótipo não importa nem exporta arquivos `.nlbl`. A saída disponível é a impressão/salvamento em PDF do navegador; o arquivo de modelo nativo continua dependente do aplicativo que o criou.
+
+A quantidade atribuída ao modelo é configurável, mas a impressão atual renderiza uma prévia por tamanho: não há geração automática de N cópias. Não há emissão persistida/auditada nem PDF armazenado. O formato demonstrado é lote `DDMMAAAA` e validade de lote `MMM/AAAA`; validade textual do produto é preservada. Conferir HF-10 do roteiro final, inclusive medição física e escala 100%.
 
 ## Critérios de aceite do sistema futuro
 
@@ -68,3 +70,8 @@ O protótipo não importa nem exporta arquivos `.nlbl`. A saída disponível é 
 ## Impacto futuro
 
 A API/banco deverão preservar modelo e versão usados na emissão, snapshot dos dados do produto e lote, vínculo com OP e arquivo/resultado da impressão quando houver armazenamento. A implementação atual é somente demonstrativa e local.
+
+## Ajuste do cliente — 01/10/2026 (RN-ETQ-006)
+
+O bloco reserva espaço para CLIENTE e adapta a fonte do nome completo à largura e altura restantes, após carregar a fonte e ao redimensionar a janela. A escala usa cqw para preservar proporções na impressão. Critério: nomes curtos, o exemplo ALIMENTOS DO NORTE — DEMONSTRAÇÃO e nomes extensos devem permanecer entre as divisórias, sem reticências. Ajuste visual demonstrado; legibilidade física depende da calibração da impressora.
+

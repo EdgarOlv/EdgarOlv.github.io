@@ -2,6 +2,8 @@
 
 Esta pasta transforma o comportamento navegável em requisitos implementáveis. O código permanece na raiz de `Prototipo/` para continuar simples de abrir e apresentar.
 
+Revisão consolidada em 01/10/2026: [contrato oficial para Flutter](../../Docs/CONSOLIDACAO_FLUTTER_2026-10-01.md) e [roteiro final de homologação](ROTEIRO_HOMOLOGACAO_FINAL.md). Estes documentos distinguem entregas confirmadas, propostas demonstradas e pendências.
+
 - [`REGRAS_DE_NEGOCIO.md`](REGRAS_DE_NEGOCIO.md): catálogo das regras demonstradas.
 - [`decisoes/README.md`](decisoes/README.md): índice cronológico e temático dos registros de decisão e suas pendências.
 - [`PRECOCIFICACAO.md`](PRECOCIFICACAO.md): modelo simples de precificação com custo primário, encargos fixos e margem sobre venda.

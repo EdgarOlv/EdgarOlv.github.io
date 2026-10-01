@@ -1,5 +1,18 @@
 # Histórico de versões do protótipo
 
+## 01/10/2026 — Dois casos de teste no guia de demonstração
+
+- Removidos do guia os blocos “Pontos para validar com a empresa” e “Homologação final — entregas recentes”; pendências e contrato continuam preservados na documentação.
+- Primeiro roteiro identificado como ciclo comercial; segundo roteiro incluído logo após ele, cobrindo P&D, ingredientes, precisão, Contém/especiarias, preço por produto, amostras, documentos, etiquetas oficiais, snapshots e auditoria.
+- Alteração apenas de orientação da demonstração, sem mudar regras, permissões ou persistência; sem impacto novo em Flutter/API/banco.
+
+## 01/10/2026 — Consolidação para Flutter e homologação final (v12)
+
+- Contrato oficial consolidado em `Sistema/Docs/CONSOLIDACAO_FLUTTER_2026-10-01.md`, com rastreabilidade por regra, dados/snapshots, impactos API/banco, divergências verificadas e sequência de portabilidade.
+- Novo `ROTEIRO_HOMOLOGACAO_FINAL.md`: 14 cenários, incluindo ingredientes, P&D, precisão, preço, declaração, snapshots, parcelas, amostras, OP, qualidade, logística e impressão física.
+- Guia navegável passa a oferecer o roteiro final e o contrato; matriz e pontos de entrada documentais atualizados.
+- Teste de regressão da normalização de etiquetas antigas e testes de sintaxe/domínio. Cenários manuais do novo roteiro não são declarados executados.
+
 ## 01/10/2026 — Reconstrução das etiquetas oficiais
 
 - **RN-ETQ-006:** a empresa corrigiu a pequena para **105 × 58 mm**; a grande permanece em **105 × 105 mm**. A indicação anterior de 105 × 98 mm foi substituída.
@@ -17,7 +30,7 @@ Este documento espelha a página **Atualizações do protótipo**. Alterações 
 - **Dados variáveis:** lote passa a ser exibido como `DDMMAAAA`; validade de lote em data usa `MMM/AAAA`, preservando texto livre do cadastro quando ainda não existe lote final.
 - **Impacto futuro:** Flutter/API/banco continuam sem motor de templates; a emissão futura deve versionar modelo, dimensões e snapshot dos dados impressos.
 
-## v11 — 29/09/2026 — versão atual
+## v11 — 29/09/2026
 
 ### Especiarias e aromatizantes na declaração
 
@@ -89,7 +102,7 @@ Este documento espelha a página **Atualizações do protótipo**. Alterações 
 - **Escopo atual:** lote, fabricação e validade são preenchidos quando já existe lote de produto; antes disso, a etiqueta informa que esses dados serão definidos na produção.
 - **Homologação pendente:** medidas físicas, quantidade por impressão, conteúdo regulatório, código de barras, instruções, identidade visual e impressão em lote ainda precisam ser confirmados.
 
-## v5 — 14/09/2026 — versão atual
+## v5 — 14/09/2026
 
 ### Faturamento parcelado e financeiro paralelo
 
@@ -130,4 +143,9 @@ Este documento espelha a página **Atualizações do protótipo**. Alterações 
 - Validar com a empresa os textos e a seleção de entregas históricas.
 - Não apresentar regra demonstrada ou pendente como requisito homologado.
 - Manter datas e IDs idênticos entre esta página, a coleção `releases` e o catálogo de regras.
+
+
+## 01/10/2026 — Correção do nome do cliente (RN-ETQ-006)
+
+Reservado espaço para o título CLIENTE e reduzida a fonte base do nome; nomes extensos ajustam a fonte à largura e altura disponíveis. Texto integral e dimensões oficiais preservados. Sem mudanças em dados, API ou banco; portabilidade Flutter e calibração física permanecem pendentes.
 
