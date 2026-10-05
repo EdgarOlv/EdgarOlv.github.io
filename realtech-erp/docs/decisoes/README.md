@@ -44,3 +44,7 @@ Esta pasta guarda as decisões e propostas surgidas nas conversas de descoberta 
 6. Não apague decisões substituídas; marque claramente qual decisão posterior as substituiu.
 
 O modelo completo de registro está em [`COMO_REGISTRAR_MUDANCAS.md`](../COMO_REGISTRAR_MUDANCAS.md).
+
+- 05/10/2026 — Interface / demonstração: [Busca e cenários da reunião](2026-10-05-busca-cenarios-reuniao.md), RN-UX-001 e RN-DEMO-001.
+
+- 05/10/2026 — P&D / Embalagens: [Rascunhos, orçamento e embalagens](2026-10-05-pd-rascunhos-orcamento-embalagens.md), RN-PD-006/007 e RN-EMB-001/002.

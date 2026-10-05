@@ -71,9 +71,35 @@
   }
   const releases = [
     {
+      version: 'v15', date: '2026-10-05', current: true,
+      title: 'Pedidos em kg e planejamento de batidas',
+      summary: 'Novos pedidos e amostras em kg, linhas clicáveis e fórmula com totais, INS e etiquetas.',
+      changes: [
+        { area: 'Pedidos e Qualidade', title: 'Escolha o produto e quantos kg produzir', description: 'Base de 1 kg, inclusive para amostras. Embalagens e volumes seguem o cadastro; históricos em unidades são preservados.', rules: ['RN-PED-007'], status: 'Confirmada em reunião', route: 'amostras' },
+        { area: 'Produção', title: 'Modificar batidas', description: 'Máximo editável e número de batidas recalculam entre si. Fórmula apresenta totais, INS, etiquetas e lote sem barras. Padrão de 50 kg demonstrativo.', rules: ['RN-OP-003','RN-OP-002'], status: 'Confirmada; padrão demonstrativo', route: 'producao' },
+        { area: 'Navegação', title: 'Abrir pela linha inteira', description: 'Linhas abrem detalhes também com Enter ou Espaço; botões de alteração continuam explícitos.', rules: ['RN-UX-002'], status: 'Confirmada em reunião', route: 'dashboard' }
+      ]
+    },
+    {
+      version: 'v14', date: '2026-10-05', current: false,
+      title: 'P&D: rascunhos, orçamento e embalagens',
+      summary: 'Rascunhos são editados sem gerar versões extras; orçamento disponível antes de salvar e catálogo de embalagens em kg ou litros.',
+      changes: [
+        { area: 'P&D · Fórmulas', title: 'Versão somente na ativação', description: 'Continuar editando salva o mesmo rascunho. A ativação define v1, v2 e seguintes; pedidos e OPs preservam seus snapshots.', status: 'Confirmada em reunião', rules: ['RN-PD-006'], route: 'formulas' },
+        { area: 'P&D · Orçamento', title: 'Simulação durante a criação', description: 'Orçamento usa a composição em edição e a embalagem escolhida, sem liberar preço comercial.', status: 'Confirmada em reunião', rules: ['RN-PD-007'], route: 'formulas' },
+        { area: 'P&D · Embalagens', title: 'Capacidade, custo e sugestão', description: 'Cadastro de tipo/capacidade em kg ou litros e custo unitário. Litros usam peso líquido manual em kg; embalagem não altera o rendimento.', status: 'Confirmada; sugestão demonstrada', rules: ['RN-EMB-001', 'RN-EMB-002'], route: 'embalagens' }
+      ]
+    },
+    {
+      version: 'v13', date: '2026-10-05', current: false,
+      title: 'Busca e cenários para apresentação',
+      summary: 'Busca em Clientes, Produtos e Ordens de produção; oito cenários conectados e guia com a etapa atual de cada pedido.',
+      changes: [{ area: 'Apresentação', title: 'Busca e dados explicativos', description: 'Busca sem acentos, CNPJ com ou sem pontuação e cenários de rascunho até despacho com parcelas abertas.', rules: ['RN-UX-001', 'RN-DEMO-001'], status: 'Demonstrada', route: 'guia' }]
+    },
+    {
       version: 'v12',
       date: '2026-09-30',
-      current: true,
+      current: false,
       title: 'Etiquetas oficiais grande e pequena',
       summary:
         'Os dois modelos passam a seguir as referências oficiais e suas medidas físicas de 105 × 105 mm e 105 × 58 mm.',
@@ -416,6 +442,7 @@
         'clientes',
         'produtos',
         'formulas',
+        'embalagens',
         'precificacao',
         'producao',
         'etiquetas',
@@ -504,6 +531,7 @@
         'dashboard',
         'produtos',
         'formulas',
+        'embalagens',
         'precificacao',
         'ingredientes',
         'amostras',
@@ -537,6 +565,7 @@
     cancelOrder: ['comercial'],
     analyze: ['financeiro'],
     createOps: ['producao', 'qualidade'],
+    modifyBatches: ['producao', 'qualidade'],
     issueSheet: ['producao', 'qualidade'],
     startOp: ['producao', 'qualidade'],
     reportProduction: ['producao', 'qualidade'],
@@ -553,6 +582,7 @@
     saveLabel: ['producao'],
     editOpLabels: ['producao'],
     saveOpLabels: ['producao'],
+    savePackaging: ['pd'],
     createVersion: ['pd'],
     activateVersion: ['pd'],
     createProduct: ['pd'],
@@ -615,9 +645,45 @@
       0
     )
   }
+  function packageCount(item) {
+    return item.unidade === 'KG'
+      ? Math.ceil(item.quantidade / (item.pesoEmbalagemKg || 1))
+      : item.quantidade
+  }
   function volumeCount(item) {
     const units = item.unidadesPorVolume || 1
-    return Math.ceil(item.quantidade / units)
+    return Math.ceil(packageCount(item) / units)
+  }
+  function productBaseName(name) {
+    return String(name).replace(/\s+\d+(?:[.,]\d+)?\s*(?:kg|l)\s*$/i, '').trim()
+  }
+  function compactLotDate(value = today()) {
+    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/)
+    requireThat(match, 'Data do lote inválida.')
+    return `${match[3]}${match[2]}${match[1]}`
+  }
+  function batchPlan(op, limit = null, count = null) {
+    const totalKg = roundFormula(op.quantidadePrevista * op.pesoKg)
+    const maxKg = number(limit ?? op.batidas?.maximoKg ?? 50, 'Quantidade máxima por batida', 0.00001)
+    const batches = number(count ?? op.batidas?.quantidade ?? Math.ceil(totalKg / maxKg), 'Quantidade de batidas', 1)
+    requireThat(Number.isInteger(batches) && batches <= 10000, 'Informe de 1 a 10.000 batidas inteiras.')
+    requireThat(totalKg / batches <= maxKg + 0.00001, 'A quantidade por batida excede o máximo informado.')
+    return { totalKg, maximoKg: maxKg, quantidade: batches, kgPorBatida: totalKg / batches, padraoMaquinaKg: 50 }
+  }
+  function productionFormulaRows(op, plan = batchPlan(op)) {
+    const rows = op.formula.itens.map(item => ({
+      ingredienteId: item.ingredienteId,
+      percentual: roundFormula(item.quantidade / op.formula.rendimento * 100),
+      formulaKg: roundFormula(item.quantidade),
+      batidaKg: roundFormula(item.quantidade / op.formula.rendimento * plan.kgPorBatida),
+      totalKg: roundFormula(item.quantidade / op.formula.rendimento * plan.totalKg)
+    }))
+    // Assign only display rounding residuals; do not rewrite formula quantities or stock consumption.
+    const largest = rows.reduce((best, row, index) => row.formulaKg > rows[best].formulaKg ? index : best, 0)
+    if (rows.length) for (const [field, total] of [['percentual', 100], ['batidaKg', roundFormula(plan.kgPorBatida)], ['totalKg', plan.totalKg]]) {
+      rows[largest][field] = roundFormula(rows[largest][field] + total - rows.reduce((sum, row) => sum + row[field], 0))
+    }
+    return rows
   }
   function orderVolumeCount(o) {
     return o.itens.reduce((sum, item) => sum + volumeCount(item), 0)
@@ -870,6 +936,14 @@
     if (billingIssues(s, o).length) return 'Qualidade / liberação'
     return 'Pronto para faturar e despachar'
   }
+  function packagingSeed() {
+    return [
+      { id: 'emb-balde5', codigo: 'EMB-001', nome: 'Balde alimentício 5 kg', tipo: 'Balde', capacidade: 5, unidadeCapacidade: 'KG', custoCentavos: 450, ativo: true },
+      { id: 'emb-saco20', codigo: 'EMB-002', nome: 'Saco multicamadas 20 kg', tipo: 'Saco', capacidade: 20, unidadeCapacidade: 'KG', custoCentavos: 200, ativo: true },
+      { id: 'emb-bombona20', codigo: 'EMB-003', nome: 'Bombona alimentícia 20 L', tipo: 'Bombona', capacidade: 20, unidadeCapacidade: 'L', custoCentavos: 1200, ativo: true },
+      { id: 'emb-pote1', codigo: 'EMB-004', nome: 'Pote alimentício 1 kg', tipo: 'Pote', capacidade: 1, unidadeCapacidade: 'KG', custoCentavos: 180, ativo: true }
+    ]
+  }
   function seed() {
     const users = [
       ['admin', 'Administrador', 'administrador', 'admin123'],
@@ -991,6 +1065,7 @@
       usuarios: users,
       ingredientes: ingredients,
       formulas,
+      embalagens: packagingSeed(),
       fornecedores: [
         { id: 's1', nome: 'Fornecedor Alfa — demonstração' },
         { id: 's2', nome: 'Fornecedor Beta — demonstração' }
@@ -1228,6 +1303,46 @@
       })
     }
     return s
+  }
+  function packagingSelection(s, payload, product) {
+    if (!payload.embalagemId) return clone(product)
+    const pack = get(s.embalagens, payload.embalagemId)
+    requireThat(pack.ativo, 'Embalagem inativa. Escolha outra embalagem.')
+    const weight = number(payload.pesoLiquidoKg, 'Peso líquido (kg)', 0.00001)
+    const amount = pack.unidadeCapacidade === 'L'
+      ? number(payload.volumeLitros, 'Volume preenchido (L)', 0.00001)
+      : weight
+    requireThat(amount <= pack.capacidade, 'Conteúdo excede a capacidade da embalagem.')
+    return {
+      ...clone(product), embalagemId: pack.id, embalagem: pack.nome,
+      embalagemSnapshot: clone(pack), embalagemCentavos: pack.custoCentavos,
+      pesoKg: weight, volumeLitros: pack.unidadeCapacidade === 'L' ? amount : null,
+      precificacao: { ...(product.precificacao || {}), embalagemCentavosKg: pack.custoCentavos / weight }
+    }
+  }
+  function suggestPackaging(s, unit, amount) {
+    const quantity = number(amount, 'Conteúdo da embalagem', 0.00001)
+    requireThat(['KG', 'L'].includes(unit), 'Unidade da embalagem inválida.')
+    return s.embalagens.filter(pack => pack.ativo && pack.unidadeCapacidade === unit && pack.capacidade >= quantity)
+      .slice().sort((a, b) => a.capacidade - b.capacidade || a.custoCentavos - b.custoCentavos)[0] || null
+  }
+  function draftBudget(s, payload) {
+    const source = payload.sourceProductId ? get(s.produtos, payload.sourceProductId) : s.produtos.find(p => p.formulaId)
+    const formula = {
+      id: 'budget-draft', rendimento: number(payload.rendimento, 'Rendimento', 0.00001),
+      itens: (payload.itens || []).map(item => ({ ingredienteId: get(s.ingredientes, item.ingredienteId).id, quantidade: number(item.quantidade, 'Quantidade', 0) }))
+    }
+    requireThat(formula.itens.length > 0, 'Inclua ingredientes para calcular o orçamento.')
+    requireThat(new Set(formula.itens.map(i => i.ingredienteId)).size === formula.itens.length, 'Ingrediente duplicado no orçamento.')
+    let product = { ...clone(source), formulaId: formula.id, precificacao: { ...(source.precificacao || {}), margemPercentual: number(payload.margem ?? pricingProfile(s, source).margemPercentual, 'Lucratividade') } }
+    product = packagingSelection(s, payload, product)
+    const transient = { ...s, formulas: [...s.formulas, formula] }
+    const sim = priceSimulation(transient, product)
+    return { ...sim, pesoKg: product.pesoKg, embalagem: product.embalagem,
+      totalIngredientesKg: roundFormula(formula.itens.reduce((sum, item) => sum + item.quantidade, 0)),
+      rendimentoKg: formula.rendimento, unidadesEmbalagem: Math.ceil(formula.rendimento / product.pesoKg),
+      custoEmbalagensLoteCentavos: Math.ceil(formula.rendimento / product.pesoKg) * product.embalagemCentavos
+    }
   }
   function formulaCost(s, f) {
     return (
@@ -1524,7 +1639,7 @@
         quantidade: q,
         tipo,
         motivo,
-        unidade: unidade || (l.tipo === 'ingrediente' ? 'KG' : 'UN'),
+        unidade: unidade || (l.tipo === 'ingrediente' ? 'KG' : l.unidade || 'UN'),
         opId,
         data: now,
         responsavel: user.nome
@@ -1578,11 +1693,10 @@
           )
           const f = get(s.formulas, p.formulaId)
           requireThat(f.status === 'ativa', 'Fórmula não está ativa.')
-          const q = number(i.quantidade, 'Quantidade', 1)
-          requireThat(
-            Number.isInteger(q),
-            'Produtos em UN exigem quantidade inteira.'
-          )
+          const isKg = payload.modoQuantidade === 'KG' || (old?.modoQuantidade === 'KG' && payload.modoQuantidade !== 'UN')
+          const q = number(i.quantidade, 'Quantidade', isKg ? 0.001 : 1)
+          requireThat(isKg ? Math.abs(q - round(q)) < 1e-9 : Number.isInteger(q),
+            isKg ? 'Quantidades em kg aceitam até três casas decimais.' : 'Produtos em UN exigem quantidade inteira.')
           const unitsPerVolume = number(
             p.unidadesPorVolume,
             'Unidades por volume',
@@ -1602,14 +1716,17 @@
           return {
             id: uid(),
             produtoId: p.id,
-            nome: p.nome,
-            unidade: p.unidade,
-            pesoKg: p.pesoKg,
+            nome: isKg ? productBaseName(p.nome) : p.nome,
+            unidade: isKg ? 'KG' : p.unidade,
+            pesoKg: isKg ? 1 : p.pesoKg,
+            pesoEmbalagemKg: p.pesoKg,
+            embalagem: p.embalagem || '', embalagemId: p.embalagemId || null,
+            embalagemSnapshot: clone(p.embalagemSnapshot || null), volumeLitros: p.volumeLitros ?? null,
             volumeTipo: p.volumeTipo,
             unidadesPorVolume: unitsPerVolume,
             limiteUnidadesPorVolume: maxUnitsPerVolume,
             quantidade: q,
-            precoCentavos: p.precoCentavos,
+            precoCentavos: isKg ? Math.round(p.precoCentavos / p.pesoKg) : p.precoCentavos,
             comissaoBps: p.comissaoBps,
             tabela: p.tabela,
             validade: p.validade || '',
@@ -1633,6 +1750,7 @@
           clienteNome: c.nomeFantasia,
           vendedorId: c.vendedorId,
           itens: items,
+          modoQuantidade: items.every(item => item.unidade === 'KG') ? 'KG' : 'UN',
           tipo,
           prazoEntrega: due,
           condicoesPagamentoDias:
@@ -1799,6 +1917,9 @@
             itemId: i.id,
             produtoId: i.produtoId,
             produtoNome: i.nome,
+            unidade: i.unidade,
+            pesoEmbalagemKg: i.pesoEmbalagemKg || i.pesoKg,
+            volumeTipo: i.volumeTipo, unidadesPorVolume: i.unidadesPorVolume, limiteUnidadesPorVolume: i.limiteUnidadesPorVolume,
             formula: clone(i.formula),
             validade: i.validade || '',
             grupoPadronizacao: i.grupoPadronizacao || '02',
@@ -1811,6 +1932,8 @@
             modoUso: i.modoUso || '',
             conservacao: i.conservacao || '',
             pesoKg: i.pesoKg,
+            embalagem: i.embalagem || '', embalagemId: i.embalagemId || null,
+            embalagemSnapshot: clone(i.embalagemSnapshot || null), volumeLitros: i.volumeLitros ?? null,
             quantidadePrevista: i.quantidade,
             quantidadeProduzida: 0,
             prioridadeEm: o.criadoEm,
@@ -1830,6 +1953,19 @@
         if (o.tipo !== 'amostra') o.status = 'emProducao'
         break
       }
+      case 'modifyBatches': {
+        const x = op()
+        requireSampleScope(get(s.pedidos, x.pedidoId))
+        requireThat(['aguardando', 'emProducao'].includes(x.status), 'Batidas só podem ser alteradas em uma OP aberta.')
+        const plan = batchPlan(x, payload.maximoKg, payload.quantidadeBatidas)
+        x.batidas = { ...plan, usuario: user.nome, atualizadoEm: now }
+        if (x.documentoOp) {
+          x.documentoOp.revisaoPlanejamento = (x.documentoOp.revisaoPlanejamento || 0) + 1
+          x.documentoOp.batidas = clone(x.batidas)
+          x.documentoOp.necessidades = requirements(x, plan.totalKg)
+        }
+        break
+      }
       case 'issueSheet': {
         const x = op()
         requireSampleScope(get(s.pedidos, x.pedidoId))
@@ -1840,6 +1976,7 @@
           versao: x.formula.versao,
           data: now,
           usuario: user.nome,
+          batidas: batchPlan(x), revisaoPlanejamento: 0,
           necessidades: requirements(x, x.quantidadePrevista * x.pesoKg)
         }
         break
@@ -1863,12 +2000,10 @@
           x.status === 'emProducao' && x.documentoOp,
           'OP precisa estar em produção e ter documento gerado.'
         )
-        const q = number(payload.quantidade, 'Quantidade produzida', 1)
-        requireThat(
-          Number.isInteger(q) &&
-            q <= x.quantidadePrevista - x.quantidadeProduzida,
-          'Informe UN inteiras, no máximo o saldo da OP.'
-        )
+        const isKg = x.unidade === 'KG'
+        const q = number(payload.quantidade, 'Quantidade produzida', isKg ? 0.001 : 1)
+        requireThat((isKg ? Math.abs(q - round(q)) < 1e-9 : Number.isInteger(q)) && q <= round(x.quantidadePrevista - x.quantidadeProduzida),
+          isKg ? 'Informe kg com até três casas decimais, no máximo o saldo da OP.' : 'Informe UN inteiras, no máximo o saldo da OP.')
         const loss = round(number(payload.perdasKg, 'Perdas')),
           surplus = round(number(payload.sobrasKg, 'Sobras'))
         const reason = text(
@@ -1939,6 +2074,7 @@
           opId: x.id,
           pedidoId: x.pedidoId,
           quantidadeInicial: q,
+          unidade: x.unidade || 'UN',
           saldo: q,
           sobrasKg: surplus,
           fabricacao: today(),
@@ -1948,7 +2084,7 @@
         }
         s.lotes.push(lot)
         x.lotes.push(lot.id)
-        move(lot, q, 'producao', x.numero, 'UN', x.id)
+        move(lot, q, 'producao', x.numero, x.unidade || 'UN', x.id)
         if (surplus)
           move(
             lot,
@@ -1973,7 +2109,7 @@
             0
           )
         })
-        x.quantidadeProduzida += q
+        x.quantidadeProduzida = round(x.quantidadeProduzida + q)
         x.perdasKg = round(x.perdasKg + loss)
         x.sobrasKg = round(x.sobrasKg + surplus)
         if (x.quantidadeProduzida === x.quantidadePrevista) {
@@ -2141,7 +2277,7 @@
         )
         lots.forEach(id => {
           const l = get(s.lotes, id)
-          move(l, -l.saldo, 'despacho', o.numero, 'UN')
+          move(l, -l.saldo, 'despacho', o.numero, l.unidade || 'UN')
           l.saldo = 0
         })
         break
@@ -2362,6 +2498,20 @@
         }
         break
       }
+      case 'savePackaging': {
+        const old = payload.id ? get(s.embalagens, payload.id) : null
+        before = old ? clone(old) : null
+        const code = text(payload.codigo, 'Código da embalagem')
+        requireThat(!s.embalagens.some(pack => pack.id !== old?.id && pack.codigo.toLocaleLowerCase('pt-BR') === code.toLocaleLowerCase('pt-BR')), 'Código da embalagem já cadastrado.')
+        const unit = text(payload.unidadeCapacidade, 'Unidade de capacidade')
+        requireThat(['KG', 'L'].includes(unit), 'Capacidade deve usar KG ou L.')
+        target = { id: old?.id || uid(), codigo: code, nome: text(payload.nome, 'Nome da embalagem'), tipo: text(payload.tipo, 'Tipo da embalagem'),
+          capacidade: number(payload.capacidade, 'Capacidade', 0.00001), unidadeCapacidade: unit,
+          custoCentavos: Math.round(number(payload.custo, 'Custo unitário') * 100), ativo: payload.ativo !== false }
+        if (old) Object.assign(old, target)
+        else s.embalagens.push(target)
+        break
+      }
       case 'createProduct': {
         const source = get(
           s.produtos,
@@ -2382,7 +2532,7 @@
             'Código da fórmula'
           ),
           nome: text(payload.formulaNome || name, 'Nome da fórmula'),
-          versao: 1,
+          versao: 0,
           status: 'emDesenvolvimento',
           observacoes: text(
             payload.observacoes ||
@@ -2391,7 +2541,8 @@
             false
           )
         }
-        if (Array.isArray(payload.itens) && payload.itens.length) {
+        if (Array.isArray(payload.itens)) {
+          requireThat(payload.itens.length > 0, 'A fórmula deve ter ao menos um ingrediente.')
           const rows = payload.itens.map(i => ({
             ingredienteId: i.ingredienteId,
             quantidade: roundFormula(
@@ -2423,6 +2574,7 @@
           ),
           'Código da fórmula já cadastrado.'
         )
+        for (const field of ['ativacao', 'produtoId', 'apresentacaoRascunho', 'orcamentoMargem']) delete formula[field]
         s.formulas.push(formula)
         const productPricing = {
           margemPercentual: Number(
@@ -2469,6 +2621,7 @@
           'Contém',
           false
         )
+        target = packagingSelection(s, payload, target)
         s.produtos.push(target)
         result = target.id
         break
@@ -2515,6 +2668,12 @@
         p.naoContemGluten = !!payload.naoContemGluten
         p.modoUso = text(payload.modoUso, 'Modo de uso', false)
         p.conservacao = text(payload.conservacao, 'Conservação', false)
+        if (payload.embalagemId) {
+          const presentation = packagingSelection(s, payload, p)
+          const changed = p.embalagemId !== presentation.embalagemId || p.pesoKg !== presentation.pesoKg || p.volumeLitros !== presentation.volumeLitros || p.embalagemCentavos !== presentation.embalagemCentavos
+          Object.assign(p, presentation)
+          if (changed) p.precoLiberado = false
+        }
         break
       }
       case 'saveLabel': {
@@ -2573,22 +2732,24 @@
           Math.abs(totalIngredients - yieldKg) < 0.00001,
           `A soma dos ingredientes é ${totalIngredients.toFixed(5)} kg; o rendimento é ${yieldKg.toFixed(5)} kg. Ajuste ${Math.abs(yieldKg - totalIngredients).toFixed(5)} kg antes de criar a versão.`
         )
+        const existingDraft = f.status === 'emDesenvolvimento' ? f : s.formulas.find(x => x.codigo === f.codigo && x.status === 'emDesenvolvimento')
+        before = existingDraft ? clone(existingDraft) : null
         target = {
-          ...clone(f),
-          id: uid(),
-          versao:
-            Math.max(
-              ...s.formulas
-                .filter(x => x.codigo === f.codigo)
-                .map(x => x.versao)
-            ) + 1,
-          status: 'emDesenvolvimento',
-          rendimento: yieldKg,
-          itens: rows,
-          observacoes: text(payload.justificativa, 'Justificativa da versão')
+          ...clone(existingDraft || f), id: existingDraft?.id || uid(), versao: 0,
+          status: 'emDesenvolvimento', rendimento: yieldKg, itens: rows,
+          observacoes: text(payload.justificativa, 'Justificativa da revisão')
         }
-        s.formulas.push(target)
-        const product = s.produtos.find(p => p.formulaId === f.id)
+        delete target.ativacao
+        const product = payload.produtoId ? get(s.produtos, payload.produtoId) : s.produtos.find(p => p.formulaId && get(s.formulas, p.formulaId).codigo === f.codigo)
+        if (product) {
+          requireThat(get(s.formulas, product.formulaId).codigo === f.codigo, 'Produto não pertence a esta fórmula.')
+          target.produtoId = product.id
+        }
+        if (product && payload.embalagemId)
+          target.apresentacaoRascunho = packagingSelection(s, payload, product)
+        if (payload.orcamentoMargem != null) target.orcamentoMargem = number(payload.orcamentoMargem, 'Lucratividade')
+        if (existingDraft) Object.assign(existingDraft, target)
+        else s.formulas.push(target)
         if (product) {
           product.validade = text(
             payload.validade ?? product.validade,
@@ -2619,6 +2780,9 @@
           f.status === 'emDesenvolvimento',
           'Apenas versões em desenvolvimento podem ser ativadas.'
         )
+        if (f.apresentacaoRascunho?.embalagemId)
+          requireThat(get(s.embalagens, f.apresentacaoRascunho.embalagemId).ativo, 'Embalagem do rascunho foi inativada. Revise antes de ativar.')
+        f.versao = Math.max(0, ...s.formulas.filter(x => x.codigo === f.codigo && x.status !== 'emDesenvolvimento').map(x => x.versao || 0)) + 1
         f.status = 'ativa'
         f.ativacao = {
           usuario: user.nome,
@@ -2634,6 +2798,13 @@
             p => p.formulaId && get(s.formulas, p.formulaId).codigo === f.codigo
           )
           .forEach(p => {
+            if (f.apresentacaoRascunho && (!f.produtoId || f.produtoId === p.id)) {
+              const presentation = f.apresentacaoRascunho
+              for (const field of ['embalagemId', 'embalagem', 'embalagemSnapshot', 'embalagemCentavos', 'pesoKg', 'volumeLitros'])
+                p[field] = clone(presentation[field] ?? null)
+              p.precificacao = { ...(p.precificacao || {}), embalagemCentavosKg: presentation.embalagemCentavos / presentation.pesoKg }
+            }
+            if (f.orcamentoMargem != null && (!f.produtoId || f.produtoId === p.id)) p.precificacao = { ...(p.precificacao || {}), margemPercentual: f.orcamentoMargem }
             p.formulaId = f.id
             p.precoLiberado = false
           })
@@ -2779,6 +2950,14 @@
   }
   function demoSeed() {
     let s = seed()
+    s.clientes.push(
+      { ...clone(s.clientes[0]), id: 'c4', razaoSocial: 'Serra Dourada Alimentos Ltda — demonstração', nomeFantasia: 'Serra Dourada (teste)', cnpj: '00.000.000/0004-00', endereco: 'Rua das Indústrias, 240 · Curitiba/PR (fictício)', contato: 'Equipe de compras · serra@example.com', limiteCentavos: 2000000, exposicaoInicialCentavos: 0 },
+      { ...clone(s.clientes[0]), id: 'c5', razaoSocial: 'Vale Verde Preparados Ltda — demonstração', nomeFantasia: 'Vale Verde (teste)', cnpj: '00.000.000/0005-00', endereco: 'Av. do Distrito Industrial, 80 · Ribeirão Preto/SP (fictício)', contato: 'Planejamento industrial · vale@example.com', limiteCentavos: 1500000, exposicaoInicialCentavos: 200000 }
+    )
+    s.produtos.push(
+      { ...clone(s.produtos[0]), id: 'p4', codigo: 'DEMO-TEMP-01', nome: 'Tempero para linguiça — embalagem piloto (demo)', status: 'emDesenvolvimento', precoLiberado: false },
+      { ...clone(s.produtos[1]), id: 'p5', codigo: 'DEMO-REAL-02', nome: 'Realçador — apresentação descontinuada (demo)', status: 'inativo', precoLiberado: false }
+    )
     const admin = s.usuarios[0]
     const run = (a, p) => {
       const r = execute(s, admin, a, p)
@@ -2791,7 +2970,7 @@
         itens: items,
         prazoEntrega: day(15),
         condicoesPagamentoDias: [14, 20],
-        condicoesComerciais: '30/60 dias',
+        condicoesComerciais: 'Duas parcelas em 14 e 20 dias após o faturamento. Frete por conta do destinatário.',
         observacoes: note
       })
     const p1 = create(
@@ -2800,19 +2979,19 @@
         { produtoId: 'p1', quantidade: 20 },
         { produtoId: 'p2', quantidade: 5 }
       ],
-      'Cenário completo: duas OPs, 200 kg totais.'
+      'Cenário 1 — Análise financeira: 20 embalagens de 5 kg e 5 de 20 kg; 200 kg e R$ 2.300,00. Liberar, aprovar e gerar duas OPs.'
     )
     run('submitOrder', { id: p1 })
     const p2 = create(
       'c2',
       [{ produtoId: 'p2', quantidade: 10 }],
-      'Cenário de restrição financeira.'
+      'Cenário 2 — Crédito em restrição: consultar atrasos e limite disponível. Demonstrar bloqueio ou liberação com restrição e justificativa obrigatória.'
     )
     run('submitOrder', { id: p2 })
     const p3 = create(
       'c1',
       [{ produtoId: 'p1', quantidade: 10 }],
-      'Cenário operacional pronto para produzir.'
+      'Cenário 3 — OP aguardando: emitir a Fórmula para produção, conferir etiquetas, iniciar e apontar 10 embalagens de 5 kg.'
     )
     run('submitOrder', { id: p3 })
     run('analyze', {
@@ -2822,8 +3001,46 @@
     })
     run('approveOrder', { id: p3 })
     run('createOps', { id: p3 })
+    // Build presentation scenarios through the same validated transitions as the UI.
+    const operational = (note, quantity = 6) => {
+      const id = create('c1', [{ produtoId: 'p1', quantidade: quantity }], note)
+      run('submitOrder', { id })
+      run('analyze', { id, decisao: 'liberado', justificativa: 'Cliente regular; exposição dentro do limite demonstrativo.' })
+      run('approveOrder', { id })
+      run('createOps', { id })
+      return id
+    }
+    const produce = (id, quantity) => {
+      const op = s.ordens.find(x => x.pedidoId === id)
+      if (op.status === 'aguardando') {
+        run('issueSheet', { id: op.id })
+        run('startOp', { id: op.id })
+      }
+      return run('reportProduction', {
+        id: op.id, quantidade: quantity, perdasKg: 0, sobrasKg: 0,
+        validade: day(180), consumos: suggestConsumption(s, op, quantity * op.pesoKg),
+        observacoes: 'Batida demonstrativa: conferir consumo por lote e rastreabilidade até o cliente.'
+      })
+    }
+    create('c1', [{ produtoId: 'p2', quantidade: 2 }],
+      'Cenário 4 — Rascunho: revisar quantidades e parcelas antes de enviar ao Financeiro; após o envio a edição é bloqueada.')
+    const partial = operational('Cenário 5 — Produção parcial: 3 de 6 embalagens prontas. Apontar o saldo e mostrar que cada apontamento gera seu próprio lote.')
+    produce(partial, 3)
+    const quality = operational('Cenário 6 — Qualidade pendente: produção completa, lote aguardando inspeção. Aprovar o lote para liberar o faturamento.')
+    produce(quality, 6)
+    const billing = operational('Cenário 7 — Pronto para faturar: lote aprovado. Faturar para abrir duas parcelas e demonstrar o despacho sem exigir pagamento.')
+    produce(billing, 6)
+    for (const lot of s.lotes.filter(l => l.tipo === 'produto' && l.pedidoId === billing))
+      run('inspect', { id: lot.id, decisao: 'aprovado', observacoes: 'Conferência demonstrativa de embalagem e identificação aprovada.', laudo: 'LAUDO-DEMO-007' })
+    const dispatched = operational('Cenário 8 — Despachado com uma parcela paga: confirmar entrega com a segunda parcela aberta; mostrar comissão pela competência do recebimento.')
+    produce(dispatched, 6)
+    for (const lot of s.lotes.filter(l => l.tipo === 'produto' && l.pedidoId === dispatched))
+      run('inspect', { id: lot.id, decisao: 'aprovado', observacoes: 'Lote demonstrativo aprovado.', laudo: 'LAUDO-DEMO-008' })
+    run('bill', { id: dispatched, referencia: 'FAT-DEMO-008' })
+    run('registerReceipt', { id: s.recebiveis.find(r => r.pedidoId === dispatched).id, recebidoEm: today(), referencia: 'REC-DEMO-008-01' })
+    run('dispatch', { id: dispatched, transportadora: 'Rota Sul Logística — demonstração', valor: 150, rastreamento: 'DEMO-RT-008', comprovante: 'ROMANEIO-DEMO-008', tomadorFrete: 'destinatario', dataSaida: today(), prazo: day(3) })
     s.revision = 0
-    return s
+    return clone(s)
   }
   function emptySeed() {
     const s = seed()
@@ -2860,6 +3077,7 @@
       'auditoria'
     ])
       requireThat(Array.isArray(s[key]), 'Arquivo de demonstração incompleto.')
+    if (!Array.isArray(s.embalagens)) s.embalagens = packagingSeed()
     // A correção das medidas não invalida pedidos ou textos já editados no navegador.
     for (const model of s.etiquetas) {
       if (model.id === 'etq1') {
@@ -2890,6 +3108,11 @@
     emptySeed,
     execute,
     orderTotal,
+    packageCount,
+    productBaseName,
+    compactLotDate,
+    batchPlan,
+    productionFormulaRows,
     volumeCount,
     orderVolumeCount,
     installmentPlan,
@@ -2903,6 +3126,9 @@
     stage,
     visibleOrders,
     visibleClients,
+    packagingSelection,
+    suggestPackaging,
+    draftBudget,
     formulaCost,
     containsText,
     ingredientDeclaration,

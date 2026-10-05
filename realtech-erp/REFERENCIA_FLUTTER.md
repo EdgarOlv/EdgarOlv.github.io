@@ -116,7 +116,7 @@ Na leitura do `LocalDataService` atual, `criarOrdemProducao` recebe a quantidade
 - Administração tem exceção de acesso total para apresentação. Somente P&D e Administrador fazem ações técnicas. A matriz técnica cita `dispatch.read` para Fiscal, mas a demo permite escrita; confirmar o perfil de expedição.
 - Laudo e comprovante são referências textuais; nenhum upload ou documento fiscal é gerado. O Documento da OP e a Ficha Técnica demonstrativa podem ser impressos/salvos como PDF pelo navegador, sem assinatura ou persistência. A Ficha Técnica inclui pedido, cliente, itens, pesos e nutrição sintética; o contrato oficial depende de homologação.
 - Não implementa autenticação real, autorização real, backend, MySQL, multiusuário, sincronização, SQLite, criptografia, logs imutáveis, NF-e ou integrações externas.
-- Cadastro de cliente é reduzido; usuários são predefinidos e ativáveis; ingredientes possuem CRUD demonstrativo, enquanto fornecedores, embalagens e produtos não têm CRUD completo. Relatórios são recortes básicos exportáveis.
+- Cadastro de cliente é reduzido; usuários são predefinidos e ativáveis; ingredientes possuem CRUD demonstrativo, enquanto fornecedores e produtos não têm CRUD completo. Embalagens possuem cadastro/edição/inativação em P&D desde 05/10/2026. Relatórios são recortes básicos exportáveis.
 - `localStorage` preserva alterações entre recargas e perfis no mesmo navegador/origem. Sessão sempre volta ao login ao recarregar. Há aviso de outra aba e detecção de revisão obsoleta, mas não há lock/transação entre abas. Testar em uma aba por vez.
 
 ## Fontes e precedência
@@ -129,3 +129,10 @@ Na leitura do `LocalDataService` atual, `criarOrdemProducao` recebe a quantidade
 
 Os PDFs orientam regras. O código Flutter foi consultado para correspondência, não tratado como implementação já homologada. O visual original e o esclarecimento do usuário orientam o tema. A existência deste protótipo não oficializa as premissas pendentes.
 
+
+## Atualização P&D — 05/10/2026
+
+RN-PD-006/007 e RN-EMB-001/002: rascunho estável e versão só ao ativar; orçamento temporário na criação/edição; embalagem com capacidade KG/L e custo unitário, sem somar massa, com peso kg manual para litros. Conferir contrato e matriz antes de portar. Estado local mantém esquema v12 com catálogo adicionado por migração.
+
+## v15 — contrato adicional
+Portabilidade de KG/UN, preço/kg, embalagem separada e batidas exige snapshots e revisões. Flutter segue experimental. Ver decisão `docs/decisoes/2026-10-05-qualidade-quilos-batidas-ux.md` e matriz; 50 kg não é limite homologado.

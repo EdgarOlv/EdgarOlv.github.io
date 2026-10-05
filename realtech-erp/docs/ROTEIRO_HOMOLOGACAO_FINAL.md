@@ -38,3 +38,16 @@ Para cada HF: data, responsável/setor, perfil, registros utilizados, resultado,
 ## Fora da cobertura do protótipo
 
 Homologar separadamente Flutter Web/Windows, autenticação/API, concorrência de saldo e escrita, idempotência de requisições, decimal no banco, anexos/documentos persistidos, impressão real, backup/restauração, integração fiscal e offline se contratado. O protótipo não comprova esses itens.
+
+## Cenário adicional da reunião — P&D (05/10/2026)
+
+Criar produto, escolher embalagem e conferir orçamento antes de salvar. Para bombona de 20 L, informar 20 L e peso líquido 18 kg manual. Salvar e editar duas vezes: continua rascunho. Ativar: v1. Revisar novamente, comparar embalagens, salvar duas vezes: v1 permanece ativa. Ativar: v2. Para produto já em v2, próxima ativação deve ser v3. Conferir preço pendente e pedido/OP anterior com composição/embalagem congeladas. Verificar ausência do botão “Criar a partir deste produto” no detalhe e cadastro/inativação de embalagem. RN-PD-006/007, RN-EMB-001/002.
+
+## Cenário v15 — kg e batidas
+1. Criar amostra de 1 kg; conferir base e transporte com embalagem cadastrada. Criar pedido comercial de 100 kg de cada produto; conferir 200 kg e R$ 2.300,00.
+2. Gerar OP de 100 kg, máximo 50 → 2 batidas; mudar para 3 → 33,33333; salvar e emitir documento. Conferir INS, totais e etiquetas sem medidas.
+3. Abrir registros por célula e Enter/Espaço; verificar que aprovação/início continuam ações explícitas.
+4. Conferir históricos UN e prévias com lote sem barras. Homologar capacidade real e embalagem parcial com Produção/Qualidade.
+
+## Correção v15.2 — 05/10/2026
+A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. RN-OP-003 passa a permitir **Modificar** ao lado da fórmula em OP aguardando ou em produção. Substitui a limitação anterior ao início. Ajuste revisa planejamento da ficha para o total da OP, com auditoria; não modifica produção, lotes, consumos ou versão da fórmula já registrados. OP concluída permanece bloqueada. Capacidades reais seguem pendentes. 58 testes, incluindo preservação após apontamento parcial.

@@ -43,3 +43,6 @@ A Qualidade emite documento padronizado para o cliente. Ele pode ser aberto em `
 
 Ainda confirmar com a empresa: medida caseira, alergênicos, lista de ingredientes, conservação, validade, assinatura, responsável técnico, número/revisão e forma de envio.
 
+
+## v15 — unidade preservada
+Novos pedidos/amostras usam KG e base 1 kg; documentos preservam quantidade em kg e peso líquido da embalagem separado. Históricos UN permanecem em unidades. Fórmula de produção na OP usa plano de batidas e somatórios, independente do rendimento cadastrado e da embalagem final.

@@ -75,3 +75,6 @@ A API/banco deverão preservar modelo e versão usados na emissão, snapshot dos
 
 O bloco reserva espaço para CLIENTE e adapta a fonte do nome completo à largura e altura restantes, após carregar a fonte e ao redimensionar a janela. A escala usa cqw para preservar proporções na impressão. Critério: nomes curtos, o exemplo ALIMENTOS DO NORTE — DEMONSTRAÇÃO e nomes extensos devem permanecer entre as divisórias, sem reticências. Ajuste visual demonstrado; legibilidade física depende da calibração da impressora.
 
+
+## Atualização 05/10/2026 — v15
+Lote exibido em DDMMAAAA, por exemplo 05102026, também na fórmula de produção. Esta lista mostra etiquetas registradas e quantidades sem dimensões. A base do pedido é 1 kg; peso na etiqueta depende da embalagem, limitado ao total produzido em amostras menores que sua capacidade. A última embalagem parcial de uma OP maior continua pendente de modelo específico.

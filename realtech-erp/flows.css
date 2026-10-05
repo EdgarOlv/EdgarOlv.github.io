@@ -277,3 +277,15 @@ textarea { min-height:84px; }
 @page label-grande { size:105mm 105mm; margin:0; }
 @page label-pequena { size:105mm 58mm; margin:0; }
 @media print { .production-formula { max-width:none; width:100%; font-size:8pt; print-color-adjust:exact; } .production-formula-head { grid-template-columns:1fr 35mm 26mm; } .production-formula>.detail-list { grid-template-columns:repeat(3,1fr); } .production-formula>.detail-list>div { min-height:12mm; } .production-formula .actions { display:none!important; } }
+
+/* P&D: embalagem e orçamento separados da massa da composição. */
+.budget-editor { margin-top: 20px; padding: 18px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc; }
+.budget-editor label[hidden] { display: none !important; }
+.budget-editor h3 { margin-top: 0; }
+
+/* Registros abrem pela linha; ações e campos internos continuam independentes. */
+tr[data-table-row] { cursor: pointer; }
+tr[data-table-row]:hover { background: #eff6ff; }
+tr[data-table-row]:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; background: #eff6ff; }
+.table-totals th, .table-totals td { font-weight: 700; border-top: 2px solid #94a3b8; background: #eaf1fa; }
+.production-formula table td:nth-child(n+2), .production-formula table th:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }

@@ -45,7 +45,7 @@ Essas credenciais não protegem o protótipo. Todos os dados podem ser inspecion
 
 ## Percurso de demonstração
 
-Use o **Guia de demonstração** dentro do app. Há três pedidos iniciais: dois na análise financeira (um com cliente em restrição) e um com OP aguardando. Para um teste novo:
+Use o **Guia de demonstração** dentro do app. Há oito pedidos iniciais, da análise financeira ao despacho com parcela aberta. O Guia apresenta objetivo e etapa atual de cada cenário. Para um teste novo:
 
 1. Comercial cria pedido AlimNorte com 20 UN de Tempero 5 kg e 5 UN de Realçador 20 kg, adicionando parcelas de 14 e 20 dias. O valor é dividido automaticamente e a criação não antecipa comissão.
 2. Envia ao Financeiro; nesse momento a edição já fica bloqueada. Troca perfil e registra análise.
@@ -89,4 +89,11 @@ Hospedar os arquivos estáticos abaixo, mantendo a estrutura de pastas:
 
 Não é necessário build. Rotas usam hash e não exigem regra de rewrite. Não existem chamadas externas. Definir hospedagem/URL e proteção de acesso com o usuário antes da publicação. Se o público precisar compartilhar pedidos entre computadores, este pacote estático não atende: é preciso ambiente de homologação com backend.
 
-Cada navegador recebe uma cópia independente. “Trocar perfil” preserva os dados; “Reiniciar demonstração”, disponível no guia para Administrador, repõe os três cenários iniciais após confirmação. Limpar dados do navegador ou trocar de origem também separa/remove o armazenamento.
+Cada navegador recebe uma cópia independente. “Trocar perfil” preserva os dados; “Reiniciar demonstração”, disponível no guia para Administrador, repõe os oito cenários iniciais após confirmação. Limpar dados do navegador ou trocar de origem também separa/remove o armazenamento.
+
+## P&D na v14 — 05/10/2026
+
+Use P&D · Embalagens para cadastrar tipo, capacidade (kg/L) e custo unitário. Novo produto e Editar fórmula oferecem orçamento com a composição em edição e embalagem escolhida. Salvar atualiza o rascunho; a versão incremental só nasce ao ativar. Para litros, informe volume e peso líquido kg manualmente. A escolha não soma massa à fórmula. Verificação adicional: `node --test tests/domain.test.cjs tests/pd.test.cjs tests/search.test.cjs`.
+
+## v15 — reunião de 05/10/2026
+Ao criar pedido, escolha produto e kg a produzir (base 1 kg). Para repetir o ciclo comercial do guia, use 100 kg de cada produto: R$ 2.300,00 e 200 kg. Históricos em UN permanecem em UN. Na OP, Modificar batidas antes do início ajusta a divisão. 50 kg é limite demonstrativo editável. Fórmula soma colunas e relaciona etiquetas sem dimensões; linhas abrem detalhes também pelo teclado.

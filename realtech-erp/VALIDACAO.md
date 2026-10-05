@@ -93,3 +93,22 @@ Abrir etiqueta grande no pedido e na OP com cliente curto, ALIMENTOS DO NORTE �
 
 Validação executada: 40 testes de domínio aprovados e conferência geométrica no Edge com quatro nomes (incluindo texto sem espaços), em larguras de 735, 360 e 397 px; 12 cenários sem transbordamento. Script: tests/check-label-layout.cjs (requer Playwright e Edge). Impressão física não executada.
 
+
+## Entrega 05/10/2026
+
+43 testes automatizados aprovados (domain.test.cjs + search.test.cjs). Busca verificada com acentos, múltiplos termos, CNPJ sem pontuação, vazio e restauração; renderização das três listas verificada em VM. Oito cenários e persistência JSON validados. Sintaxe JS aprovada. Validação visual em navegador e homologação presencial não executadas nesta entrega.
+
+## P&D — Reunião 05/10/2026 (v14)
+
+53 testes automatizados aprovados: domain.test.cjs, pd.test.cjs e search.test.cjs; sintaxe dos quatro arquivos JS aprovada. Navegador validado em origem isolada localhost:8766: orçamento antes de salvar, bombona 20 L com peso kg manual (18 kg), cadastro de saco 10 kg/R$ 2,35, persistência após recarga, edições repetidas em rascunho, primeira ativação v1 e segunda v2. Layout do catálogo conferido em tela compacta. Domínio cobre v2→v3→v4, permissões, capacidade, inatividade, migração e snapshots de pedido/OP. Não houve execução Flutter ou integração com estoque/API/banco.
+
+## v15 — 05/10/2026
+57 testes de domínio/P&D/busca/qualidade aprovados. Navegador isolado em 8767: novo pedido base 1 kg, amostra 100 kg, abertura por célula, OP, ajuste 2→3 batidas e máximo 33,33333, emissão de fórmula, totais 100%/100 kg/33,33333 kg/100 kg, lote 05102026 e etiquetas sem dimensões. Visualização do documento conferida. Impressão física e capacidades reais continuam pendentes.
+
+Navegação por Enter na linha da OP também conferida no navegador. Recarregamento confirmou v15 e persistência da amostra de teste no ambiente isolado.
+
+### Ajuste de apresentação — 05/10/2026
+RN-OP-003: botão **Modificar** imediatamente ao lado de **Gerar fórmula para produção**, na OP aguardando início. O modal informa máximo em kg e batidas; o valor salvo alimenta os kg por ingrediente/batida na ficha. Sem alteração de fórmula, consumo ou versão. Cache dos recursos atualizado para v15.1.
+
+## Correção v15.2 — 05/10/2026
+A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. RN-OP-003 passa a permitir **Modificar** ao lado da fórmula em OP aguardando ou em produção. Substitui a limitação anterior ao início. Ajuste revisa planejamento da ficha para o total da OP, com auditoria; não modifica produção, lotes, consumos ou versão da fórmula já registrados. OP concluída permanece bloqueada. Capacidades reais seguem pendentes. 58 testes, incluindo preservação após apontamento parcial.

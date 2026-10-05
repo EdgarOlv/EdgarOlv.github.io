@@ -1,7 +1,7 @@
 'use strict'
 // Presentation and repository adapter. Business rules stay in domain.js.
 const D = Realtech,
-  DEMO_KEY = 'realtech.prototype.v8',
+  DEMO_KEY = 'realtech.prototype.meeting-2026-10-05',
   EMPTY_KEY = 'realtech.prototype.v8.empty',
   MODE_KEY = 'realtech.prototype.data-mode'
 const $ = s => document.querySelector(s)
@@ -77,6 +77,7 @@ const names = {
   clientes: 'Clientes',
   produtos: 'Produtos',
   ingredientes: 'Ingredientes',
+  embalagens: 'P&D · Embalagens',
   formulas: 'P&D · Fórmulas e precificação',
   producao: 'Ordens de produção',
   etiquetas: 'Etiquetas',
@@ -104,7 +105,7 @@ const navGroups = [
       ['comissoes', '◉']
     ]
   ],
-  ['Pesquisa e desenvolvimento', [['formulas', '⚗']]],
+  ['Pesquisa e desenvolvimento', [['formulas', '⚗'], ['embalagens', '▣']]],
   [
     'Operação',
     [
@@ -141,6 +142,7 @@ const actionNames = {
   analyze: 'Análise financeira',
   approveOrder: 'Aprovação comercial',
   createOps: 'OPs geradas',
+  modifyBatches: 'Planejamento de batidas modificado',
   issueSheet: 'Documento da OP gerado',
   saveLabel: 'Etiqueta atualizada',
   saveOpLabels: 'Etiquetas da OP definidas',
@@ -160,7 +162,8 @@ const actionNames = {
   createProduct: 'Novo produto',
   saveProduct: 'Dados do produto atualizados',
   savePricingSettings: 'Parâmetros globais de precificação',
-  createVersion: 'Nova versão',
+  savePackaging: 'Embalagem cadastrada / atualizada',
+  createVersion: 'Rascunho da fórmula salvo',
   activateVersion: 'Ativação de versão',
   releasePrice: 'Liberação de preço',
   toggleUser: 'Acesso atualizado'
@@ -240,8 +243,15 @@ function actionButton(label, a, id, primary = false) {
 function link(label, r, id) {
   return `<button class="text-button" data-route="${esc(r)}" data-id="${esc(id || '')}">${esc(label)}</button>`
 }
-function table(h, rows) {
-  return `<div class="table-wrap"><table><thead><tr>${h.map(x => `<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows.length ? rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${h.length}" class="empty">Nenhum registro neste recorte.<br>Avance no fluxo ou altere os filtros.</td></tr>`}</tbody></table></div>`
+function ingredientName(ingredient) {
+  return `${ingredient.ins ? `INS ${esc(ingredient.ins)} · ` : ''}${esc(ingredient.nome)}`
+}
+function unitLabel(record) { return record.unidade === 'KG' ? 'kg' : 'UN' }
+function table(h, rows, totals = null) {
+  return `<div class="table-wrap"><table><thead><tr>${h.map(x => `<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows.length ? rows.map(r => {
+    const label = String(r[0] ?? '').replace(/<[^>]*>/g, ' ').trim()
+    return `<tr data-table-row tabindex="0" aria-label="Abrir registro: ${esc(label)}">${r.map(c => `<td>${c}</td>`).join('')}</tr>`
+  }).join('') : `<tr><td colspan="${h.length}" class="empty">Nenhum registro neste recorte.<br>Avance no fluxo ou altere os filtros.</td></tr>`}</tbody>${totals ? `<tfoot><tr class="table-totals">${totals.map((cell, index) => index === 0 ? `<th scope="row">${cell}</th>` : `<td>${cell}</td>`).join('')}</tr></tfoot>` : ''}</table></div>`
 }
 function panel(t, b, extra = '') {
   return `<article class="panel"><div class="panel-head"><h3>${t}</h3>${extra}</div>${b}</article>`
@@ -269,6 +279,8 @@ function formData() {
 }
 function modal(t, b, fn, label = 'Confirmar') {
   dialogOrigin = document.activeElement
+  delete $('#dialogBody').dataset.product
+  delete $('#dialogBody').dataset.budgetFormula
   $('#dialogTitle').textContent = t
   $('#dialogBody').innerHTML = b
   $('#dialogError').textContent = ''
@@ -307,6 +319,7 @@ window.addEventListener('resize', fitLabelText)
 function closeModal() {
   $('#flowDialog').close()
   delete $('#dialogBody').dataset.product
+  delete $('#dialogBody').dataset.budgetFormula
   modalSubmit = null
   editingOrder = null
   if (dialogOrigin?.isConnected) dialogOrigin.focus()
@@ -443,6 +456,7 @@ function render() {
   $('#currentUser').textContent =
     `${user.nome} · ${D.profiles[user.perfil].label}`
   $('#newOrderBtn').hidden = !can('saveOrder')
+  $('#newOrderBtn').textContent = user.perfil === 'qualidade' ? '+ Nova amostra' : '+ Novo pedido'
   $('#screenTitle').textContent = names[route]
   $('#dataModeBadge').textContent =
     dataMode === 'with-data' ? 'DEMO COM DADOS' : 'DEMO SEM DADOS'
@@ -464,6 +478,7 @@ function render() {
     clientes: clientsView,
     produtos: productsView,
     ingredientes: ingredientsView,
+    embalagens: packagingView,
     formulas: formulasView,
     precificacao: pricingView,
     producao: () => (selectedId ? opView(selectedId) : productionView()),
@@ -637,7 +652,7 @@ function dashboardView() {
               ? link(o.numero, 'producao', o.id)
               : esc(o.numero),
             esc(o.produtoNome),
-            `${o.quantidadeProduzida} / ${o.quantidadePrevista} UN`,
+            `${qty(o.quantidadeProduzida)} / ${qty(o.quantidadePrevista)} ${unitLabel(o)}`,
             badge(o.status)
           ])
         )
@@ -759,14 +774,14 @@ function orderView(id) {
         'Quantidade',
         'Peso total',
         'Volumes',
-        'Preço / UN',
+        'Preço / base',
         ...(showCommission ? ['Comissão'] : []),
         'Subtotal',
         'Etiqueta'
       ],
       o.itens.map(i => [
         `${esc(i.nome)}${technical() ? `<small>${esc(i.formula.codigo)} · v${i.formula.versao}</small>` : ''}`,
-        `${qty(i.quantidade)} UN`,
+        `${qty(i.quantidade)} ${unitLabel(i)}`,
         `${qty(i.quantidade * i.pesoKg)} kg`,
         `${D.volumeCount(i)} ${esc(i.volumeTipo || 'volume')}${D.volumeCount(i) === 1 ? '' : 's'}<small>${i.unidadesPorVolume || 1} UN/volume</small>`,
         money(i.precoCentavos),
@@ -786,8 +801,8 @@ function orderView(id) {
                 ? link(x.numero, 'producao', x.id)
                 : esc(x.numero),
               esc(x.produtoNome),
-              `${x.quantidadePrevista} UN · ${qty(x.quantidadePrevista * x.pesoKg)} kg`,
-              `${x.quantidadeProduzida} UN`,
+              `${qty(x.quantidadePrevista)} ${unitLabel(x)} · ${qty(x.quantidadePrevista * x.pesoKg)} kg`,
+              `${qty(x.quantidadeProduzida)} ${unitLabel(x)}`,
               badge(x.status)
             ])
           )

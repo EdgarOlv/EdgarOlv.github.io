@@ -1,0 +1,125 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const D = require('../domain.js')
+function harness() {
+  let s = D.seed()
+  return {get s(){return s}, run(action, payload, user='quimica') {
+    const result = D.execute(s, D.get(s.usuarios,user), action, payload)
+    s = result.state; return result.id
+  }}
+}
+const revision = (h, id='f1v2', more={}) => ({id, rendimento:100, itens:D.clone(D.get(h.s.formulas,id).itens), justificativa:'Revisão demonstrativa', ...more})
+const quote = h => ({sourceProductId:'p1',rendimento:100,itens:D.clone(h.s.formulas[0].itens),embalagemId:'emb-balde5',pesoLiquidoKg:5,margem:60})
+test('edições repetidas reutilizam um rascunho e versão só avança na ativação', () => {
+  const h=harness(), original=D.clone(h.s.formulas[0]), count=h.s.formulas.length
+  const id=h.run('createVersion',revision(h))
+  assert.equal(h.s.formulas.length,count+1)
+  assert.equal(D.get(h.s.formulas,id).versao,0)
+  assert.equal(h.run('createVersion',revision(h,id,{justificativa:'Continuar editando'})),id)
+  assert.equal(h.run('createVersion',revision(h)),id)
+  assert.equal(h.s.formulas.length,count+1)
+  assert.deepEqual(D.get(h.s.formulas,'f1v2'),original)
+  h.run('activateVersion',{id,justificativa:'Aprovada'})
+  assert.equal(D.get(h.s.formulas,id).versao,3)
+  const next=h.run('createVersion',revision(h,id))
+  h.run('activateVersion',{id:next,justificativa:'Nova ativação'})
+  assert.equal(D.get(h.s.formulas,next).versao,4)
+})
+test('novo produto permanece no mesmo rascunho e primeira ativação é v1', () => {
+  const h=harness()
+  const id=h.run('createProduct',{codigo:'NEW',nome:'Produto novo',sourceProductId:'p1',formulaCodigo:'FORM-NEW',...quote(h)})
+  const product=D.get(h.s.produtos,id), fid=product.formulaId
+  const total=h.s.formulas.length
+  h.run('createVersion',revision(h,fid))
+  h.run('createVersion',revision(h,fid))
+  assert.equal(h.s.formulas.length,total)
+  assert.equal(D.get(h.s.produtos,id).formulaId,fid)
+  assert.equal(D.get(h.s.formulas,fid).versao,0)
+  h.run('activateVersion',{id:fid,justificativa:'Aprovada'})
+  assert.equal(D.get(h.s.formulas,fid).versao,1)
+  assert.equal(D.get(h.s.produtos,id).precoLiberado,false)
+})
+test('orçamento sem salvar usa composição em edição e custo da embalagem sem alterar massa/estado', () => {
+  const h=harness(), before=D.clone(h.s), payload=quote(h)
+  const a=D.draftBudget(h.s,payload)
+  const b=D.draftBudget(h.s,{...payload,embalagemId:'emb-saco20',pesoLiquidoKg:20})
+  assert.equal(a.totalIngredientesKg,100)
+  assert.equal(a.rendimentoKg,100)
+  assert.equal(a.embalagemCentavosKg,90)
+  assert.equal(b.embalagemCentavosKg,10)
+  assert.ok(b.precoKgCentavos<a.precoKgCentavos)
+  const changed=D.draftBudget(h.s,{...payload,itens:[{ingredienteId:'i1',quantidade:100}]})
+  assert.notEqual(changed.materiaPrimaCentavosKg,a.materiaPrimaCentavosKg)
+  assert.equal(a.precoCentavos,a.precoKgCentavos*5)
+  assert.deepEqual(h.s,before)
+})
+test('litros usam volume para capacidade e peso líquido manual para custo por kg', () => {
+  const h=harness(), payload={...quote(h),embalagemId:'emb-bombona20',volumeLitros:20,pesoLiquidoKg:18}
+  const result=D.draftBudget(h.s,payload)
+  assert.equal(result.pesoKg,18)
+  assert.equal(result.unidadesEmbalagem,6)
+  assert.equal(result.custoEmbalagensLoteCentavos,7200)
+  assert.equal(result.embalagemCentavosKg,67)
+  assert.throws(()=>D.draftBudget(h.s,{...payload,volumeLitros:21}),/capacidade/)
+  assert.throws(()=>D.draftBudget(h.s,{...payload,pesoLiquidoKg:''}),/Peso líquido/)
+  assert.throws(()=>D.draftBudget(h.s,{...payload,volumeLitros:''}),/Volume/)
+})
+test('cadastro de embalagem valida código, capacidade, unidade, custo e perfil', () => {
+  const h=harness(), payload={codigo:'EMB-NEW',nome:'Saco 10 kg',tipo:'Saco',capacidade:10,unidadeCapacidade:'KG',custo:2.35}
+  const id=h.run('savePackaging',payload)
+  assert.equal(D.get(h.s.embalagens,id).custoCentavos,235)
+  assert.equal(h.s.auditoria.at(-1).acao,'savePackaging')
+  assert.throws(()=>h.run('savePackaging',payload),/já cadastrado/)
+  assert.throws(()=>h.run('savePackaging',{...payload,codigo:'BAD',capacidade:0}),/Capacidade/)
+  assert.throws(()=>h.run('savePackaging',{...payload,codigo:'BAD',unidadeCapacidade:'UN'}),/KG ou L/)
+  assert.throws(()=>h.run('savePackaging',{...payload,codigo:'BAD',custo:-1}),/Custo/)
+  assert.throws(()=>h.run('savePackaging',payload,'vendedor'),/perfil/)
+})
+test('sugestão usa menor capacidade compatível, custo em empate e separa kg de litros', () => {
+  const h=harness()
+  assert.equal(D.suggestPackaging(h.s,'KG',5).id,'emb-balde5')
+  assert.equal(D.suggestPackaging(h.s,'L',5).id,'emb-bombona20')
+  assert.equal(D.suggestPackaging(h.s,'KG',30),null)
+  h.s.embalagens.push({id:'cheap',ativo:true,capacidade:5,unidadeCapacidade:'KG',custoCentavos:100})
+  assert.equal(D.suggestPackaging(h.s,'KG',5).id,'cheap')
+  h.s.embalagens.find(p=>p.id==='cheap').ativo=false
+  assert.equal(D.suggestPackaging(h.s,'KG',5).id,'emb-balde5')
+})
+test('embalagem do rascunho só muda apresentação ao ativar e preserva pedido/OP anteriores', () => {
+  const h=harness()
+  const oid=h.run('saveOrder',{clienteId:'c1',itens:[{produtoId:'p1',quantidade:2}],prazoEntrega:D.day(15),condicoesPagamentoDias:[14]},'admin')
+  h.run('submitOrder',{id:oid},'admin');h.run('analyze',{id:oid,decisao:'liberado'},'admin');h.run('approveOrder',{id:oid},'admin');h.run('createOps',{id:oid},'admin')
+  const order=D.clone(h.s.pedidos[0]), op=D.clone(h.s.ordens[0])
+  const fid=h.run('createVersion',revision(h,'f1v2',{embalagemId:'emb-saco20',pesoLiquidoKg:20}))
+  assert.equal(D.get(h.s.produtos,'p1').pesoKg,5)
+  h.run('activateVersion',{id:fid,justificativa:'Apresentação validada'})
+  assert.equal(D.get(h.s.produtos,'p1').pesoKg,20)
+  assert.equal(D.get(h.s.produtos,'p1').embalagemCentavos,200)
+  assert.deepEqual(h.s.pedidos[0],order)
+  assert.deepEqual(h.s.ordens[0],op)
+})
+test('embalagem inativada impede seleção e ativação de rascunho', () => {
+  const h=harness(), fid=h.run('createVersion',revision(h,'f1v2',{embalagemId:'emb-balde5',pesoLiquidoKg:5}))
+  h.run('savePackaging',{id:'emb-balde5',codigo:'EMB-001',nome:'Balde 5 kg',tipo:'Balde',capacidade:5,unidadeCapacidade:'KG',custo:4.5,ativo:false})
+  assert.throws(()=>D.draftBudget(h.s,quote(h)),/inativa/)
+  assert.throws(()=>h.run('activateVersion',{id:fid,justificativa:'Teste'}),/inativada/)
+})
+test('migração adiciona catálogo aos estados antigos sem alterar operações existentes', () => {
+  const s=D.demoSeed(), orders=D.clone(s.pedidos), revision=s.revision
+  delete s.embalagens
+  D.validateState(s)
+  assert.equal(s.embalagens.length,4)
+  assert.equal(s.revision,revision)
+  assert.deepEqual(s.pedidos,orders)
+})
+
+test('apresentação de um produto não contamina outro produto com a mesma fórmula', () => {
+  const h=harness()
+  h.s.produtos.push({...D.clone(h.s.produtos[0]),id:'variant',codigo:'VARIANT'})
+  const original=D.clone(D.get(h.s.produtos,'p1'))
+  const id=h.run('createVersion',revision(h,'f1v2',{produtoId:'variant',embalagemId:'emb-saco20',pesoLiquidoKg:20}))
+  h.run('activateVersion',{id,justificativa:'Variação de embalagem'})
+  assert.equal(D.get(h.s.produtos,'variant').pesoKg,20)
+  assert.equal(D.get(h.s.produtos,'p1').pesoKg,original.pesoKg)
+  assert.equal(D.get(h.s.produtos,'p1').embalagem,original.embalagem)
+})

@@ -1,5 +1,6 @@
 'use strict'
 function openOrderForm(id = null, complement = false, sampleOnly = false) {
+  sampleOnly = sampleOnly || user.perfil === 'qualidade'
   if (!can('saveOrder')) throw new Error('Sem permissão para criar pedidos.')
   if (
     !clients().some(c => c.ativo) ||
@@ -15,11 +16,12 @@ function openOrderForm(id = null, complement = false, sampleOnly = false) {
   const old = id ? find(orders(), id) : null
   editingOrder = {
     id: complement ? null : old?.id,
-    complementarDe: complement ? id : null
+    complementarDe: complement ? id : null,
+    modoQuantidade: !old || complement ? 'KG' : old.modoQuantidade || 'UN'
   }
   modal(
     complement ? 'Pedido complementar' : old ? 'Editar pedido' : 'Novo pedido',
-    `${notice('Pedidos de produção seguem o fluxo comercial. Amostras são encaminhadas à Qualidade para produção e despacho, sem análise financeira.')}<div class="form-grid">${select(
+    `${notice(editingOrder.modoQuantidade === 'KG' ? 'Escolha o produto e informe quantos kg produzir. A base é 1 kg; embalagem e volumes são calculados conforme o cadastro. Amostras seguem a Qualidade, sem análise financeira.' : 'Registro histórico em unidades de embalagem. Sua unidade e seus pesos serão preservados ao editar.')}<div class="form-grid">${select(
       'Tipo do pedido',
       'tipo',
       sampleOnly
@@ -54,7 +56,7 @@ function openOrderForm(id = null, complement = false, sampleOnly = false) {
     },
     'Salvar rascunho'
   )
-  const items = old?.itens || [{ produtoId: 'p1', quantidade: 20 }]
+  const items = old?.itens || [{ produtoId: 'p1', quantidade: 1 }]
   items.forEach(i => addOrderLine(i))
   const paymentDays = old?.condicoesPagamentoDias ||
     old?.condicoesComerciais?.match(/\d+/g)?.map(Number) || [30]
@@ -89,44 +91,34 @@ function addOrderLine(i = {}) {
     `<div class="order-line">${select(
       `Produto ${n}`,
       'product',
-      eligible.map(p => [p.id, `${p.codigo} · ${p.nome}`]),
+      eligible.map(p => [p.id, `${p.codigo} · ${editingOrder?.modoQuantidade === 'KG' ? D.productBaseName(p.nome) + ' · base 1 kg' : p.nome}`]),
       i.produtoId || eligible[0]?.id
-    )}${input(`Quantidade ${n}`, 'quantity', i.quantidade || 1, 'number', 'min="1" step="1" required')}<div class="line-amount calculated"></div><button type="button" class="ghost-btn remove-line" data-action="removeLine" aria-label="Remover item ${n}">×</button></div>`
+    )}${input(`Quantidade ${n} (${editingOrder?.modoQuantidade === 'KG' ? 'kg a produzir' : 'UN'})`, 'quantity', i.quantidade || 1, 'number', editingOrder?.modoQuantidade === 'KG' ? 'min="0.001" step="0.001" required' : 'min="1" step="1" required')}<div class="line-amount calculated"></div><button type="button" class="ghost-btn remove-line" data-action="removeLine" aria-label="Remover item ${n}">×</button></div>`
   )
   updateOrderTotals()
 }
+function orderLinePreview(row) {
+  const product = state.produtos.find(p => p.id === row.querySelector('select').value)
+  if (!product) return null
+  const amount = Number(row.querySelector('input').value) || 0
+  const kgMode = editingOrder?.modoQuantidade === 'KG'
+  const price = kgMode ? Math.round(product.precoCentavos / product.pesoKg) : product.precoCentavos
+  const item = { quantidade: amount, unidade: kgMode ? 'KG' : 'UN', pesoEmbalagemKg: product.pesoKg, unidadesPorVolume: product.unidadesPorVolume }
+  return { amount, kg: amount * (kgMode ? 1 : product.pesoKg), price, total: Math.round(amount * price), packages: D.packageCount(item), volumes: D.volumeCount(item), volumeTipo: product.volumeTipo || 'volume' }
+}
 function updateOrderTotals() {
   if (!$('#orderLines')) return
-  let total = 0,
-    kg = 0
-  const c = find(state.clientes, $('[name="clienteId"]').value)
-  $('[name="sellerLabel"]').value = find(state.usuarios, c.vendedorId).nome
+  const client = find(state.clientes, $('[name="clienteId"]').value)
+  $('[name="sellerLabel"]').value = find(state.usuarios, client.vendedorId).nome
+  const sums = { total: 0, kg: 0, volumes: 0 }
   document.querySelectorAll('.order-line').forEach(row => {
-    const p = state.produtos.find(
-        p => p.id === row.querySelector('select').value
-      ),
-      q = Number(row.querySelector('input').value) || 0
-    if (!p) {
-      row.querySelector('.line-amount').textContent = 'Sem preço liberado'
-      return
-    }
-    const volumes = Math.ceil(q / (p.unidadesPorVolume || 1))
-    total += q * p.precoCentavos
-    kg += q * p.pesoKg
-    row.querySelector('.line-amount').innerHTML =
-      `${money(q * p.precoCentavos)}<small>${volumes} ${esc(p.volumeTipo || 'volume')}${volumes === 1 ? '' : 's'}</small>`
+    const preview = orderLinePreview(row)
+    if (!preview) { row.querySelector('.line-amount').textContent = 'Sem preço liberado'; return }
+    sums.total += preview.total; sums.kg += preview.kg; sums.volumes += preview.volumes
+    row.querySelector('.line-amount').innerHTML = `${money(preview.total)}<small>${money(preview.price)}/${editingOrder?.modoQuantidade === 'KG' ? 'kg' : 'UN'} · ${qty(preview.packages)} embalagem(ns) · ${preview.volumes} ${esc(preview.volumeTipo)}(s)</small>`
   })
-  $('#orderTotals').innerHTML =
-    `<div class="summary-total"><div><span class="muted">Total do pedido</span><strong>${money(total)}</strong></div><div><span class="muted">Peso de produção</span><strong>${qty(kg)} kg</strong></div><div><span class="muted">Volumes para transporte</span><strong>${[
-      ...document.querySelectorAll('.order-line')
-    ].reduce((n, row) => {
-      const p = state.produtos.find(
-          p => p.id === row.querySelector('select').value
-        ),
-        q = Number(row.querySelector('input').value) || 0
-      return n + Math.ceil(q / (p?.unidadesPorVolume || 1))
-    }, 0)}</strong></div></div>`
-  updatePaymentTerms(total)
+  $('#orderTotals').innerHTML = `<div class="summary-total"><div><span class="muted">Total do pedido</span><strong>${money(sums.total)}</strong></div><div><span class="muted">Quantidade a produzir</span><strong>${qty(sums.kg)} kg</strong></div><div><span class="muted">Volumes para transporte</span><strong>${sums.volumes}</strong></div></div>`
+  updatePaymentTerms(sums.total)
 }
 function addPaymentTerm(days = 30) {
   const n = document.querySelectorAll('.payment-term-line').length + 1
@@ -138,14 +130,7 @@ function addPaymentTerm(days = 30) {
 }
 function updatePaymentTerms(total = null) {
   if (!$('#paymentTerms')) return
-  if (total == null)
-    total = [...document.querySelectorAll('.order-line')].reduce((sum, row) => {
-      const p = state.produtos.find(
-          x => x.id === row.querySelector('select').value
-        ),
-        q = Number(row.querySelector('input').value) || 0
-      return sum + (p ? q * p.precoCentavos : 0)
-    }, 0)
+  if (total == null) total = [...document.querySelectorAll('.order-line')].reduce((sum, row) => sum + (orderLinePreview(row)?.total || 0), 0)
   const rows = [...document.querySelectorAll('.payment-term-line')]
   if (!rows.length) return
   const base = Math.floor(total / rows.length),
@@ -165,7 +150,7 @@ function productionForm(id) {
     remaining = op.quantidadePrevista - op.quantidadeProduzida
   modal(
     'Apontar produção · ' + op.numero,
-    `${notice('Informe a produção deste apontamento. A OP permanece aberta até completar a quantidade prevista. Perdas e sobras aumentam o consumo de insumos.')}<div class="form-grid">${input('Quantidade produzida (UN)', 'quantidade', remaining, 'number', `required min="1" max="${remaining}" step="1"`)}${input('Validade do lote final', 'validade', D.day(180), 'date', `required min="${D.today()}"`)}${input('Perdas (kg)', 'perdasKg', 0, 'number', 'required min="0" step="0.001"')}${input('Sobras segregadas (kg)', 'sobrasKg', 0, 'number', 'required min="0" step="0.001"')}</div><p class="muted small">Validade de 180 dias é apenas exemplo, confirme a regra do produto. Sobras ficam segregadas, sem venda ou reaproveitamento automático.</p><div id="consumptionSummary"></div><div>${btn('Sugerir lotes por validade', 'suggestLots', id)}</div><div id="consumptionRows"></div>${textarea('Observações (obrigatórias se houver perdas ou sobras)', 'observacoes')}`,
+    `${notice('Informe a produção deste apontamento. A OP permanece aberta até completar a quantidade prevista. Perdas e sobras aumentam o consumo de insumos.')}<div class="form-grid">${input(`Quantidade produzida (${unitLabel(op)})`, 'quantidade', remaining, 'number', `required min="${op.unidade === 'KG' ? '0.001' : '1'}" max="${remaining}" step="${op.unidade === 'KG' ? '0.001' : '1'}"`)}${input('Validade do lote final', 'validade', D.day(180), 'date', `required min="${D.today()}"`)}${input('Perdas (kg)', 'perdasKg', 0, 'number', 'required min="0" step="0.001"')}${input('Sobras segregadas (kg)', 'sobrasKg', 0, 'number', 'required min="0" step="0.001"')}</div><p class="muted small">Validade de 180 dias é apenas exemplo, confirme a regra do produto. Sobras ficam segregadas, sem venda ou reaproveitamento automático.</p><div id="consumptionSummary"></div><div>${btn('Sugerir lotes por validade', 'suggestLots', id)}</div><div id="consumptionRows"></div>${textarea('Observações (obrigatórias se houver perdas ou sobras)', 'observacoes')}`,
     data =>
       commit('reportProduction', {
         id,
@@ -225,7 +210,7 @@ function traceBody(id) {
   )
   return `${fields([
     ['Lote', esc(lot.codigo)],
-    ['Saldo', `${qty(lot.saldo)} ${isInput ? 'kg' : 'UN'}`],
+    ['Saldo', `${qty(lot.saldo)} ${isInput ? 'kg' : unitLabel(lot)}`],
     ['Validade', fmtDate(lot.validade)],
     ['Situação', badge(lot.status)]
   ])}${
@@ -246,7 +231,7 @@ function traceBody(id) {
                   'Pedido / cliente',
                   `${esc(order.numero)} · ${esc(order.clienteNome)}`
                 ],
-                ['Apontamento', `${a.quantidade} UN · ${fmtTime(a.data)}`],
+                ['Apontamento', `${qty(a.quantidade)} ${unitLabel(op)} · ${fmtTime(a.data)}`],
                 ['Responsável', esc(a.usuario)],
                 [
                   'Despacho',
@@ -326,9 +311,9 @@ function technicalSheetBody(id) {
         ]
       return `<section class="technical-product"><h3>${esc(p.codigo)} · ${esc(i.nome)}</h3>${fields(
         [
-          ['Quantidade no pedido', `${qty(i.quantidade)} ${esc(p.unidade)}`],
-          ['Peso líquido por unidade', `${qty(i.pesoKg)} kg`],
-          ['Embalagem', esc(p.embalagem)],
+          ['Quantidade no pedido', `${qty(i.quantidade)} ${unitLabel(i)}`],
+          ['Peso líquido por embalagem', `${qty(i.pesoEmbalagemKg || i.pesoKg)} kg`],
+          ['Embalagem', esc(i.embalagem || p.embalagem)],
           ['Peso total', `${qty(i.quantidade * i.pesoKg)} kg`]
         ]
       )}<h4>Informação nutricional · porção de 100 g</h4>${table(['Nutriente', 'Quantidade por porção', '% VD*'], rows)}</section>`
@@ -359,10 +344,7 @@ function labelPreview(op, model, lot, printAction = null, order = null) {
       .join(', '),
     fixed = (field, fallback) => esc(model[field] || fallback),
     printedOn = D.today(),
-    labelLot = (() => {
-      const match = String(printedOn).match(/^(\d{4})-(\d{2})-(\d{2})/)
-      return match ? `${match[3]}${match[2]}${match[1]}` : String(printedOn)
-    })(),
+    labelLot = D.compactLotDate(printedOn),
     expires = lot?.validade
       ? (() => {
           const match = String(lot.validade).match(/^(\d{4})-(\d{2})/)
@@ -421,7 +403,7 @@ function labelPreview(op, model, lot, printAction = null, order = null) {
     ingredientText = esc(contains).replace(/^(.*?\(\d+(?:[.,]\d+)?%\),)\s*/, '<span class="label-ingredient-base">$1</span>'),
     allergenText = `${allergens ? `<p><b>ALÉRGICOS:</b> ${esc(allergens)}</p>` : ''}${gluten ? `<p>${allergens ? '| ' : ''}<b>${gluten}</b></p>` : ''}`,
     header = `<header><img class="label-logo" src="assets/label-logo.png" alt="REALTECH"><h2>${esc(op.produtoNome)}</h2><p class="label-description">${esc(description)}</p><div class="label-regulatory">${regulatory}</div></header>`,
-    batch = `<section class="label-batch-row"><p class="label-manufacturer"><b>${size === 'pequena' ? 'PRODUZIDO POR' : 'FABRICADO POR'}:</b><span>${manufacturer}${size === 'pequena' ? '\nINDÚSTRIA BRASILEIRA.' : ''}</span></p><div class="label-batch-values"><p><b>LOTE:</b> ${esc(labelLot)}</p><p><b>VALIDADE:</b> ${esc(expires)}</p><p><b>PESO LÍQUIDO:</b> ${new Intl.NumberFormat('pt-BR', { minimumFractionDigits: size === 'pequena' ? 3 : 1, maximumFractionDigits: 3 }).format(op.pesoKg)} ${size === 'pequena' ? 'kg' : 'KG'}</p></div></section>`,
+    batch = `<section class="label-batch-row"><p class="label-manufacturer"><b>${size === 'pequena' ? 'PRODUZIDO POR' : 'FABRICADO POR'}:</b><span>${manufacturer}${size === 'pequena' ? '\nINDÚSTRIA BRASILEIRA.' : ''}</span></p><div class="label-batch-values"><p><b>LOTE:</b> ${esc(labelLot)}</p><p><b>VALIDADE:</b> ${esc(expires)}</p><p><b>PESO LÍQUIDO:</b> ${new Intl.NumberFormat('pt-BR', { minimumFractionDigits: size === 'pequena' ? 3 : 1, maximumFractionDigits: 3 }).format(op.unidade === 'KG' ? Math.min(op.quantidadePrevista, op.pesoEmbalagemKg || op.pesoKg) : op.pesoEmbalagemKg || op.pesoKg)} ${size === 'pequena' ? 'kg' : 'KG'}</p></div></section>`,
     largeBody = `<section class="label-composition"><p><b>INGREDIENTES:</b> ${ingredientText}</p><div class="label-allergen-row">${allergens ? '<img src="assets/label-allergen.png" alt="Símbolo de alergênicos">' : ''}<div>${allergenText}</div></div></section><section class="label-directions"><p><b>MODO DE USO:</b> ${esc(usage)}</p><p>${esc(conservation)}</p></section><section class="label-customer"><b>CLIENTE:</b><strong>${esc(customer)}</strong></section>`,
     smallBody = `<section class="label-composition"><p><b>INGREDIENTES:</b> ${ingredientText}</p><div class="label-allergen-row"><div>${allergenText}</div></div></section><section class="label-directions"><p><b>MODO DE USO:</b> ${esc(usage)}</p><p>${esc(conservation)}</p></section>`,
     footer = size === 'pequena'
@@ -430,6 +412,59 @@ function labelPreview(op, model, lot, printAction = null, order = null) {
   return `<div class="label-frame label-frame-${size}"><article class="label-preview label-size-${size}" data-label-preview>${header}${size === 'pequena' ? smallBody : largeBody}${batch}<footer>${footer}</footer></article></div><div class="actions label-actions">${btn('Imprimir / salvar em PDF', action, op.id, true)}</div>`
 }
 
+function packagingEditor(product = {}, suggest = false) {
+  const selected = product.embalagemId || (suggest ? D.suggestPackaging(state, 'KG', product.pesoKg || 1)?.id : '') || ''
+  const weight = product.pesoKg || 1
+  return `<section class="budget-editor"><h3>Embalagem final e orçamento</h3><p class="muted small">A embalagem soma custo, sem somar peso à fórmula. Para litros, informe o volume e o peso líquido manualmente.</p><div class="form-grid">${select('Embalagem final', 'embalagemId', [['', 'Manter apresentação atual'], ...state.embalagens.filter(pack => pack.ativo || pack.id === selected).map(pack => [pack.id, `${pack.codigo} · ${pack.nome} · ${money(pack.custoCentavos)}/UN${pack.ativo ? '' : ' (inativa)'}`])], selected)}${input('Peso líquido por embalagem (kg)', 'pesoLiquidoKg', weight, 'number', 'required min="0.00001" step="0.00001"')}${input('Volume preenchido por embalagem (L)', 'volumeLitros', product.volumeLitros || '', 'number', 'min="0.00001" step="0.00001"')}${input('Lucratividade para orçamento (%)', 'orcamentoMargem', D.pricingProfile(state, product).margemPercentual, 'number', 'required min="0" step="0.01"')}</div><div class="actions">${btn('Sugerir embalagem', 'suggestBudgetPackaging')}${btn('Calcular orçamento', 'calculateDraftBudget')}</div><p id="packagingSuggestion" class="muted small" role="status"></p><div id="draftBudgetResult" aria-live="polite"></div></section>`
+}
+function budgetPayload() {
+  const value = name => $(`[name="${name}"]`)?.value
+  const productId = $('[name="sourceProductId"]')?.value || $('#dialogBody').dataset.product
+  const baseFormula = $('#dialogBody').dataset.budgetFormula
+  const rows = [...document.querySelectorAll('.formula-ingredient-row')]
+  return {
+    sourceProductId: productId, embalagemId: value('embalagemId'), pesoLiquidoKg: value('pesoLiquidoKg'), volumeLitros: value('volumeLitros'),
+    margem: value('orcamentoMargem'), rendimento: value('rendimento') || (baseFormula ? find(state.formulas, baseFormula).rendimento : ''),
+    itens: rows.length ? rows.map(row => ({ ingredienteId: row.querySelector('select').value, quantidade: row.querySelector('input').value })) : (baseFormula ? find(state.formulas, baseFormula).itens : [])
+  }
+}
+function updateDraftBudget() {
+  const result = $('#draftBudgetResult')
+  if (!result) return
+  const payload = budgetPayload()
+  const pack = state.embalagens.find(x => x.id === payload.embalagemId)
+  const weightField = $('[name="pesoLiquidoKg"]')
+  if (weightField) weightField.readOnly = !pack
+  const volumeField = $('[name="volumeLitros"]')
+  const liters = pack?.unidadeCapacidade === 'L'
+  if (volumeField) {
+    volumeField.disabled = !liters
+    volumeField.required = liters
+    volumeField.closest('label').hidden = !liters
+  }
+  try {
+    const sim = D.draftBudget(state, payload)
+    const balanced = Math.abs(sim.totalIngredientesKg - sim.rendimentoKg) < 0.00001
+    result.innerHTML = `${balanced ? '' : notice('Orçamento preliminar: a soma dos ingredientes ainda não fecha com o rendimento. Ajuste antes de salvar.', 'warn')}${fields([
+      ['Ingredientes / rendimento', `${formulaQty(sim.totalIngredientesKg)} / ${formulaQty(sim.rendimentoKg)} kg`],
+      ['Matéria-prima', `${money(sim.materiaPrimaCentavosKg)}/kg`], ['Embalagem', `${money(sim.embalagemCentavosKg)}/kg · ${esc(sim.embalagem)}`],
+      ['Custo primário', `${money(sim.custoPrimarioCentavos)}/kg`], ['Encargos sobre venda', `${qty(sim.encargosPercentual)}%`],
+      ['Preço estimado', `${money(sim.precoKgCentavos)}/kg`], ['Apresentação final', `${qty(sim.pesoKg)} kg · ${money(sim.precoCentavos)}/UN`],
+      ['Embalagens para a batida', `${sim.unidadesEmbalagem} UN · ${money(sim.custoEmbalagensLoteCentavos)}`]
+    ])}<p class="muted small">Simulação para decisão em P&D. A ativação e a liberação comercial do preço continuam separadas. A última embalagem da batida pode ficar incompleta.</p>`
+  } catch (error) { result.innerHTML = notice(esc(error.message), 'warn') }
+}
+function suggestBudgetPackaging() {
+  const payload = budgetPayload()
+  const current = state.embalagens.find(pack => pack.id === payload.embalagemId)
+  try {
+    const unit = current?.unidadeCapacidade || 'KG'
+    const pack = D.suggestPackaging(state, unit, unit === 'L' ? payload.volumeLitros : payload.pesoLiquidoKg)
+    $('#packagingSuggestion').textContent = pack ? `Sugestão aplicada: ${pack.nome}. Critério: menor capacidade compatível; em empate, menor custo unitário. Você pode escolher outra.` : 'Não há embalagem ativa compatível com o conteúdo informado.'
+    if (pack) $('[name="embalagemId"]').value = pack.id
+    updateDraftBudget()
+  } catch (error) { $('#packagingSuggestion').textContent = error.message }
+}
 function containsEditor(formula, selectedIds = [], currentText = '') {
   const selected = new Set(selectedIds)
   return `<section class="contains-card"><div class="section-heading"><div><h3>Contém</h3><p class="muted small">Marque os ingredientes que devem compor a declaração. Categoria e INS vêm do cadastro do ingrediente.</p></div></div><div class="contains-options">${formula.itens
@@ -486,7 +521,7 @@ function syncContainsOptions() {
     .join('')
   updateContainsText()
 }
-function openAction(a, id) {
+function openAction(a, id, productContext = null) {
   if (a in D.permissions && !can(a))
     throw new Error('Seu perfil não permite esta ação.')
   if (a === 'saveOrder') return openOrderForm(id || null)
@@ -761,6 +796,12 @@ function openAction(a, id) {
       d => commit(a, d),
       'Cadastrar cliente'
     )
+  if (a === 'savePackaging') {
+    const pack = id ? find(state.embalagens, id) : null
+    return modal(pack ? 'Editar embalagem' : 'Nova embalagem',
+      `<div class="form-grid">${input('Código', 'codigo', pack?.codigo || '', 'text', 'required')}${input('Nome', 'nome', pack?.nome || '', 'text', 'required')}${input('Tipo de embalagem', 'tipo', pack?.tipo || '', 'text', 'required placeholder="Ex.: saco, balde, bombona"')}${input('Capacidade', 'capacidade', pack?.capacidade || '', 'number', 'required min="0.00001" step="0.00001"')}${select('Unidade da capacidade', 'unidadeCapacidade', [['KG', 'Quilos (kg)'], ['L', 'Litros (L)']], pack?.unidadeCapacidade || 'KG')}${input('Custo por unidade (R$)', 'custo', (pack?.custoCentavos || 0) / 100, 'number', 'required min="0" step="0.01"')}${select('Situação', 'ativo', [['true', 'Ativa'], ['false', 'Inativa']], String(pack?.ativo ?? true))}</div>`,
+      d => commit(a, { ...d, id, ativo: d.ativo === 'true' }), 'Salvar embalagem')
+  }
   if (a === 'productDetails') {
     const p = find(state.produtos, id)
     const f = p.formulaId ? find(state.formulas, p.formulaId) : null
@@ -774,12 +815,13 @@ function openAction(a, id) {
           )
           .sort((a, b) => b.versao - a.versao)[0]
       : null
+    const editFormula = (label, formulaId) => actionButton(label, 'createVersion', formulaId).replace('<button ', `<button data-product-id="${esc(p.id)}" `)
     const sim = f ? D.priceSimulation(state, p) : null
     return modal(
       'Detalhes do produto · ' + p.nome,
-      `<div class="actions">${actionButton('Editar dados do produto', 'saveProduct', p.id)}${actionButton('Criar a partir deste produto', 'createProduct', p.id)}${f ? actionButton('Editar fórmula / criar versão', 'createVersion', draft?.id || f.id) : ''}${f && f.status === 'emDesenvolvimento' ? actionButton('Ativar fórmula', 'activateVersion', f.id, true) : ''}${f && f.status === 'ativa' ? actionButton('Editar formação de preço', 'releasePrice', p.id, true) : ''}</div>${
+      `<div class="actions">${actionButton('Editar dados do produto', 'saveProduct', p.id)}${f ? editFormula('Editar fórmula', draft?.id || f.id) : ''}${f && f.status === 'emDesenvolvimento' ? actionButton('Ativar fórmula', 'activateVersion', f.id, true) : ''}${f && f.status === 'ativa' ? actionButton('Editar formação de preço', 'releasePrice', p.id, true) : ''}</div>${
         draft
-          ? `<section class="draft-version-card"><div class="section-heading"><div><span class="eyebrow">Alterações salvas</span><h3>Nova versão ${esc(draft.codigo)} · v${draft.versao}</h3></div>${badge(draft.status)}</div>${fields(
+          ? `<section class="draft-version-card"><div class="section-heading"><div><span class="eyebrow">Alterações salvas</span><h3>Rascunho de ${esc(draft.codigo)}</h3></div>${badge(draft.status)}</div>${fields(
               [
                 ['Rendimento', `${formulaQty(draft.rendimento)} kg`],
                 [
@@ -794,7 +836,7 @@ function openAction(a, id) {
                 esc(find(state.ingredientes, item.ingredienteId).nome),
                 `${formulaQty(item.quantidade)} kg`
               ])
-            )}<div class="actions">${actionButton('Continuar editando', 'createVersion', draft.id)}${actionButton('Ativar esta versão', 'activateVersion', draft.id, true)}</div></section>`
+            )}<div class="actions">${editFormula('Continuar editando', draft.id)}${actionButton('Ativar rascunho', 'activateVersion', draft.id, true)}</div></section>`
           : ''
       }${fields([
         ['Código', esc(p.codigo)],
@@ -817,7 +859,7 @@ function openAction(a, id) {
         [
           'Fórmula',
           f
-            ? `${esc(f.codigo)} · v${f.versao} · ${badge(f.status)}`
+            ? `${esc(f.codigo)} · ${f.status === 'emDesenvolvimento' ? 'Rascunho' : `v${f.versao}`}  · ${badge(f.status)}`
             : 'Não cadastrada'
         ],
         [
@@ -848,7 +890,7 @@ function openAction(a, id) {
                   )
                 ]
               })
-            )}</section>${
+            )}${fields([['Embalagem final', esc(p.embalagem)], ['Peso líquido', `${qty(p.pesoKg)} kg`], ['Custo por embalagem', money(p.embalagemCentavos || 0)]])}</section>${
               sim
                 ? `<section><h3>Formação do preço por kg</h3>${fields([
                     ['Matéria-prima', money(sim.materiaPrimaCentavosKg)],
@@ -897,10 +939,11 @@ function openAction(a, id) {
           ['04', '04 · Pastas e molhos']
         ],
         p.grupoPadronizacao || '02'
-      )}${input('Validade do produto', 'validade', p.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${textarea('Descrição do produto na etiqueta', 'descricaoProduto', p.descricaoProduto || '')}${textarea('Modo de uso', 'modoUso', p.modoUso || '')}${textarea('Conservação', 'conservacao', p.conservacao || '')}</div><section class="product-label-options"><h3>Declarações da etiqueta</h3><label class="check-card"><input type="checkbox" name="alergenicosAtivo" ${p.alergenicosAtivo ? 'checked' : ''}><span>Exibir declaração de alérgicos</span></label>${textarea('Texto de alérgicos', 'alergenicosTexto', p.alergenicosTexto || '')}<label class="check-card"><input type="checkbox" name="naoContemGluten" ${p.naoContemGluten ? 'checked' : ''}><span>Exibir “Não contém glúten”</span></label></section>${containsEditor(formula, p.contemItens, p.contem)}`,
+      )}${input('Validade do produto', 'validade', p.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${textarea('Descrição do produto na etiqueta', 'descricaoProduto', p.descricaoProduto || '')}${textarea('Modo de uso', 'modoUso', p.modoUso || '')}${textarea('Conservação', 'conservacao', p.conservacao || '')}</div><section class="product-label-options"><h3>Declarações da etiqueta</h3><label class="check-card"><input type="checkbox" name="alergenicosAtivo" ${p.alergenicosAtivo ? 'checked' : ''}><span>Exibir declaração de alérgicos</span></label>${textarea('Texto de alérgicos', 'alergenicosTexto', p.alergenicosTexto || '')}<label class="check-card"><input type="checkbox" name="naoContemGluten" ${p.naoContemGluten ? 'checked' : ''}><span>Exibir “Não contém glúten”</span></label></section>${containsEditor(formula, p.contemItens, p.contem)}${packagingEditor(p)}`,
       d =>
         commit(a, {
           id,
+          embalagemId: d.embalagemId, pesoLiquidoKg: d.pesoLiquidoKg, volumeLitros: d.volumeLitros,
           grupoPadronizacao: d.grupoPadronizacao,
           validade: d.validade,
           contem: d.contem,
@@ -921,6 +964,8 @@ function openAction(a, id) {
       'Salvar dados'
     )
     $('#dialogBody').dataset.product = p.id
+    $('#dialogBody').dataset.budgetFormula = formula.id
+    updateDraftBudget()
     return
   }
   if (a === 'createProduct') {
@@ -952,10 +997,11 @@ function openAction(a, id) {
             ['04', '04 · Pastas e molhos']
           ],
           source?.grupoPadronizacao || '02'
-        )}${input('Validade do produto', 'validade', source?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${input('Código da fórmula', 'formulaCodigo', id ? `${source.codigo}-FORM` : '', 'text', 'required')}${input('Nome da fórmula', 'formulaNome', id ? `${source.nome} · Fórmula` : '', 'text', 'required')}</div><section class="formula-editor" data-stock-only="true"><div class="section-heading"><div><h3>Composição inicial</h3><p class="muted small">A lista oferece ingredientes com saldo em lotes liberados e válidos.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div class="form-grid">${input('Rendimento (kg)', 'rendimento', source?.formulaId ? find(state.formulas, source.formulaId).rendimento : 100, 'number', 'required min="0.00001" step="0.00001"')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${sourceFormula ? containsEditor(sourceFormula, source.contemItens, source.contem) : ''}${textarea('Observações', 'observacoes', '')}`,
+        )}${input('Validade do produto', 'validade', source?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${input('Código da fórmula', 'formulaCodigo', id ? `${source.codigo}-FORM` : '', 'text', 'required')}${input('Nome da fórmula', 'formulaNome', id ? `${source.nome} · Fórmula` : '', 'text', 'required')}</div><section class="formula-editor" data-stock-only="true"><div class="section-heading"><div><h3>Composição inicial</h3><p class="muted small">A lista oferece ingredientes com saldo em lotes liberados e válidos.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div class="form-grid">${input('Rendimento (kg)', 'rendimento', source?.formulaId ? find(state.formulas, source.formulaId).rendimento : 100, 'number', 'required min="0.00001" step="0.00001"')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${sourceFormula ? containsEditor(sourceFormula, source.contemItens, source.contem) : ''}${packagingEditor(source, true)}${textarea('Observações', 'observacoes', '')}`,
       d =>
         commit(a, {
           ...d,
+          margem: d.orcamentoMargem,
           contemItens: [
             ...document.querySelectorAll('[name="containsIngredient"]:checked')
           ].map(el => el.value),
@@ -994,20 +1040,21 @@ function openAction(a, id) {
   }
   if (a === 'createVersion') {
     const f = find(state.formulas, id)
-    const p = state.produtos.find(
+    const p = productContext ? find(state.produtos, productContext) : state.produtos.find(
       product =>
         product.formulaId &&
         find(state.formulas, product.formulaId).codigo === f.codigo
     )
     modal(
-      'Nova versão · ' + f.codigo,
+      'Editar rascunho · ' + f.codigo,
       notice(
-        'A versão atual será preservada. A nova começa em desenvolvimento. Nesta simulação, a soma dos insumos deve corresponder ao rendimento.'
+        'A fórmula ativa será preservada. Salvar atualiza o mesmo rascunho; a próxima versão numerada nasce somente ao ativar. A soma dos insumos deve corresponder ao rendimento.'
       ) +
-        `<div class="form-grid">${input('Rendimento (kg)', 'rendimento', f.rendimento, 'number', 'required min="0.00001" step="0.00001"')}${input('Validade do produto', 'validade', p?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}</div><section class="formula-editor"><div class="section-heading"><div><h3>Ingredientes</h3><p class="muted small">Adicione, remova e informe cada quantidade com até 5 casas decimais.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${containsEditor(f, p?.contemItens, p?.contem)}${textarea('Justificativa da versão', 'justificativa', '', true)}`,
+        `<div class="form-grid">${input('Rendimento (kg)', 'rendimento', f.rendimento, 'number', 'required min="0.00001" step="0.00001"')}${input('Validade do produto', 'validade', p?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}</div><section class="formula-editor"><div class="section-heading"><div><h3>Ingredientes</h3><p class="muted small">Adicione, remova e informe cada quantidade com até 5 casas decimais.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${containsEditor(f, p?.contemItens, p?.contem)}${packagingEditor(f.apresentacaoRascunho || p)}${textarea('Justificativa da revisão', 'justificativa', f.observacoes || '', true)}`,
       d =>
         commit(a, {
           id,
+          produtoId: p?.id,
           ...d,
           contemItens: [
             ...document.querySelectorAll('[name="containsIngredient"]:checked')
@@ -1019,8 +1066,9 @@ function openAction(a, id) {
             })
           )
         }),
-      'Criar versão'
+      'Salvar rascunho'
     )
+    $('#dialogBody').dataset.product = p?.id || ''
     f.itens.forEach(item => addFormulaIngredientRow(item))
     document.querySelectorAll('[name="containsIngredient"]').forEach(el => {
       el.checked = (p?.contemItens || []).includes(el.value)
@@ -1128,7 +1176,8 @@ function openAction(a, id) {
             id,
             produtoId: item.produtoId,
             produtoNome: item.nome,
-            pesoKg: item.pesoKg,
+            unidade: item.unidade, quantidadePrevista: item.quantidade,
+            pesoKg: item.pesoKg, pesoEmbalagemKg: item.pesoEmbalagemKg || item.pesoKg,
             validade: item.validade,
             contem: item.contem,
             descricaoProduto: item.descricaoProduto,
@@ -1149,19 +1198,31 @@ function openAction(a, id) {
       ) + labelPreview(op, model, null, 'printLabel', order)
     )
   }
+  if (a === 'modifyBatches') {
+    if (!can(a)) throw new Error('Seu perfil não permite modificar batidas.')
+    const op = find(state.ordens, id), plan = D.batchPlan(op)
+    modal('Modificar batidas · ' + op.numero,
+      notice(`Produção total: ${formulaQty(plan.totalKg)} kg. Padrão demonstrativo da máquina: 50 kg por batida, editável. A ficha divide o total da OP pelos kg por batida. Apontamentos, lotes e consumos já registrados permanecem preservados.`) +
+      `<div class="form-grid">${input('Quantidade máxima por batida (kg)', 'maximoKg', plan.maximoKg, 'text', 'required inputmode="decimal"')}${input('Quantidade de batidas', 'quantidadeBatidas', plan.quantidade, 'number', 'required min="1" max="10000" step="1"')}</div><div id="batchPlanPreview" role="status"></div>`,
+      data => commit(a, { id, maximoKg: batchDecimal(data.maximoKg), quantidadeBatidas: data.quantidadeBatidas }), 'Salvar batidas')
+    $('#dialogBody').dataset.batchOp = id
+    updateBatchPlan()
+    return
+  }
   if (['viewProductionFormula', 'viewOpLabels'].includes(a)) {
     if (!technical()) throw new Error('Documento da OP restrito.')
     const x = find(state.ordens, id),
       d = x.documentoOp,
       order = find(state.pedidos, x.pedidoId),
-      product = find(state.produtos, x.produtoId),
-      labelModel = find(state.etiquetas, 'etq2'),
-      batchKg = x.quantidadePrevista * x.pesoKg,
+      product = { ...find(state.produtos, x.produtoId), embalagem: x.embalagem || find(state.produtos, x.produtoId).embalagem },
+      plan = d.batidas || D.batchPlan(x),
+      batchKg = plan.totalKg,
+      composition = D.productionFormulaRows(x, plan),
       getLabelQty = eid =>
         x.etiquetas?.find(item => item.etiquetaId === eid)?.quantidade || 0
     return modal(
       `${a === 'viewOpLabels' ? 'Etiquetas' : 'Fórmula para produção'} · ${x.numero}`,
-      `<section class="production-formula" data-doc-panel="demonstracao" ${a === 'viewOpLabels' ? 'hidden' : ''}><header class="production-formula-head"><div><span class="eyebrow">Documento operacional</span><h2>Fórmula para produção</h2></div><img src="../../Imagens/logo-horizontal.png" alt="Realtech"><strong>${esc(d.numero)}</strong></header>${fields(
+      `<section class="production-formula" data-doc-panel="demonstracao" ${a === 'viewOpLabels' ? 'hidden' : ''}><header class="production-formula-head"><div><span class="eyebrow">Documento operacional</span><h2>Fórmula para produção</h2></div><img src="assets/logo-horizontal.png" alt="Realtech"><strong>${esc(d.numero)}</strong></header>${fields(
         [
           ['Data/hora de produção', fmtTime(d.data)],
           ['Cliente / local', esc(order.clienteNome)],
@@ -1180,41 +1241,32 @@ function openAction(a, id) {
             `${esc(x.formula.codigo)} · v${x.formula.versao}`
           ],
           ['Quantidade a produzir', `${qty(batchKg)} kg`],
-          ['Quantidade de batidas', '1'],
+          ['Quantidade de batidas', String(plan.quantidade)],
+          ['Quantidade por batida', `${formulaQty(plan.kgPorBatida)} kg`],
+          ['Máximo por batida', `${formulaQty(plan.maximoKg)} kg`],
           [
             'Quantidade de volumes',
-            `${x.quantidadePrevista} ${esc(product.volumeTipo || 'volume')}(s)`
+            `${D.volumeCount({ quantidade: x.quantidadePrevista, unidade: x.unidade, pesoEmbalagemKg: x.pesoEmbalagemKg || x.pesoKg, unidadesPorVolume: x.unidadesPorVolume || product.unidadesPorVolume })} ${esc(x.volumeTipo || product.volumeTipo || 'volume')}(s)`
           ],
-          ['Embalagem interna', `${qty(x.pesoKg)} kg`],
+          ['Peso líquido por embalagem', `${qty(x.pesoEmbalagemKg || x.pesoKg)} kg`],
           ['Embalagem externa', esc(product.embalagem || 'Não informada')],
-          ['Lote', fmtDate(D.today())],
+          ['Lote', D.compactLotDate()],
           ['Validade', esc(x.validade || product.validade || 'Não informada')],
           ['Modo de uso', esc(x.modoUso || product.modoUso || 'Não informado')],
           ['Responsável', esc(d.usuario)],
-          ['Etiqueta', esc(labelModel.nome)]
+          ['Etiquetas registradas', (x.etiquetas || []).filter(entry => entry.quantidade > 0).map(entry => `${`Etiqueta ${esc(entry.etiquetaId.replace(/\D/g, '') || 'registrada')}`} · ${entry.quantidade} unidade(s)`).join('<br>') || 'Nenhuma']
         ]
       )}<div class="production-callout">ENTREGAR ASSIM QUE FICAR PRONTO</div><section class="production-contains"><span>CONTÉM</span><p>${esc(x.contem || product.contem || 'Não informado')}</p></section>${table(
-        [
-          'Ingrediente',
-          'Categoria / INS',
-          'Total fórmula (%)',
-          'Total fórmula (kg)',
-          'Total da batida (kg)'
-        ],
-        x.formula.itens.map(item => {
-          const ingredient = find(state.ingredientes, item.ingredienteId)
-          const required = d.necessidades.find(
-            r => r.ingredienteId === item.ingredienteId
-          )
-          return [
-            esc(ingredient.nome),
-            `${esc(ingredient.categoria || '—')}${ingredient.ins ? `<small>INS ${esc(ingredient.ins)}</small>` : ''}`,
-            `${formulaQty((item.quantidade / x.formula.rendimento) * 100)}%`,
-            `${formulaQty(item.quantidade)} kg`,
-            `${formulaQty(required?.quantidade || 0)} kg`
-          ]
-        })
-      )}<div class="production-total"><span>Total da fórmula</span><strong>${formulaQty(x.formula.rendimento)} kg</strong><span>Total da batida</span><strong>${formulaQty(batchKg)} kg</strong></div><div class="signature-grid"><span>Visto Administração</span><span>Visto Produção</span><span>Visto Colaborador responsável</span></div>${btn('Imprimir / salvar em PDF', 'printDoc', id, true)}</section><section class="labels-sheet" data-doc-panel="etiqueta" ${a === 'viewOpLabels' ? '' : 'hidden'}><div class="label-quantity-bar"><div><span class="eyebrow">Preparação da impressão</span><h3>Quantidade de etiquetas</h3><p class="muted small">Padrão sugerido: 1 pequena e 2 grandes.</p></div><div class="label-quantity-fields">${input('Pequenas', 'inlineSmallLabels', getLabelQty('etq1'), 'number', 'min="0" step="1"')}${input('Grandes', 'inlineLargeLabels', getLabelQty('etq2'), 'number', 'min="0" step="1"')}${can('saveOpLabels') ? btn('Atualizar prévias', 'updateOpLabelQuantities', id, true) : ''}</div></div><div class="label-preview-grid">${[
+        ['Ingrediente / INS', 'Total fórmula (%)', 'Total fórmula (kg)', 'Por batida (kg)', 'Total da OP (kg)'],
+        composition.map(row => [
+          ingredientName(find(state.ingredientes, row.ingredienteId)), `${formulaQty(row.percentual)}%`,
+          formulaQty(row.formulaKg), formulaQty(row.batidaKg), formulaQty(row.totalKg)
+        ]),
+        ['TOTAL', `${formulaQty(composition.reduce((sum, row) => sum + row.percentual, 0))}%`,
+          `${formulaQty(composition.reduce((sum, row) => sum + row.formulaKg, 0))} kg`,
+          `${formulaQty(composition.reduce((sum, row) => sum + row.batidaKg, 0))} kg`,
+          `${formulaQty(composition.reduce((sum, row) => sum + row.totalKg, 0))} kg`]
+      )}<div class="production-total"><span>Total da fórmula</span><strong>${formulaQty(x.formula.rendimento)} kg</strong><span>Por batida (${plan.quantidade} batidas)</span><strong>${formulaQty(plan.kgPorBatida)} kg</strong><span>Total da OP</span><strong>${formulaQty(batchKg)} kg</strong></div><div class="signature-grid"><span>Visto Administração</span><span>Visto Produção</span><span>Visto Colaborador responsável</span></div>${btn('Imprimir / salvar em PDF', 'printDoc', id, true)}</section><section class="labels-sheet" data-doc-panel="etiqueta" ${a === 'viewOpLabels' ? '' : 'hidden'}><div class="label-quantity-bar"><div><span class="eyebrow">Preparação da impressão</span><h3>Quantidade de etiquetas</h3><p class="muted small">Padrão sugerido: 1 pequena e 2 grandes.</p></div><div class="label-quantity-fields">${input('Pequenas', 'inlineSmallLabels', getLabelQty('etq1'), 'number', 'min="0" step="1"')}${input('Grandes', 'inlineLargeLabels', getLabelQty('etq2'), 'number', 'min="0" step="1"')}${can('saveOpLabels') ? btn('Atualizar prévias', 'updateOpLabelQuantities', id, true) : ''}</div></div><div class="label-preview-grid">${[
         'etq1',
         'etq2'
       ]
@@ -1426,7 +1478,7 @@ function openAction(a, id) {
 }
 function updatePrice() {
   const el = $('[name="margem"]')
-  if (!el) return
+  if (!el || !$('#priceResult')) return
   try {
     const product = find(state.produtos, $('#dialogBody').dataset.product)
     const value = name => Number($(`[name="${name}"]`)?.value || 0)
@@ -1492,6 +1544,7 @@ function addFormulaIngredientRow(item = {}) {
   syncContainsOptions()
 }
 function updateFormulaBalance() {
+  updateDraftBudget()
   if (!$('#formulaBalance')) return
   const yieldKg = Number($('[name="rendimento"]')?.value || 0)
   const total = [
@@ -1504,7 +1557,43 @@ function updateFormulaBalance() {
     matches ? 'success' : 'warn'
   )
 }
+function batchDecimal(value) { return Number(String(value).trim().replace(',', '.')) }
+function updateBatchPlan(changed = null) {
+  const preview = $('#batchPlanPreview')
+  if (!preview) return
+  const op = find(state.ordens, $('#dialogBody').dataset.batchOp)
+  const total = op.quantidadePrevista * op.pesoKg
+  const max = $('[name="maximoKg"]'), count = $('[name="quantidadeBatidas"]')
+  if (changed === 'maximoKg' && batchDecimal(max.value) > 0) count.value = Math.ceil(total / batchDecimal(max.value))
+  if (changed === 'quantidadeBatidas' && Number.isInteger(Number(count.value)) && Number(count.value) > 0) max.value = (total / Number(count.value)).toFixed(5)
+  try {
+    const plan = D.batchPlan(op, batchDecimal(max.value), count.value)
+    preview.innerHTML = fields([['Total da OP', `${formulaQty(plan.totalKg)} kg`], ['Divisão planejada', `${plan.quantidade} batida(s) de ${formulaQty(plan.kgPorBatida)} kg`]]) + notice('Ao alterar o máximo, recalculamos o mínimo de batidas. Ao alterar as batidas, recalculamos o máximo necessário por batida. O padrão de 50 kg é apenas uma referência demonstrativa.')
+  } catch (error) { preview.innerHTML = notice(esc(error.message), 'warn') }
+}
+function openTableRecord(row) {
+  const readActions = new Set(['productDetails', 'clientHistory', 'trace', 'technicalSheet', 'viewOrderLabel', 'viewLabel', 'viewProductionFormula', 'viewOpLabels', 'editLabel', 'saveIngredient', 'savePackaging'])
+  const controls = [...row.querySelectorAll('button[data-route], button[data-action]')].filter(button => !button.disabled)
+  const primary = controls.find(button => button.dataset.route) || controls.find(button => readActions.has(button.dataset.action))
+  if (primary) { primary.click(); return }
+  const headers = [...row.closest('table').querySelectorAll('thead th')]
+  modal('Detalhes do registro', fields([...row.cells].map((cell, index) => [
+    esc(headers[index]?.textContent || `Campo ${index + 1}`), esc(cell.textContent.trim()) || '—'
+  ])))
+}
+document.addEventListener('keydown', e => {
+  if (!['Enter', ' '].includes(e.key) || !e.target.matches('tr[data-table-row]')) return
+  e.preventDefault()
+  try { openTableRecord(e.target) } catch (error) { toast(error.message) }
+})
 document.addEventListener('click', e => {
+  const record = e.target.closest('tr[data-table-row]')
+  if (record && user && !e.target.closest('button,a,input,select,textarea,label,summary,[contenteditable]')) {
+    if (window.getSelection()?.toString()) return
+    try { openTableRecord(record) } catch (error) { toast(error.message) }
+    return
+  }
+
   const tab = e.target.closest('[data-doc-tab]')
   if (tab) {
     document
@@ -1533,6 +1622,8 @@ document.addEventListener('click', e => {
   }
   const action = e.target.closest('[data-action]')
   if (!action || !user) return
+  if (action.dataset.action === 'calculateDraftBudget') { updateDraftBudget(); return }
+  if (action.dataset.action === 'suggestBudgetPackaging') { suggestBudgetPackaging(); return }
   if (action.dataset.action === 'removeLine') {
     action.closest('.order-line').remove()
     updateOrderTotals()
@@ -1562,7 +1653,7 @@ document.addEventListener('click', e => {
     return
   }
   try {
-    openAction(action.dataset.action, action.dataset.id)
+    openAction(action.dataset.action, action.dataset.id, action.dataset.productId || null)
   } catch (error) {
     toast(error.message)
   }
@@ -1607,7 +1698,26 @@ function filterLabels() {
   const empty = $('#labelSearchEmpty')
   if (empty) empty.hidden = !term || visible > 0
 }
+function filterSearchList(input) {
+  const normalize = value => String(value).toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const tokens = normalize(input.value).trim().split(/\s+/).filter(Boolean)
+  const key = input.dataset.listSearch
+  const rows = [...document.querySelectorAll(`[data-search-list="${key}"] tbody tr`)]
+  let visible = 0
+  rows.forEach(row => {
+    const value = normalize(row.textContent)
+    const identifiers = (row.textContent.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g) || []).map(value => value.replace(/\D/g, ''))
+    row.hidden = !tokens.every(token => value.includes(token) || (/^\d+$/.test(token) && identifiers.some(value => value.includes(token))))
+    if (!row.hidden) visible++
+  })
+  $(`#${key}SearchSummary`).textContent = visible ? `${visible} de ${rows.length} registros encontrados.` : 'Nenhum registro encontrado. Limpe ou altere a busca.'
+}
+document.addEventListener('change', e => { if (e.target.closest('.budget-editor') || e.target.name === 'sourceProductId' || e.target.name === 'formulaIngredient') updateDraftBudget() })
 document.addEventListener('input', e => {
+  if (['maximoKg', 'quantidadeBatidas'].includes(e.target.name)) updateBatchPlan(e.target.name)
+  if (e.target.closest('.budget-editor')) updateDraftBudget()
+  if (e.target.dataset.listSearch) filterSearchList(e.target)
+
   if (e.target.name === 'contem') e.target.dataset.edited = 'true'
   if (e.target.id === 'orderSearch') filterOrders()
   if (e.target.id === 'pdProductSearch') filterPdProducts()

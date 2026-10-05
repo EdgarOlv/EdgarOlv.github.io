@@ -78,3 +78,29 @@ Valores, fórmulas, nutrientes, pessoas e credenciais do seed são sintéticos.
 | Logística               | cotação, escolha de frete, comprovantes, ocorrências e confirmação de entrega                                |
 | Estoque / PCP           | reserva de saldo por pedido, prioridade entre pedidos concorrentes e inclusão das embalagens na trava pré-OP |
 | Acessos                 | múltiplas permissões, delegação, alçadas e proteção de ações sensíveis                                       |
+
+## Interface e demonstração — 05/10/2026
+
+- RN-UX-001: busca imediata nas listas de Clientes, Produtos e Produção, sem acentos, com contagem e recorte por perfil. Solicitação confirmada; comportamento demonstrado.
+- RN-DEMO-001: oito cenários sintéticos gerados pelas transições do domínio, com narrativa e etapa atual no Guia. Demonstrada.
+
+[Critérios, testes e pendências](decisoes/2026-10-05-busca-cenarios-reuniao.md).
+
+## Decisões da reunião de 05/10/2026 — P&D
+
+- RN-PD-006 (Confirmada): salvamentos editam/reutilizam rascunho; versão incremental é atribuída somente na ativação. Substitui o momento de criação de versão da redação anterior de RN-PD-002/003, preservando composição dinâmica, precisão e fechamento do rendimento.
+- RN-PD-007 (Confirmada): orçamento da composição em edição antes de salvar, sem liberar preço comercial.
+- RN-EMB-001 (Confirmada): catálogo de embalagens em P&D, capacidade KG/L, custo unitário e peso líquido manual; custo e apresentação separados da massa da fórmula.
+- RN-EMB-002 (Solicitação confirmada, algoritmo demonstrado): sugestão por menor capacidade compatível, custo em empate, substituível pelo profissional.
+
+[Contrato, aceite, evidências e pendências](decisoes/2026-10-05-pd-rascunhos-orcamento-embalagens.md).
+
+## 05/10/2026 — v15
+- RN-PED-007 (confirmada): novos pedidos e amostras em kg, base 1 kg, embalagem/volumes separados; histórico UN preservado.
+- RN-OP-003 (confirmada; padrão demonstrativo): máximo e quantidade de batidas recalculam entre si antes do início. Padrão sintético 50 kg editável.
+- RN-OP-002 (ampliada): INS antes do nome, somatórios de percentual/fórmula/batida/OP, etiquetas registradas sem medidas e lote compacto.
+- RN-UX-002 (confirmada): linhas de registros clicáveis e acessíveis por Enter/Espaço, sem disparar ações de alteração por clique na área de dados.
+Critérios, permissões e pendências: [decisão v15](decisoes/2026-10-05-qualidade-quilos-batidas-ux.md).
+
+## Correção v15.2 — 05/10/2026
+A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. RN-OP-003 passa a permitir **Modificar** ao lado da fórmula em OP aguardando ou em produção. Substitui a limitação anterior ao início. Ajuste revisa planejamento da ficha para o total da OP, com auditoria; não modifica produção, lotes, consumos ou versão da fórmula já registrados. OP concluída permanece bloqueada. Capacidades reais seguem pendentes. 58 testes, incluindo preservação após apontamento parcial.

@@ -149,3 +149,22 @@ Este documento espelha a página **Atualizações do protótipo**. Alterações 
 
 Reservado espaço para o título CLIENTE e reduzida a fonte base do nome; nomes extensos ajustam a fonte à largura e altura disponíveis. Texto integral e dimensões oficiais preservados. Sem mudanças em dados, API ou banco; portabilidade Flutter e calibração física permanecem pendentes.
 
+
+## v13 — 05/10/2026
+
+Busca nas três listas (RN-UX-001); cinco clientes, catálogo com produtos indisponíveis e oito pedidos conectados (RN-DEMO-001). Guia exibe objetivo e etapa de cada cenário. Novo armazenamento para apresentação preserva o modo antigo. Esquema permanece v12. [Detalhes e aceite](decisoes/2026-10-05-busca-cenarios-reuniao.md).
+
+## v14 — 05/10/2026 — Ajustes de reunião em P&D
+
+RN-PD-006/007 e RN-EMB-001/002: rascunho estável com versão na ativação; orçamento na criação/edição; catálogo de embalagens, escolha e sugestão, litros com peso manual em kg. Removido botão de cópia dentro do detalhe. Snapshots de embalagem no pedido/OP e migração aditiva do catálogo sem apagar dados. Esquema local permanece v12; versão de apresentação v14. [Contrato](decisoes/2026-10-05-pd-rascunhos-orcamento-embalagens.md).
+
+Os arquivos CSS/JS do index usam `?v=14` para impedir mistura com assets antigos em cache após atualizar a apresentação.
+
+## 05/10/2026 — v15
+Novos pedidos comerciais/amostras em kg (base 1 kg), históricos UN preservados. Planejamento de batidas com máximo editável, somatórios/INS/etiquetas e lote compacto na fórmula. Linhas clicáveis por mouse e teclado. 57 testes passaram; conferência em navegador isolado. Detalhes na decisão de kg/batidas/UX.
+
+### Ajuste de apresentação — 05/10/2026
+RN-OP-003: botão **Modificar** imediatamente ao lado de **Gerar fórmula para produção**, na OP aguardando início. O modal informa máximo em kg e batidas; o valor salvo alimenta os kg por ingrediente/batida na ficha. Sem alteração de fórmula, consumo ou versão. Cache dos recursos atualizado para v15.1.
+
+## Correção v15.2 — 05/10/2026
+A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. RN-OP-003 passa a permitir **Modificar** ao lado da fórmula em OP aguardando ou em produção. Substitui a limitação anterior ao início. Ajuste revisa planejamento da ficha para o total da OP, com auditoria; não modifica produção, lotes, consumos ou versão da fórmula já registrados. OP concluída permanece bloqueada. Capacidades reais seguem pendentes. 58 testes, incluindo preservação após apontamento parcial.

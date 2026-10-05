@@ -1,6 +1,10 @@
 'use strict'
+function searchableList(key, label, content) {
+  return `${input(label, `${key}Search`, '', 'search', 'autocomplete="off" data-list-search="'+key+'"')}<p id="${key}SearchSummary" class="muted small" role="status" aria-live="polite"></p><div data-search-list="${key}">${content}</div>`
+}
+
 function clientsView() {
-  return (
+  return searchableList('clients', 'Buscar por cliente, razão social, CNPJ ou vendedor', 
     intro(
       'Clientes',
       'Cadastro, carteira e comportamento financeiro anual. Os exemplos não representam empresas reais.',
@@ -22,7 +26,7 @@ function clientsView() {
           const h = c.historicoFinanceiro || [],
             late = h.filter(x => x.diasAtraso > 0)
           return [
-            `${esc(c.nomeFantasia)}<small>${esc(c.cnpj)}</small>`,
+            `${esc(c.nomeFantasia)}<small>${esc(c.razaoSocial)}</small><small>${esc(c.cnpj)}</small>`,
             esc(find(state.usuarios, c.vendedorId).nome),
             badge(c.ativo ? c.situacaoFinanceira : 'inativo'),
             late.length,
@@ -38,7 +42,7 @@ function clientsView() {
 }
 function productsView() {
   const showCommission = user.perfil !== 'comercial'
-  return (
+  return searchableList('products', 'Buscar por nome, código ou categoria', 
     intro(
       'Produtos e preços liberados',
       'Unidades de venda, embalagens e elegibilidade para novos pedidos.'
@@ -88,9 +92,7 @@ function ingredientsView() {
       table(
         [
           'Código',
-          'Nome',
-          'INS',
-          'Categoria de rótulo',
+          'Ingrediente / INS',
           'Grupo',
           '% no rótulo',
           'Disponível',
@@ -98,9 +100,7 @@ function ingredientsView() {
         ],
         state.ingredientes.map(i => [
           esc(i.codigo),
-          esc(i.nome),
-          esc(i.ins || '—'),
-          esc(i.categoriaRotulagem || i.categoria || 'Não informada'),
+          ingredientName(i),
           esc(i.grupoPadronizacao || '—'),
           i.exibePercentualRotulo ? 'Sim' : 'Não',
           `${qty(stock(i))} kg`,
@@ -112,6 +112,16 @@ function ingredientsView() {
       'A exclusão é bloqueada quando o ingrediente já participa de uma fórmula ou possui lote registrado. O INS é opcional, pois nem toda matéria-prima possui esse código.'
     )
   )
+}
+function packagingView() {
+  return intro('Embalagens', 'Cadastre capacidade e custo por unidade. A embalagem compõe o custo e a apresentação, sem entrar no rendimento da fórmula.', actionButton('+ Nova embalagem', 'savePackaging', null, true)) + panel('Catálogo de embalagens', table(
+    ['Código / embalagem', 'Tipo', 'Capacidade', 'Custo unitário', 'Situação', 'Ações'],
+    state.embalagens.map(pack => [
+      `${esc(pack.codigo)}<small>${esc(pack.nome)}</small>`, esc(pack.tipo),
+      `${qty(pack.capacidade)} ${pack.unidadeCapacidade === 'L' ? 'L' : 'kg'}`, money(pack.custoCentavos),
+      badge(pack.ativo ? 'ativo' : 'inativo'), actionButton('Editar', 'savePackaging', pack.id)
+    ])
+  )) + notice('Para embalagens em litros, o peso líquido do produto é informado manualmente em kg. A capacidade não converte volume em peso automaticamente.')
 }
 function formulasView() {
   return (
@@ -146,7 +156,7 @@ function formulasView() {
           return [
             `<span data-pd-product-row="${esc(`${p.nome} ${p.codigo}`.toLocaleLowerCase('pt-BR'))}">${esc(p.codigo)} · ${esc(p.nome)}</span>`,
             f
-              ? `${esc(f.codigo)} · v${f.versao}<small>${badge(f.status)}</small>${draft ? `<small class="draft-version-note">Nova versão v${draft.versao} ${badge('emDesenvolvimento')}</small>` : ''}`
+              ? `${esc(f.codigo)} · ${f.status === 'emDesenvolvimento' ? 'Rascunho' : `v${f.versao}`} <small>${badge(f.status)}</small>${draft ? `<small class="draft-version-note">Rascunho em edição ${badge('emDesenvolvimento')}</small>` : ''}`
               : 'Sem fórmula',
             `${qty(p.pesoKg)} kg<small>${esc(p.embalagem || 'Sem embalagem')}</small>`,
             p.precoVendaKgCentavos
@@ -155,7 +165,7 @@ function formulasView() {
                 ? money(p.precoCentavos)
                 : 'Não liberado',
             badge(p.status),
-            `${actionButton(draft ? 'Revisar nova versão' : 'Abrir', 'productDetails', p.id, true)}${actionButton('Criar a partir', 'createProduct', p.id)}`
+            `${actionButton(draft ? 'Revisar rascunho' : 'Abrir', 'productDetails', p.id, true)}${actionButton('Criar a partir', 'createProduct', p.id)}`
           ]
         })
       )}</div>`
@@ -176,7 +186,7 @@ function productionView() {
         D.productionDeadline(a).localeCompare(D.productionDeadline(b)) ||
         a.criadoEm.localeCompare(b.criadoEm)
     )
-  return (
+  return searchableList('production', 'Buscar por OP, pedido, cliente ou produto', 
     intro(
       'Ordens de produção',
       'Uma OP por item, documento operacional versionado e apontamentos parciais.'
@@ -234,10 +244,10 @@ function productionView() {
           )
           .map(x => [
             fmtDate(x.prioridadeEm),
-            `${esc(x.numero)}<small>${esc(find(state.pedidos, x.pedidoId).numero)}</small>`,
+            `${esc(x.numero)}<small>${esc(find(state.pedidos, x.pedidoId).numero)} · ${esc(find(state.pedidos, x.pedidoId).clienteNome)}</small>`,
             esc(x.produtoNome),
             `${fmtDate(x.prazoProducao)}<small>${esc(D.productionPriority(find(state.pedidos, x.pedidoId)).label)}</small>`,
-            `${x.quantidadeProduzida} / ${x.quantidadePrevista} UN`,
+            `${qty(x.quantidadeProduzida)} / ${qty(x.quantidadePrevista)} ${unitLabel(x)}`,
             badge(x.status),
             link('Abrir OP', 'producao', x.id)
           ])
@@ -251,16 +261,19 @@ function opView(id) {
       x,
       (x.quantidadePrevista - x.quantidadeProduzida) * x.pesoKg
     ),
-    o = find(state.pedidos, x.pedidoId)
+    o = find(state.pedidos, x.pedidoId),
+    plan = D.batchPlan(x)
   return `<div class="stack">${intro(x.numero, `${x.produtoNome} · ${o.numero}`, link('← Todas as OPs', 'producao'))}${panel(
     'Ordem e documentos',
     fields([
       ['Fórmula / versão', `${esc(x.formula.codigo)} · v${x.formula.versao}`],
       [
         'Previsto',
-        `${x.quantidadePrevista} UN = ${qty(x.quantidadePrevista * x.pesoKg)} kg`
+        `${qty(x.quantidadePrevista)} ${unitLabel(x)} = ${qty(x.quantidadePrevista * x.pesoKg)} kg`
       ],
-      ['Produzido', `${x.quantidadeProduzida} UN`],
+      ['Produzido', `${qty(x.quantidadeProduzida)} ${unitLabel(x)}`],
+      ['Batidas planejadas', `${plan.quantidade} × ${formulaQty(plan.kgPorBatida)} kg`],
+      ['Máximo por batida', `${formulaQty(plan.maximoKg)} kg`],
       ['Status', badge(x.status)],
       [
         'Documento da OP',
@@ -270,13 +283,13 @@ function opView(id) {
       ],
       ['Operador', esc(x.operador || 'Não iniciado')]
     ])
-  )}<div class="actions">${!x.documentoOp ? actionButton('Gerar documento da OP', 'issueSheet', id, true) : `${btn('Fórmula para produção', 'viewProductionFormula', id, true)}${btn('Etiquetas', 'viewOpLabels', id)}`}${x.status === 'aguardando' && x.documentoOp ? actionButton('Iniciar produção', 'startOp', id, true) : ''}${x.status === 'emProducao' ? actionButton('Apontar produção', 'reportProduction', id, true) : ''}</div>${panel(
+  )}<div class="actions">${['aguardando', 'emProducao'].includes(x.status) ? actionButton('Modificar', 'modifyBatches', id) : ''}${!x.documentoOp ? actionButton('Gerar fórmula para produção', 'issueSheet', id, true) : `${btn('Fórmula para produção', 'viewProductionFormula', id, true)}${btn('Etiquetas', 'viewOpLabels', id)}`}${x.status === 'aguardando' && x.documentoOp ? actionButton('Iniciar produção', 'startOp', id, true) : ''}${x.status === 'emProducao' ? actionButton('Apontar produção', 'reportProduction', id, true) : ''}</div>${panel(
     'Etiquetas solicitadas',
     x.etiquetas?.length
       ? table(
           ['Modelo', 'Quantidade'],
           x.etiquetas.map(i => [
-            esc(find(state.etiquetas, i.etiquetaId).nome),
+            `Etiqueta ${state.etiquetas.findIndex(e => e.id === i.etiquetaId) + 1}`,
             i.quantidade
           ])
         )
@@ -291,7 +304,7 @@ function opView(id) {
           0
         )
         return [
-          esc(find(state.ingredientes, r.ingredienteId).nome),
+          ingredientName(find(state.ingredientes, r.ingredienteId)),
           `${qty(r.quantidade)} kg`,
           `${qty(n)} kg`,
           n >= r.quantidade
@@ -300,13 +313,13 @@ function opView(id) {
         ]
       })
     )
-  )}${notice('Lotes vencidos ou bloqueados não podem ser consumidos. O saldo é conferido no apontamento; esta demonstração não faz reserva de estoque. As quantidades consideram o peso da embalagem.')}${panel(
+  )}${notice('Lotes vencidos ou bloqueados não podem ser consumidos. O saldo é conferido no apontamento; esta demonstração não faz reserva de estoque. As quantidades consideram os kg a produzir e a unidade preservada do pedido.')}${panel(
     'Apontamentos e rastreabilidade',
     table(
       ['Data / operador', 'Produção', 'Perdas / sobras', 'Lote final', 'Ação'],
       x.apontamentos.map(a => [
         `${fmtTime(a.data)}<small>${esc(a.usuario)}</small>`,
-        `${a.quantidade} UN`,
+        `${qty(a.quantidade)} ${unitLabel(x)}`,
         `${qty(a.perdasKg)} / ${qty(a.sobrasKg)} kg`,
         `${esc(find(state.lotes, a.loteId).codigo)} ${badge(find(state.lotes, a.loteId).status)}`,
         btn('Rastrear', 'trace', a.loteId)
@@ -337,7 +350,7 @@ function stockView() {
                   .items.filter(item => item.falta > 0)
                   .map(
                     item =>
-                      `${esc(find(state.ingredientes, item.ingredienteId).nome)}<small>Faltam ${qty(item.falta)} kg</small>`
+                      `${ingredientName(find(state.ingredientes, item.ingredienteId))}<small>Faltam ${qty(item.falta)} kg</small>`
                   )
                   .join('')
               ])
@@ -359,9 +372,9 @@ function stockView() {
         state.lotes.map(l => [
           esc(l.codigo),
           l.tipo === 'ingrediente'
-            ? `${esc(find(state.ingredientes, l.ingredienteId).nome)}<small>${esc(find(state.fornecedores, l.fornecedorId).nome)}</small>`
+            ? `${ingredientName(find(state.ingredientes, l.ingredienteId))}<small>${esc(find(state.fornecedores, l.fornecedorId).nome)}</small>`
             : esc(find(state.produtos, l.produtoId).nome),
-          `${qty(l.saldo)} ${l.tipo === 'ingrediente' ? 'kg' : 'UN'}${l.sobrasKg ? `<small>${qty(l.sobrasKg)} kg de sobra segregada</small>` : ''}`,
+          `${qty(l.saldo)} ${l.tipo === 'ingrediente' ? 'kg' : unitLabel(l)}${l.sobrasKg ? `<small>${qty(l.sobrasKg)} kg de sobra segregada</small>` : ''}`,
           fmtDate(l.fabricacao),
           fmtDate(l.validade),
           l.validade < D.today() ? badge('Vencido') : badge(l.status),
@@ -402,7 +415,7 @@ function qualityView() {
           .map(l => [
             `${esc(l.codigo)}<small>${esc(find(state.ordens, l.opId).numero)}</small>`,
             esc(find(state.produtos, l.produtoId).nome),
-            `${l.quantidadeInicial} UN`,
+            `${qty(l.quantidadeInicial)} ${unitLabel(l)}`,
             badge(l.status),
             `<div class="actions">${l.status === 'pendente' ? actionButton('Inspecionar', 'inspect', l.id, true) : ''}${btn('Rastreabilidade', 'trace', l.id)}${btn('Gerar ficha técnica', 'technicalSheet', l.id)}</div>`
           ])
@@ -496,10 +509,10 @@ function sampleView(id) {
         const product = find(state.produtos, item.produtoId)
         return `<section class="sample-item"><h3>${esc(product.codigo)} · ${esc(item.nome)}</h3>${fields(
           [
-            ['Produto', `${esc(product.nome)} · ${esc(product.status)}`],
+            ['Produto', `${esc(item.nome)} · ${esc(product.status)}`],
             [
               'Quantidade',
-              `${qty(item.quantidade)} UN · ${qty(item.pesoKg)} kg/un`
+              item.unidade === 'KG' ? `${qty(item.quantidade)} kg a produzir · base de 1 kg` : `${qty(item.quantidade)} UN · ${qty(item.pesoKg)} kg/un`
             ],
             [
               'Fórmula preservada',
@@ -510,7 +523,7 @@ function sampleView(id) {
         )}${table(
           ['Ingrediente da fórmula', 'Quantidade (kg)'],
           item.formula.itens.map(formulaItem => [
-            esc(find(state.ingredientes, formulaItem.ingredienteId).nome),
+            ingredientName(find(state.ingredientes, formulaItem.ingredienteId)),
             qty(formulaItem.quantidade)
           ])
         )}</section>`
@@ -521,7 +534,7 @@ function sampleView(id) {
     table(
       ['Ingrediente', 'Necessário (kg)', 'Disponível (kg)', 'Falta (kg)'],
       stock.items.map(item => [
-        esc(find(state.ingredientes, item.ingredienteId).nome),
+        ingredientName(find(state.ingredientes, item.ingredienteId)),
         qty(item.necessario),
         qty(item.disponivel),
         item.falta > 0 ? badge(`${qty(item.falta)} kg`) : '—'
@@ -544,7 +557,7 @@ function sampleView(id) {
               ? link(op.numero, 'producao', op.id)
               : esc(op.numero),
             esc(op.produtoNome),
-            `${op.quantidadePrevista} / ${op.quantidadeProduzida} UN`,
+            `${qty(op.quantidadePrevista)} / ${qty(op.quantidadeProduzida)} ${unitLabel(op)}`,
             op.documentoOp ? esc(op.documentoOp.numero) : 'Pendente',
             badge(op.status),
             op.lotes
@@ -986,6 +999,13 @@ function updatesView() {
   )
 }
 function guideView() {
+  const scenarios = dataMode === 'with-data' ? panel('Cenários prontos para a reunião', table(
+    ['Pedido / cliente', 'Objetivo da demonstração', 'Etapa atual', 'Abrir'],
+    orders().filter(o => o.observacoes?.startsWith('Cenário')).map(o => [
+      `${esc(o.numero)}<small>${esc(o.clienteNome)}</small>`, esc(o.observacoes),
+      esc(D.stage(state, o)), link('Ver pedido', 'pedidos', o.id)
+    ])
+  )) : ''
   const secondGuide = panel(
     '2º caso de teste — P&D, amostras e etiquetas',
     '<ol class="guide-list"><li>Entre como <b>Administrador</b> para percorrer os módulos sem trocar de perfil. Use apenas dados demonstrativos e escolha ingredientes com lotes liberados, válidos e saldo.</li><li>Em <b>Ingredientes</b>, confira código, INS, categoria funcional e grupo 01–04. Tente excluir um ingrediente vinculado a uma fórmula ou lote: a exclusão deve ser bloqueada.</li><li>Em <b>P&D</b>, crie uma nova versão de fórmula, adicionando e removendo ingredientes. Informe uma quantidade com cinco casas decimais e tente salvar com soma diferente do rendimento; depois ajuste para fechar a composição.</li><li>No produto, confira grupo, validade, descrição, alérgicos, glúten, modo de uso e conservação. Marque os ingredientes do <b>Contém</b> e revise a sugestão: bases primeiro, grupos por participação e percentuais apenas para sal e INS 250/251.</li><li>Confira as últimas regras de declaração: aromatizantes aparecem somente pelo grupo; especiarias até 25% ficam resumidas e, acima de 25%, mostram os nomes em ordem decrescente, sem percentuais.</li><li>Em <b>Precificação</b>, salve parâmetros próprios de um produto. Confira que os padrões globais e outro produto não mudaram; libere a versão e o preço necessários para utilizá-lo.</li><li>Troque para <b>Qualidade</b> e abra <b>Amostras</b>. Crie uma amostra com o produto liberado, confira que ela não exige análise financeira nem aprovação comercial e gere sua OP.</li><li>Na OP da amostra, abra e emita a <b>Fórmula para produção</b>. Confira composição em kg, quantidade e conteúdo do produto antes de iniciar; faça o apontamento e inspecione o lote produzido.</li><li>Abra <b>Etiquetas</b> na OP. Confira o padrão de 1 pequena e 2 grandes, altere as quantidades e compare as prévias: grande <b>105 × 105 mm</b> com cliente e pictograma; pequena <b>105 × 58 mm</b> sem cliente.</li><li>Imprima cada tamanho separadamente, em escala 100%. Confira lote com a data atual, ausência de fabricação separada, validade e peso. A quantidade configurada não gera automaticamente múltiplas cópias; não há exportação .nlbl.</li><li>No módulo <b>Etiquetas</b>, localize a amostra por OP, pedido, cliente ou produto e abra seu modelo. Consulte também a <b>Ficha Técnica</b> na Qualidade: ela é diferente da Fórmula para produção.</li><li>Volte ao Administrador, altere um texto do cadastro do produto e reabra a OP anterior: seu snapshot deve permanecer preservado. Confira auditoria, Atualizações e persistência após recarregar.</li></ol>'
@@ -995,7 +1015,7 @@ function guideView() {
       'Teste o sistema de ponta a ponta',
       'O estilo do protótipo é a referência visual para a futura implementação Flutter. Roteiro final revisado em 01/10/2026.'
     ) +
-    `<div class="stack">${notice('Simulação em um navegador. Não há servidor, compartilhamento entre computadores, integração fiscal, sincronização offline ou segurança para dados reais.', 'warn')}${panel('1º caso de teste — ciclo comercial (10 a 15 minutos)', '<ol class="guide-list"><li>Entre como <b>Comercial</b>. Crie pedido para AlimNorte com 20 UN do Tempero de 5 kg e 5 UN do Realçador de 20 kg. Confira <b>R$ 2.300,00 e 200 kg</b>. A comissão não é exibida na criação.</li><li>Envie ao financeiro e use <b>Trocar perfil</b>.</li><li>Entre como <b>Financeiro</b>. Consulte crédito e libere. Use CondCentro para testar restrição ou bloqueio justificado.</li><li>Volte ao <b>Comercial</b> e aprove o pedido. A edição fica bloqueada.</li><li>Entre como <b>Administrador</b> (ou Produção). Gere duas OPs, emita cada ficha e inicie a produção.</li><li>Faça apontamento parcial ou completo. Confira os lotes sugeridos; informe perdas e sobras, se desejar.</li><li>Na <b>Qualidade</b>, inspecione todos os lotes. Reprovação bloqueia o pedido inteiro.</li><li>Com todas as OPs concluídas e lotes aprovados, registre <b>Faturamento</b> interno. Não há NF-e.</li><li>Em <b>Frete e despacho</b>, preencha transportadora, prazo, valor, rastreamento e referência do comprovante.</li><li>No Financeiro, registre o pagamento do cliente. Depois consulte a comissão final do mês, a rastreabilidade e a auditoria. Recarregue para verificar persistência local.</li></ol>')}${secondGuide}${panel('Cenários de bloqueio', '<ul class="guide-list"><li>Senha inválida ou usuário inativo.</li><li>Cliente inativo, produto em desenvolvimento ou preço não liberado.</li><li>Aprovação comercial sem liberação financeira.</li><li>Edição de pedido aprovado ou OP duplicada.</li><li>Produção sem ficha ou com lote vencido, bloqueado ou insuficiente.</li><li>Faturamento com produção parcial ou qualidade pendente/reprovada.</li><li>Despacho antes do faturamento e operações duplicadas.</li></ul>')}${panel('Ferramentas da demonstração', `<p class="muted">Reiniciar apaga somente os dados desta versão no navegador. Não afeta arquivos nem o Flutter.</p><div class="actions">${user.perfil === 'administrador' ? btn('Reiniciar demonstração', 'resetDemo') : 'Use Administrador para reiniciar os dados.'}</div>`)}</div>`
+    `<div class="stack">${scenarios}${notice('Simulação em um navegador. Não há servidor, compartilhamento entre computadores, integração fiscal, sincronização offline ou segurança para dados reais.', 'warn')}${panel('1º caso de teste — ciclo comercial (10 a 15 minutos)', '<ol class="guide-list"><li>Entre como <b>Comercial</b>. Crie pedido para AlimNorte com 100 kg do Tempero e 100 kg do Realçador. Confira <b>R$ 2.300,00 e 200 kg</b>. A comissão não é exibida na criação.</li><li>Envie ao financeiro e use <b>Trocar perfil</b>.</li><li>Entre como <b>Financeiro</b>. Consulte crédito e libere. Use CondCentro para testar restrição ou bloqueio justificado.</li><li>Volte ao <b>Comercial</b> e aprove o pedido. A edição fica bloqueada.</li><li>Entre como <b>Administrador</b> (ou Produção). Gere duas OPs, emita cada ficha e inicie a produção.</li><li>Faça apontamento parcial ou completo. Confira os lotes sugeridos; informe perdas e sobras, se desejar.</li><li>Na <b>Qualidade</b>, inspecione todos os lotes. Reprovação bloqueia o pedido inteiro.</li><li>Com todas as OPs concluídas e lotes aprovados, registre <b>Faturamento</b> interno. Não há NF-e.</li><li>Em <b>Frete e despacho</b>, preencha transportadora, prazo, valor, rastreamento e referência do comprovante.</li><li>No Financeiro, registre o pagamento do cliente. Depois consulte a comissão final do mês, a rastreabilidade e a auditoria. Recarregue para verificar persistência local.</li></ol>')}${secondGuide}${panel('Cenários de bloqueio', '<ul class="guide-list"><li>Senha inválida ou usuário inativo.</li><li>Cliente inativo, produto em desenvolvimento ou preço não liberado.</li><li>Aprovação comercial sem liberação financeira.</li><li>Edição de pedido aprovado ou OP duplicada.</li><li>Produção sem ficha ou com lote vencido, bloqueado ou insuficiente.</li><li>Faturamento com produção parcial ou qualidade pendente/reprovada.</li><li>Despacho antes do faturamento e operações duplicadas.</li></ul>')}${panel('Ferramentas da demonstração', `<p class="muted">Reiniciar apaga somente os dados desta versão no navegador. Não afeta arquivos nem o Flutter.</p><div class="actions">${user.perfil === 'administrador' ? btn('Reiniciar demonstração', 'resetDemo') : 'Use Administrador para reiniciar os dados.'}</div>`)}</div>`
   )
 }
 

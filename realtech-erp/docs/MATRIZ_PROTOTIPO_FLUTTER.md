@@ -50,3 +50,30 @@ Homologar conteúdo → modelar nutrição versionada → definir permissões �
 
 Protótipo: espaço reservado ao título e ajuste da fonte pelo espaço disponível. Flutter: layout oficial ainda pendente de portabilidade; aplicar ajuste equivalente no renderizador futuro. API/banco: sem alteração de dados; preservar nome completo no snapshot.
 
+
+## Impacto de 05/10/2026
+
+RN-UX-001: protótipo busca Clientes/Produtos/Produção; Flutter possui busca em Clientes/Produtos e precisa avaliar paridade e Produção. API futura exige busca autorizada/paginada; banco sem alteração. RN-DEMO-001: seeds locais exclusivos do protótipo, sem portabilidade para produção.
+
+## Impacto P&D — 05/10/2026
+
+| Regra | Protótipo | Flutter | API / banco futuros |
+|---|---|---|---|
+| RN-PD-006 | Rascunho estável; versão só na ativação | Rever criar/editar/ativar fórmula | Versionar em transação; controlar revisão concorrente e unicidade por família |
+| RN-PD-007 | Orçamento temporário na criação/edição | Integrar simulação ao editor | Cálculo sem gravação; decimal e arredondamento iguais à liberação |
+| RN-EMB-001 | Cadastro e escolha, custo sem massa; litros com peso kg manual | Embalagem existe; alinhar contrato e snapshots | Catálogo KG/L/custo e apresentação com volume/peso; snapshot pedido/OP |
+| RN-EMB-002 | Menor capacidade compatível, custo em empate | Portar após validar algoritmo | Filtrar embalagens ativas/compatíveis; regras técnicas ainda pendentes |
+
+Dart e SQL preservados; nenhum build/analyze Flutter nesta entrega.
+
+## Impacto v15 — 05/10/2026
+| Regra | Protótipo | Flutter/API/banco futuro |
+|---|---|---|
+| RN-PED-007 | KG explícito, base 1 kg e preço/kg; snapshot de embalagem/volumes; legado UN | PedidoItem.quantity double/unidadeMedida existentes; adicionar snapshots e migração sem conversão retroativa |
+| RN-OP-003 | Plano máximo/batidas, revisão/auditoria antes do início | Persistir plano, revisões, validação de capacidade e permissão transacional |
+| RN-OP-002 / RN-ETQ-003 | Totais, INS, etiquetas sem medidas, DDMMAAAA | Documentos derivados de snapshot; conferir precisão e impressão |
+| RN-UX-002 | Linha e teclado abrem consulta | Aplicar navegação em tabelas; separar ações mutáveis |
+Capacidades reais por máquina ainda pendentes. Nenhum código Flutter alterado.
+
+## Correção v15.2 — 05/10/2026
+A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. RN-OP-003 passa a permitir **Modificar** ao lado da fórmula em OP aguardando ou em produção. Substitui a limitação anterior ao início. Ajuste revisa planejamento da ficha para o total da OP, com auditoria; não modifica produção, lotes, consumos ou versão da fórmula já registrados. OP concluída permanece bloqueada. Capacidades reais seguem pendentes. 58 testes, incluindo preservação após apontamento parcial.

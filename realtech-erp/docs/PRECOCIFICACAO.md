@@ -76,8 +76,9 @@ Fórmula e preço aparecem juntos no mesmo painel. O modal **Parâmetros de prec
 
 ## Versionamento da fórmula
 
-Uma fórmula ativa não é editada diretamente quando já está vinculada a um produto. A ação **Editar fórmula / criar versão** abre uma cópia em desenvolvimento. A composição é uma lista dinâmica, permite adicionar e remover ingredientes e aceita quantidades com até cinco casas decimais. A tela informa a soma, a falta ou o excesso em relação ao rendimento e só cria a versão quando os valores fecham. Depois da revisão, o P&D ativa a nova versão.
+Atualizado em reunião de 05/10/2026 (RN-PD-006): a fórmula ativa é preservada. Editar cria/reutiliza um rascunho separado; continuar editando atualiza seu ID, sem lançar v3/v4 intermediárias. Nova fórmula também fica sem versão publicada até a primeira ativação. A versão incremental é atribuída somente ao ativar. Composição dinâmica, cinco casas decimais e conferência do rendimento continuam obrigatórias para salvar.
 
+RN-PD-007: o editor de produto/fórmula calcula orçamento com a composição em edição, sem salvar ou liberar preço. A embalagem final entra no custo por kg e no preço por apresentação, sem alterar rendimento/percentuais. Capacidade em litros exige volume e peso líquido manual em kg. O orçamento usa a formação de preço existente; o produto novo herda os parâmetros da base escolhida.
 Ao ativar uma nova versão:
 
 - pedidos e ordens de produção existentes preservam a fórmula antiga;
@@ -115,7 +116,7 @@ O protótipo também apresenta cenários de 10% a 80% de lucratividade e permite
 
 ## Catálogo e detalhe
 
-A entrada de P&D é uma lista enxuta de produtos e fórmulas, com busca por nome ou código. O botão **Novo produto** fica no canto superior direito. Cada produto também oferece **Criar a partir**, que copia os dados e a fórmula para uma nova versão em desenvolvimento.
+A entrada de P&D é uma lista enxuta de produtos e fórmulas, com busca por nome ou código. O botão **Novo produto** fica no canto superior direito. A lista mantém **Criar a partir**, que copia dados e composição para um produto em rascunho. O detalhe não possui mais o botão de cópia.
 
 Ao abrir um produto, o detalhe reúne:
 

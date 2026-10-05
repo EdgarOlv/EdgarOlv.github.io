@@ -718,7 +718,7 @@ test('Pedido aprovado aguarda lote e só libera geração de OP com estoque sufi
 test('Histórico de versões identifica a versão atual e mantém releases íntegros', () => {
   const current = D.releases.filter(release => release.current)
   assert.equal(current.length, 1)
-  assert.equal(current[0].version, `v${D.VERSION}`)
+  assert.equal(current[0].version, 'v15')
   assert.equal(
     new Set(D.releases.map(release => release.version)).size,
     D.releases.length
@@ -1061,8 +1061,8 @@ test('Cancelamento após OP é bloqueado; segregação comercial por vendedor', 
 })
 test('Seed e persistência JSON mantêm relacionamentos; esquema desconhecido é recusado', () => {
   const s = D.demoSeed()
-  assert.equal(s.pedidos.length, 3)
-  assert.equal(s.ordens.length, 1)
+  assert.equal(s.pedidos.length, 8)
+  assert.equal(s.ordens.length, 5)
   assert.deepEqual(D.validateState(JSON.parse(JSON.stringify(s))), s)
   assert.throws(() => D.validateState({ schemaVersion: 99 }))
 })
@@ -1149,3 +1149,18 @@ test('Estado v12 antigo corrige pequena 105×98 sem perder operação nem revis�
   assert.equal(normalizado.revision, revision)
 })
 
+
+test('cenários da reunião mantêm produção parcial, qualidade e recebimento independentes', () => {
+  const s = D.demoSeed()
+  const order = number => s.pedidos.find(o => o.numero === number)
+  const partial = s.ordens.find(op => op.pedidoId === order('PED-01005').id)
+  assert.equal(partial.quantidadeProduzida, 3)
+  assert.equal(partial.quantidadePrevista, 6)
+  assert.ok(D.billingIssues(s, order('PED-01006')).length)
+  assert.deepEqual(D.billingIssues(s, order('PED-01007')), [])
+  const dispatched = order('PED-01008')
+  assert.ok(dispatched.despacho)
+  assert.deepEqual(s.recebiveis.filter(r => r.pedidoId === dispatched.id).map(r => r.status), ['pago', 'aberto'])
+  assert.equal(s.produtos.find(p => p.id === 'p4').precoLiberado, false)
+  assert.equal(D.emptySeed().pedidos.length, 0)
+})
