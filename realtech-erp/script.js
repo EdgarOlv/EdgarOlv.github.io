@@ -76,6 +76,7 @@ const names = {
   pedidos: 'Pedidos',
   clientes: 'Clientes',
   produtos: 'Produtos',
+  fornecedores: 'Fornecedores',
   ingredientes: 'Ingredientes',
   embalagens: 'P&D · Embalagens',
   formulas: 'P&D · Fórmulas e precificação',
@@ -109,6 +110,7 @@ const navGroups = [
   [
     'Operação',
     [
+      ['fornecedores', '▦'],
       ['ingredientes', '◌'],
       ['producao', '⚙'],
       ['etiquetas', '▣'],
@@ -156,6 +158,7 @@ const actionNames = {
   cancelOrder: 'Cancelamento',
   receiveLot: 'Recebimento',
   adjustLot: 'Ajuste de estoque',
+  saveSupplier: 'Fornecedor salvo',
   saveIngredient: 'Ingrediente salvo',
   deleteIngredient: 'Ingrediente excluído',
   saveClient: 'Cadastro de cliente',
@@ -383,6 +386,8 @@ $('#withDemoData').addEventListener('change', e => {
   syncDataModeControl()
   renderProfiles()
 })
+$('#loginHelp').onclick = () => $('#loginHelpDialog').showModal()
+$('#closeLoginHelp').onclick = () => $('#loginHelpDialog').close()
 $('#loginForm').onsubmit = e => {
   e.preventDefault()
   loadDataMode($('#withDemoData').checked ? 'with-data' : 'empty')
@@ -477,6 +482,7 @@ function render() {
     pedidos: () => (selectedId ? orderView(selectedId) : ordersView()),
     clientes: clientsView,
     produtos: productsView,
+    fornecedores: suppliersView,
     ingredientes: ingredientsView,
     embalagens: packagingView,
     formulas: formulasView,

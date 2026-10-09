@@ -48,3 +48,5 @@ O modelo completo de registro está em [`COMO_REGISTRAR_MUDANCAS.md`](../COMO_RE
 - 05/10/2026 — Interface / demonstração: [Busca e cenários da reunião](2026-10-05-busca-cenarios-reuniao.md), RN-UX-001 e RN-DEMO-001.
 
 - 05/10/2026 — P&D / Embalagens: [Rascunhos, orçamento e embalagens](2026-10-05-pd-rascunhos-orcamento-embalagens.md), RN-PD-006/007 e RN-EMB-001/002.
+
+- [09/10/2026 — Fornecedores e login](2026-10-09-fornecedores-login.md): RN-FOR-001 / RN-UX-003.

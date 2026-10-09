@@ -703,6 +703,7 @@ function openAction(a, id, productContext = null) {
       d => commit(a, { id, ...d }),
       'Confirmar entrega'
     )
+  if (a === 'receiveLot' && !state.fornecedores.some(f => f.ativo !== false)) throw new Error('Cadastre ou ative um fornecedor em Fornecedores antes de receber matéria-prima.')
   if (a === 'receiveLot')
     return modal(
       'Receber matéria-prima',
@@ -713,11 +714,17 @@ function openAction(a, id, productContext = null) {
       )}${select(
         'Fornecedor',
         'fornecedorId',
-        state.fornecedores.map(i => [i.id, i.nome])
+        state.fornecedores.filter(i => i.ativo !== false).map(i => [i.id, i.nome])
       )}${input('Código único do lote', 'codigo', '', 'text', 'required')}${input('Quantidade (kg)', 'quantidade', 100, 'number', 'min="0.001" step="0.001" required')}${input('Fabricação', 'fabricacao', D.today(), 'date', 'required')}${input('Validade', 'validade', D.day(180), 'date', 'required')}</div>`,
       d => commit(a, d),
       'Registrar entrada'
     )
+  if (a === 'saveSupplier') {
+    const supplier = id ? find(state.fornecedores, id) : null
+    return modal(supplier ? 'Editar fornecedor' : 'Novo fornecedor',
+      `<div class="form-grid">${input('Nome / razão social', 'nome', supplier?.nome || '', 'text', 'required')}${input('Documento (opcional)', 'documento', supplier?.documento || '')}${input('Contato (opcional)', 'contato', supplier?.contato || '')}</div><label class="check-card"><input type="checkbox" name="ativo" ${supplier?.ativo !== false ? 'checked' : ''}><span>Fornecedor ativo <small>Disponível para novos recebimentos.</small></span></label>`,
+      d => commit(a, { ...d, id: supplier?.id, ativo: !!document.querySelector('[name="ativo"]:checked') }), 'Salvar fornecedor')
+  }
   if (a === 'saveIngredient') {
     const ingredient = id ? find(state.ingredientes, id) : null
     const categories = [
@@ -1572,7 +1579,7 @@ function updateBatchPlan(changed = null) {
   } catch (error) { preview.innerHTML = notice(esc(error.message), 'warn') }
 }
 function openTableRecord(row) {
-  const readActions = new Set(['productDetails', 'clientHistory', 'trace', 'technicalSheet', 'viewOrderLabel', 'viewLabel', 'viewProductionFormula', 'viewOpLabels', 'editLabel', 'saveIngredient', 'savePackaging'])
+  const readActions = new Set(['productDetails', 'clientHistory', 'trace', 'technicalSheet', 'viewOrderLabel', 'viewLabel', 'viewProductionFormula', 'viewOpLabels', 'editLabel', 'saveSupplier', 'saveIngredient', 'savePackaging'])
   const controls = [...row.querySelectorAll('button[data-route], button[data-action]')].filter(button => !button.disabled)
   const primary = controls.find(button => button.dataset.route) || controls.find(button => readActions.has(button.dataset.action))
   if (primary) { primary.click(); return }

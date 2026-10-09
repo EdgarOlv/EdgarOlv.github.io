@@ -718,7 +718,7 @@ test('Pedido aprovado aguarda lote e só libera geração de OP com estoque sufi
 test('Histórico de versões identifica a versão atual e mantém releases íntegros', () => {
   const current = D.releases.filter(release => release.current)
   assert.equal(current.length, 1)
-  assert.equal(current[0].version, 'v15')
+  assert.equal(current[0].version, 'v16')
   assert.equal(
     new Set(D.releases.map(release => release.version)).size,
     D.releases.length

@@ -1007,3 +1007,11 @@ tr:last-child td { border-bottom: 0; }
   .topbar h2    { font-size: 20px; }
   .report-metrics { grid-template-columns: 1fr; }
 }
+
+/* Login principal e ajuda sob demanda. */
+.login-shell { grid-template-columns: minmax(0, 460px); justify-content: center; padding: 32px 16px; }
+.login-panel { width: 100%; }
+#loginHelp { display: block; margin: 22px auto 0; }
+#loginHelpDialog { max-width: 620px; }
+#loginHelpDialog .data-mode-toggle { margin: 20px 0; }
+@media (max-width: 540px) { .login-panel { padding: 28px 22px; } }

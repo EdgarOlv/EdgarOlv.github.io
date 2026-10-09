@@ -97,3 +97,6 @@ Use P&D · Embalagens para cadastrar tipo, capacidade (kg/L) e custo unitário. 
 
 ## v15 — reunião de 05/10/2026
 Ao criar pedido, escolha produto e kg a produzir (base 1 kg). Para repetir o ciclo comercial do guia, use 100 kg de cada produto: R$ 2.300,00 e 200 kg. Históricos em UN permanecem em UN. Na OP, Modificar batidas antes do início ajusta a divisão. 50 kg é limite demonstrativo editável. Fórmula soma colunas e relaciona etiquetas sem dimensões; linhas abrem detalhes também pelo teclado.
+
+## 09/10/2026 — Fornecedores e login
+Instruções de acesso, perfis e escolha de dados ficam no botão de ajuda do login. Fornecedores permite cadastrar/editar/inativar; somente ativos aparecem em Estoque → Receber matéria-prima. Testes adicionais: `node --test tests/suppliers.test.cjs`.

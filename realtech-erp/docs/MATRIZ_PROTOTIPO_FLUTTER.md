@@ -77,3 +77,6 @@ Capacidades reais por máquina ainda pendentes. Nenhum código Flutter alterado.
 
 ## Correção v15.2 — 05/10/2026
 A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. RN-OP-003 passa a permitir **Modificar** ao lado da fórmula em OP aguardando ou em produção. Substitui a limitação anterior ao início. Ajuste revisa planejamento da ficha para o total da OP, com auditoria; não modifica produção, lotes, consumos ou versão da fórmula já registrados. OP concluída permanece bloqueada. Capacidades reais seguem pendentes. 58 testes, incluindo preservação após apontamento parcial.
+
+## 09/10/2026 — RN-FOR-001 / RN-UX-003
+Protótipo: CRUD de fornecedores com inativação, seleção de ativos no recebimento e login com ajuda. Flutter: já possui cadastro; paridade de campos/perfis e remoção do banner aguardam homologação. API/banco: validar ativo, unicidade e FK; decidir snapshots. [Contrato e matriz](decisoes/2026-10-09-fornecedores-login.md).

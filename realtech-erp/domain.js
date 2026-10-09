@@ -71,7 +71,16 @@
   }
   const releases = [
     {
-      version: 'v15', date: '2026-10-05', current: true,
+      version: 'v16', date: '2026-10-09', current: true,
+      title: 'Fornecedores e login simplificado',
+      summary: 'Cadastro conectado ao recebimento e instruções de acesso em modal.',
+      changes: [
+        { area: 'Estoque', title: 'Fornecedores', description: 'Cadastrar, editar e inativar; novos recebimentos selecionam somente ativos, mantendo vínculos existentes.', rules: ['RN-FOR-001'], status: 'Solicitação confirmada; detalhes demonstrados', route: 'fornecedores' },
+        { area: 'Acesso', title: 'Card único de login', description: 'Perfis, modo de dados e instruções estão no botão de ajuda.', rules: ['RN-UX-003'], status: 'Solicitação confirmada', route: 'guia' }
+      ]
+    },
+    {
+      version: 'v15', date: '2026-10-05', current: false,
       title: 'Pedidos em kg e planejamento de batidas',
       summary: 'Novos pedidos e amostras em kg, linhas clicáveis e fórmula com totais, INS e etiquetas.',
       changes: [
@@ -447,6 +456,7 @@
         'producao',
         'etiquetas',
         'estoque',
+        'fornecedores',
         'ingredientes',
         'qualidade',
         'amostras',
@@ -533,6 +543,7 @@
         'formulas',
         'embalagens',
         'precificacao',
+        'fornecedores',
         'ingredientes',
         'amostras',
         'relatorios',
@@ -542,7 +553,7 @@
     estoque: {
       label: 'Estoque',
       description: 'Receba lotes e registre ajustes justificados.',
-      modules: ['dashboard', 'ingredientes', 'estoque', 'relatorios', 'guia']
+      modules: ['dashboard', 'fornecedores', 'ingredientes', 'estoque', 'relatorios', 'guia']
     },
     diretor: {
       label: 'Diretor',
@@ -575,6 +586,7 @@
     confirmDelivery: ['fiscal', 'qualidade'],
     receiveLot: ['estoque'],
     adjustLot: ['estoque'],
+    saveSupplier: ['estoque', 'pd'],
     saveIngredient: ['estoque', 'pd'],
     deleteIngredient: ['estoque', 'pd'],
     saveClient: ['comercial'],
@@ -2310,7 +2322,7 @@
       }
       case 'receiveLot': {
         get(s.ingredientes, payload.ingredienteId)
-        get(s.fornecedores, payload.fornecedorId)
+        requireThat(get(s.fornecedores, payload.fornecedorId).ativo !== false, 'Fornecedor inativo não pode receber novos lotes.')
         const code = text(payload.codigo, 'Código do lote')
         requireThat(
           !s.lotes.some(l => l.codigo.toLowerCase() === code.toLowerCase()),
@@ -2337,6 +2349,18 @@
         }
         s.lotes.push(target)
         move(target, q, 'entrada', 'Recebimento de demonstração')
+        break
+      }
+      case 'saveSupplier': {
+        const old = payload.id ? get(s.fornecedores, payload.id) : null
+        const nome = text(payload.nome, 'Nome do fornecedor')
+        const documento = text(payload.documento, 'Documento', false).toUpperCase()
+        const normalized = value => value.replace(/[^A-Z0-9]/g, '')
+        requireThat(!documento || !s.fornecedores.some(f => f.id !== old?.id && normalized((f.documento || '').toUpperCase()) === normalized(documento)), 'Documento já cadastrado.')
+        before = old ? clone(old) : null
+        target = old || { id: uid() }
+        Object.assign(target, { nome, documento, contato: text(payload.contato, 'Contato', false), ativo: payload.ativo !== false })
+        if (!old) s.fornecedores.push(target)
         break
       }
       case 'saveIngredient': {

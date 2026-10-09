@@ -75,6 +75,13 @@ function productsView() {
     )
   )
 }
+function suppliersView() {
+  return searchableList('suppliers', 'Buscar por nome, documento ou contato',
+    intro('Fornecedores', 'Cadastro utilizado no recebimento de matéria-prima.', actionButton('+ Novo fornecedor', 'saveSupplier', null, true)) +
+    panel('Fornecedores cadastrados', table(['Fornecedor', 'Documento', 'Contato', 'Status', 'Ações'], state.fornecedores.map(f => [
+      esc(f.nome), esc(f.documento || '—'), esc(f.contato || '—'), badge(f.ativo === false ? 'inativo' : 'ativo'), actionButton('Editar', 'saveSupplier', f.id)
+    ]))) + notice('Inative fornecedores para impedir novas entradas sem apagar os vínculos dos lotes já recebidos.'))
+}
 function ingredientsView() {
   const stock = ingredient =>
     D.eligibleLots(state, ingredient.id).reduce(

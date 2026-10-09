@@ -289,3 +289,9 @@ tr[data-table-row]:hover { background: #eff6ff; }
 tr[data-table-row]:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; background: #eff6ff; }
 .table-totals th, .table-totals td { font-weight: 700; border-top: 2px solid #94a3b8; background: #eaf1fa; }
 .production-formula table td:nth-child(n+2), .production-formula table th:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* v16: card único, inclusive após as regras responsivas. */
+.login-shell { grid-template-columns: minmax(0, 460px); padding: 32px 16px; }
+#loginHelpDialog { padding: 24px; overflow-y: auto; }
+#loginHelpDialog .dialog-head, #loginHelpDialog .dialog-footer { padding: 0; }
+#loginHelpDialog .dialog-footer { margin-top: 20px; }

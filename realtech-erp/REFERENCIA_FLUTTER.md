@@ -136,3 +136,6 @@ RN-PD-006/007 e RN-EMB-001/002: rascunho estável e versão só ao ativar; orça
 
 ## v15 — contrato adicional
 Portabilidade de KG/UN, preço/kg, embalagem separada e batidas exige snapshots e revisões. Flutter segue experimental. Ver decisão `docs/decisoes/2026-10-05-qualidade-quilos-batidas-ux.md` e matriz; 50 kg não é limite homologado.
+
+## 09/10/2026 — Fornecedores e login
+Referência: docs/decisoes/2026-10-09-fornecedores-login.md. Cadastro Flutter existente deve revisar seleção de ativos e histórico; login deve refletir card único e ajuda após homologação. Nenhum Dart alterado.

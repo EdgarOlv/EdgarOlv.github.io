@@ -168,3 +168,8 @@ RN-OP-003: botão **Modificar** imediatamente ao lado de **Gerar fórmula para p
 
 ## Correção v15.2 — 05/10/2026
 A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. RN-OP-003 passa a permitir **Modificar** ao lado da fórmula em OP aguardando ou em produção. Substitui a limitação anterior ao início. Ajuste revisa planejamento da ficha para o total da OP, com auditoria; não modifica produção, lotes, consumos ou versão da fórmula já registrados. OP concluída permanece bloqueada. Capacidades reais seguem pendentes. 58 testes, incluindo preservação após apontamento parcial.
+
+## 09/10/2026 — Fornecedores e login
+- RN-FOR-001: tabela, busca, criação/edição e inativação; recebimento usa fornecedores ativos, preservando vínculos existentes.
+- RN-UX-003: login com card único; instruções, perfis e modo de dados em modal.
+- Testes de domínio para cadastro/recebimento e compatibilidade com fornecedores legados; Flutter/API/SQL não alterados.
