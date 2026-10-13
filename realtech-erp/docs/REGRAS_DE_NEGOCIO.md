@@ -1,5 +1,14 @@
 # Catálogo de regras de negócio
 
+## Atualização vigente — 13/10/2026 (v17)
+
+- **RN-ETQ-003 (confirmada, substituída a redação antiga):** lote DDMMAAAA da geração permanece na consulta/reimpressão. Não recalcular data atual ao abrir.
+- **RN-ETQ-007 (confirmada):** validade MMM/AAAA; 12 meses a partir de outubro/2026 → OUT/2027. Datas preservadas; validade explícita de lote disponível na geração mantém precedência.
+- **RN-QUA-005 (confirmada):** referência do laudo fica oculta no formulário, preservada no domínio/histórico.
+- [Decisão, aceite e limites](decisoes/2026-10-13-etiquetas-datas-qualidade.md). O histórico de 28/09 preserva a redação anterior, agora substituída.
+
+**Revisão técnica de 13/10/2026:** [preparação da migração v16/schema 12](../../Docs/MIGRACAO_FLUTTER_2026-10-13/README.md). Não altera maturidade nem homologa propostas. Para RN-PD-002/003, o salvamento valida e mantém rascunho; número publicado só ao ativar (RN-PD-006). Para RN-OP-003, a correção v15.2 permite modificar em aguardando/emProducao, preservando execução; concluída bloqueia. As redações históricas abaixo que mencionam criar versão ao salvar ou somente antes do início devem ser lidas com essas substituições.
+
 **Atualizado em:** 01/10/2026  
 **Maturidade estimada:** 80%; os itens restantes serão descobertos e homologados com a empresa.
 
@@ -29,7 +38,7 @@ Qualidade pode criar e conduzir amostra sem análise financeira e aprovação co
 | RN-ETQ-001 | Produção / Etiquetas   | A etiqueta consultada no pedido ou na OP usa um modelo cadastrado e preenche produto, cliente, ingredientes selecionados no campo “Contém”, lote/data de impressão, validade, peso e embalagem. Ingredientes não marcados permanecem na fórmula, mas não entram automaticamente no rótulo. | Confirmada; redação pendente       |
 | RN-ETQ-004 | Produção / Etiquetas   | Cada OP inicia com a sugestão de 1 etiqueta pequena e 2 grandes. A aba Etiquetas permite alterar as quantidades no topo e apresenta abaixo as prévias preenchidas dos dois modelos.                                                                                        | Confirmada                         |
 | RN-ETQ-002 | Pedidos / Etiquetas    | Cada item do pedido permite abrir e imprimir a etiqueta grande e os textos fixos do modelo podem ser modificados no módulo Etiquetas. A regra anterior de datas `A definir` foi substituída por RN-ETQ-003.                                                                  | Parcialmente substituída           |
-| RN-ETQ-003 | Produção / Etiquetas   | Na abertura da etiqueta, o lote é preenchido com a data atual (dia da impressão) e não existe campo separado de fabricação; a validade é obtida do lote produzido ou do cadastro do produto.                                                                                | Confirmada                         |
+| RN-ETQ-003 | Produção / Etiquetas   | Lote DDMMAAAA e validade MMM/AAAA ficam registrados na geração da etiqueta e são preservados em consulta/reimpressão; sem fabricação separada. Prazo em meses usa a data de geração; validade explícita disponível do lote mantém precedência.                                                                                | Confirmada                         |
 | RN-PRD-001 | Produção               | Apontamento pode ser parcial e inclui produto bom, perdas e sobras.                                                                                                                                                                                                       | Demonstrada                        |
 | RN-PRD-002 | Produção               | A entrada do pedido define a prioridade e gera limite demonstrativo de conclusão em 7 dias corridos; filas são ordenadas pelo vencimento.                                                                                                                                 | Demonstrada; calendário pendente   |
 | RN-EST-001 | Estoque                | Consumo usa lotes liberados, válidos e com saldo, priorizando validade.                                                                                                                                                                                                   | Demonstrada                        |

@@ -1,5 +1,13 @@
 # Validação da demonstração
 
+## Atualização v17 — 13/10/2026
+
+Seis suítes Node, incluindo labels.test.cjs: **68 aprovados, 0 falhas**; sintaxe de quatro JS aprovada. Relógio controlado cobre geração em outubro/reabertura em novembro, validade meses/ano, reuso entre pedido/OP, legado com Documento da OP, serialização e carteira. Renderização em VM verifica dois tamanhos e laudo oculto/histórico preservado. [Log](../Docs/MIGRACAO_FLUTTER_2026-10-13/evidencias/prototipo-v17-testes.txt). Sem nova impressão física ou conferência visual integral de navegador. Baseline anterior abaixo preservada.
+
+## Revisão técnica — 13/10/2026
+
+Protótipo v16/schema 12: cinco suítes Node (domain/pd/quality/search/suppliers) **60 aprovados, 0 falhas**, sintaxe dos quatro JS aprovada. Quatro sondagens adicionais reproduziram lacunas de prazo, integridade de restauração, conteúdo ativo durante rascunho e primeiro produto sem base. Não houve homologação empresarial, QA visual integral nova ou impressão física. Flutter: análise 0 erros/5 warnings/65 infos, teste de entrada falhou no login, build Web aprovado, Windows falhou em symlink gerado. [Evidências e limites](../Docs/MIGRACAO_FLUTTER_2026-10-13/04_ACEITE_E_TESTES.md); [plano](../Docs/MIGRACAO_FLUTTER_2026-10-13/README.md). Histórico abaixo preservado.
+
 ## Revisão atual — 01/10/2026
 
 - Suíte Node: **40 testes aprovados, zero falhas**. Nova regressão normaliza pequena 105×98 para 105×58 sem perder pedidos ou revisão do estado v12.

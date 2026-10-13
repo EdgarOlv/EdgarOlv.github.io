@@ -139,6 +139,7 @@ const navGroups = [
   ]
 ]
 const actionNames = {
+  prepareLabel: 'Datas da etiqueta registradas',
   saveOrder: 'Pedido salvo / revisão',
   submitOrder: 'Enviado ao financeiro',
   analyze: 'Análise financeira',

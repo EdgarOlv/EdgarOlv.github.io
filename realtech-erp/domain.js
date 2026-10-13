@@ -71,7 +71,16 @@
   }
   const releases = [
     {
-      version: 'v16', date: '2026-10-09', current: true,
+      version: 'v17', date: '2026-10-13', current: true,
+      title: 'Datas preservadas nas etiquetas e inspeção simplificada',
+      summary: 'Lote preserva a data de geração; validade usa mês/ano e referência do laudo fica oculta.',
+      changes: [
+        { area: 'Etiquetas', title: 'Lote e validade', description: 'Consulta e reimpressão reutilizam as datas registradas. Prazo em meses gera validade MMM/AAAA.', rules: ['RN-ETQ-003', 'RN-ETQ-007'], status: 'Confirmada pela empresa via Edgar', route: 'etiquetas' },
+        { area: 'Qualidade', title: 'Inspeção sem referência do laudo visível', description: 'Campo preservado no domínio, oculto no formulário.', rules: ['RN-QUA-005'], status: 'Confirmada pela empresa via Edgar', route: 'qualidade' }
+      ]
+    },
+    {
+      version: 'v16', date: '2026-10-09', current: false,
       title: 'Fornecedores e login simplificado',
       summary: 'Cadastro conectado ao recebimento e instruções de acesso em modal.',
       changes: [
@@ -570,6 +579,7 @@
     }
   }
   const permissions = {
+    prepareLabel: ['comercial', 'financeiro', 'diretor', 'fiscal', 'producao', 'qualidade', 'pd'],
     saveOrder: ['comercial', 'qualidade'],
     submitOrder: ['comercial'],
     approveOrder: ['comercial'],
@@ -673,6 +683,30 @@
     const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/)
     requireThat(match, 'Data do lote inválida.')
     return `${match[3]}${match[2]}${match[1]}`
+  }
+  function labelExpiry(value, generatedOn) {
+    const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
+    const source = String(value || '').trim()
+    const absolute = source.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/)
+    if (absolute && Number(absolute[2]) >= 1 && Number(absolute[2]) <= 12)
+      return `${months[Number(absolute[2]) - 1]}/${absolute[1]}`
+    if (/^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\/\d{4}$/i.test(source)) return source.toUpperCase()
+    const duration = source.match(/^(\d+)\s*(mes(?:es)?|m[eê]s|anos?|dias?)$/i)
+    if (!duration || !generatedOn || Number(duration[1]) <= 0) return 'A definir'
+    const base = date(generatedOn, 'Data de geração da etiqueta')
+    const amount = Number(duration[1]), unit = duration[2].toLowerCase()
+    if (!Number.isSafeInteger(amount) || amount > 12000) return 'A definir'
+    if (unit.startsWith('dia')) return labelExpiry(addDays(base, amount), base)
+    const offset = unit.startsWith('ano') ? amount * 12 : amount
+    const monthIndex = Number(base.slice(0, 4)) * 12 + Number(base.slice(5, 7)) - 1 + offset
+    const year = Math.floor(monthIndex / 12)
+    return year <= 9999 ? `${months[monthIndex % 12]}/${year}` : 'A definir'
+  }
+  function labelDates(record, generatedOn, lot = null, origin = 'geracao') {
+    if (record.datasEtiqueta) return clone(record.datasEtiqueta)
+    const base = date(generatedOn, 'Data de geração da etiqueta')
+    return { geradaEm: base, origemData: origin, lote: compactLotDate(base),
+      validade: labelExpiry(lot?.validade || record.validade, base) }
   }
   function batchPlan(op, limit = null, count = null) {
     const totalKg = roundFormula(op.quantidadePrevista * op.pesoKg)
@@ -1657,6 +1691,27 @@
         responsavel: user.nome
       })
     switch (action) {
+      case 'prepareLabel': {
+        const x = payload.opId ? get(s.ordens, payload.opId) : null
+        const o = get(s.pedidos, x?.pedidoId || payload.pedidoId)
+        own(o)
+        const readable = x ? profiles[user.perfil].modules.includes('producao') : profiles[user.perfil].modules.includes('pedidos')
+        requireThat(user.perfil === 'administrador' || readable || (o.tipo === 'amostra' && profiles[user.perfil].modules.includes('amostras')), 'Acesso restrito à etiqueta deste pedido.')
+        const item = get(o.itens, x?.itemId || payload.itemId)
+        const linkedOp = x || s.ordens.find(entry => entry.pedidoId === o.id && entry.itemId === item.id)
+        target = x || item
+        if (target.datasEtiqueta) return { state: s, id: target.id }
+        before = clone(target)
+        const existing = item.datasEtiqueta || linkedOp?.datasEtiqueta
+        const legacyOp = linkedOp && !Object.prototype.hasOwnProperty.call(linkedOp, 'datasEtiqueta')
+        const documentDate = legacyOp ? linkedOp.documentoOp?.data : null
+        const generatedOn = documentDate ? localDate(new Date(documentDate)) : localDate(new Date(now))
+        const lot = linkedOp?.lotes?.map(id => get(s.lotes, id)).find(Boolean)
+        target.datasEtiqueta = existing ? clone(existing) : labelDates(target, generatedOn, lot, documentDate ? 'documentoOP-legado' : 'geracao')
+        if (linkedOp) linkedOp.datasEtiqueta = clone(target.datasEtiqueta)
+        item.datasEtiqueta = clone(target.datasEtiqueta)
+        break
+      }
       case 'saveOrder': {
         const old = payload.id ? order() : null
         requireThat(
@@ -1751,6 +1806,8 @@
             naoContemGluten: !!p.naoContemGluten,
             modoUso: p.modoUso || '',
             conservacao: p.conservacao || '',
+            datasEtiqueta: old?.itens.find(entry => entry.produtoId === p.id)?.datasEtiqueta
+              ? clone(old.itens.find(entry => entry.produtoId === p.id).datasEtiqueta) : null,
             formula: clone(f)
           }
         })
@@ -1943,6 +2000,7 @@
             naoContemGluten: !!i.naoContemGluten,
             modoUso: i.modoUso || '',
             conservacao: i.conservacao || '',
+            datasEtiqueta: i.datasEtiqueta ? clone(i.datasEtiqueta) : null,
             pesoKg: i.pesoKg,
             embalagem: i.embalagem || '', embalagemId: i.embalagemId || null,
             embalagemSnapshot: clone(i.embalagemSnapshot || null), volumeLitros: i.volumeLitros ?? null,
@@ -3135,6 +3193,8 @@
     packageCount,
     productBaseName,
     compactLotDate,
+    labelExpiry,
+    labelDates,
     batchPlan,
     productionFormulaRows,
     volumeCount,

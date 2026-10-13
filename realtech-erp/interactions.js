@@ -343,29 +343,10 @@ function labelPreview(op, model, lot, printAction = null, order = null) {
       .filter(Boolean)
       .join(', '),
     fixed = (field, fallback) => esc(model[field] || fallback),
-    printedOn = D.today(),
-    labelLot = D.compactLotDate(printedOn),
-    expires = lot?.validade
-      ? (() => {
-          const match = String(lot.validade).match(/^(\d{4})-(\d{2})/)
-          if (!match) return fmtDate(lot.validade)
-          const months = [
-            'JAN',
-            'FEV',
-            'MAR',
-            'ABR',
-            'MAI',
-            'JUN',
-            'JUL',
-            'AGO',
-            'SET',
-            'OUT',
-            'NOV',
-            'DEZ'
-          ]
-          return `${months[Number(match[2]) - 1]}/${match[1]}`
-        })()
-      : op.validade || product?.validade || 'A definir',
+    dates = op.datasEtiqueta || (op.documentoOp?.data
+      ? D.labelDates(op, new Date(op.documentoOp.data).toLocaleDateString('sv-SE'), lot, 'documentoOP-legado') : null),
+    labelLot = dates?.lote || 'A definir',
+    expires = dates?.validade || 'A definir',
     contains =
       op.contem ||
       product?.contem ||
@@ -608,7 +589,7 @@ function openAction(a, id, productContext = null) {
           ['reprovado', 'Reprovado']
         ]) +
         textarea('Observações / motivo de reprovação', 'observacoes') +
-        input('Referência do laudo (opcional, sem upload)', 'laudo'),
+        '<input type="hidden" name="laudo" value="">',
       d => commit(a, { id, ...d }),
       'Registrar inspeção'
     )
@@ -1158,8 +1139,9 @@ function openAction(a, id, productContext = null) {
   }
   if (a === 'viewLabel') {
     if (!allowed('etiquetas')) throw new Error('Acesso restrito às etiquetas.')
-    const [opId, modelId] = String(id).split(':'),
-      x = find(state.ordens, opId),
+    const [opId, modelId] = String(id).split(':')
+    if (!find(state.ordens, opId).datasEtiqueta) commit('prepareLabel', { opId })
+    const x = find(state.ordens, opId),
       item = x.etiquetas?.find(
         entry =>
           entry.quantidade > 0 && (!modelId || entry.etiquetaId === modelId)
@@ -1174,8 +1156,11 @@ function openAction(a, id, productContext = null) {
   }
   if (a === 'viewOrderLabel') {
     if (!allowed('pedidos')) throw new Error('Acesso restrito ao pedido.')
-    const [orderId, itemIndex] = String(id).split(':'),
-      order = find(state.pedidos, orderId),
+    const [orderId, itemIndex] = String(id).split(':')
+    const originalItem = find(state.pedidos, orderId)?.itens?.[Number(itemIndex)]
+    if (!originalItem) throw new Error('Etiqueta do item não encontrada.')
+    if (!originalItem.datasEtiqueta) commit('prepareLabel', { pedidoId: orderId, itemId: originalItem.id })
+    const order = find(state.pedidos, orderId),
       item = order?.itens?.[Number(itemIndex)],
       model = find(state.etiquetas, 'etq2'),
       op = item
@@ -1186,6 +1171,7 @@ function openAction(a, id, productContext = null) {
             unidade: item.unidade, quantidadePrevista: item.quantidade,
             pesoKg: item.pesoKg, pesoEmbalagemKg: item.pesoEmbalagemKg || item.pesoKg,
             validade: item.validade,
+            datasEtiqueta: item.datasEtiqueta,
             contem: item.contem,
             descricaoProduto: item.descricaoProduto,
             alergenicosAtivo: item.alergenicosAtivo,
@@ -1201,7 +1187,7 @@ function openAction(a, id, productContext = null) {
     return modal(
       `Etiqueta · ${order.numero} · ${item.nome}`,
       notice(
-        'Prévia vinculada ao pedido. O lote assume a data de hoje; a validade usa o cadastro do produto até existir lote produzido.'
+        'O lote e a validade preservam as datas registradas na geração. A validade é exibida em mês/ano.'
       ) + labelPreview(op, model, null, 'printLabel', order)
     )
   }
@@ -1218,6 +1204,7 @@ function openAction(a, id, productContext = null) {
   }
   if (['viewProductionFormula', 'viewOpLabels'].includes(a)) {
     if (!technical()) throw new Error('Documento da OP restrito.')
+    if (a === 'viewOpLabels' && !find(state.ordens, id).datasEtiqueta) commit('prepareLabel', { opId: id })
     const x = find(state.ordens, id),
       d = x.documentoOp,
       order = find(state.pedidos, x.pedidoId),

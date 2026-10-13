@@ -1,5 +1,11 @@
 # REALTECH — referência do protótipo para Flutter
 
+**Adendo vigente — v17 de 13/10:** RN-ETQ-003 preserva lote da geração, RN-ETQ-007 exibe validade MMM/AAAA (12 meses desde outubro/2026 → OUT/2027), RN-QUA-005 oculta referência do laudo sem remover dados. [Decisão e impacto](docs/decisoes/2026-10-13-etiquetas-datas-qualidade.md). Não portar a redação histórica de data atual a cada abertura.
+
+## Adendo de preparação — 13/10/2026
+
+Referência vigente v16/schema 12: [diagnóstico e três etapas](../Docs/MIGRACAO_FLUTTER_2026-10-13/README.md). Novos pedidos/amostras KG com legado UN; RN-PD-006 numera só ao ativar; batidas podem ser modificadas em OP aguardando/emProducao conforme v15.2; login RN-UX-003 card único e fornecedores RN-FOR-001 CRUD conectado. Textos antigos abaixo que descrevam UN exclusivo, duas áreas de login ou fornecedores só consulta são históricos. Implementação/arquitetura dependem do recorte aprovado, sem promover regras D a C.
+
 ## Adendo vigente — 01/10/2026
 
 Consultar [contrato consolidado](../Docs/CONSOLIDACAO_FLUTTER_2026-10-01.md) e [roteiro final](docs/ROTEIRO_HOMOLOGACAO_FINAL.md). A referência histórica abaixo permanece como contexto; em divergências, prevalecem decisões confirmadas e regras atuais.

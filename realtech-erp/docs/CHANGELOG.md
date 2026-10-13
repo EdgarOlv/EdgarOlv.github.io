@@ -1,5 +1,9 @@
 # Histórico de versões do protótipo
 
+## 13/10/2026 — v17: datas de etiquetas e inspeção
+
+RN-ETQ-003 substituída: lote da geração é registrado localmente e preservado ao consultar/reimprimir. RN-ETQ-007: validade MMM/AAAA, 12 meses desde outubro/2026 → OUT/2027. Pedido/OP/modelos reutilizam datas; legado usa Documento da OP com origem identificada, sem inventar impressão histórica. RN-QUA-005 oculta referência do laudo no formulário, preservando domínio/histórico. 68 testes aprovados, sintaxe dos quatro JS aprovada; cache de assets v17, esquema local 12. [Decisão](decisoes/2026-10-13-etiquetas-datas-qualidade.md). Flutter/API/SQL não alterados.
+
 ## 01/10/2026 — Dois casos de teste no guia de demonstração
 
 - Removidos do guia os blocos “Pontos para validar com a empresa” e “Homologação final — entregas recentes”; pendências e contrato continuam preservados na documentação.

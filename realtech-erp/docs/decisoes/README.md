@@ -13,6 +13,7 @@ Esta pasta guarda as decisões e propostas surgidas nas conversas de descoberta 
 
 | Data | Tema | Regras principais | Maturidade registrada |
 | --- | --- | --- | --- |
+| 13/10/2026 | [Datas das etiquetas e inspeção](2026-10-13-etiquetas-datas-qualidade.md) | RN-ETQ-003/007, RN-QUA-005 | Confirmadas via Edgar; legado/reemissão delimitados |
 | 31/08/2026 | [Pedidos, comissões, histórico financeiro e documentos](2026-08-31-ajustes-negocio.md) | RN-PED-001/002/003, RN-COM-001 e Documento da OP | Confirmadas e pendentes, conforme cada seção |
 | 10/09/2026 | [Disponibilidade de estoque e governança](2026-09-10-estoque-governanca.md) | RN-EST-003, RN-GOV-001 | Demonstradas; aguardando homologação |
 | 14/09/2026 | [Operação, prioridade e logística](2026-09-14-operacao-logistica.md) | RN-PED-005, RN-PRD-002, RN-LOG-001/002 | Demonstradas; aguardando homologação |
@@ -27,6 +28,7 @@ Esta pasta guarda as decisões e propostas surgidas nas conversas de descoberta 
 
 | Área | Registros relacionados |
 | --- | --- |
+| Etiquetas e Qualidade — vigente | [13/10: datas preservadas e laudo oculto](2026-10-13-etiquetas-datas-qualidade.md) |
 | Comercial e pedidos | [31/08](2026-08-31-ajustes-negocio.md), [14/09](2026-09-14-operacao-logistica.md), [faturamento de 14/09](2026-09-14-faturamento-parcelado.md) |
 | Financeiro e comissões | [31/08](2026-08-31-ajustes-negocio.md), [faturamento de 14/09](2026-09-14-faturamento-parcelado.md) |
 | Estoque e ingredientes | [10/09](2026-09-10-estoque-governanca.md), [ingredientes de 24/09](2026-09-24-ingredientes.md) |

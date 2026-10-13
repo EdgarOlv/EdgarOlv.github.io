@@ -1,5 +1,7 @@
 # Protótipo interativo REALTECH
 
+Versão atual **v17 de 13/10/2026**, esquema local 12: lote/validade da etiqueta são preservados; validade MMM/AAAA e referência de laudo oculta na inspeção. [Decisão](docs/decisoes/2026-10-13-etiquetas-datas-qualidade.md). Verificação completa: `node --test tests/domain.test.cjs tests/pd.test.cjs tests/quality.test.cjs tests/search.test.cjs tests/suppliers.test.cjs tests/labels.test.cjs` (68 aprovados nesta entrega).
+
 Para a visão geral do projeto, o vocabulário comum e a lista de divergências entre protótipo, Flutter e SQL, consulte [`../REFERENCIA_PROJETO.md`](../REFERENCIA_PROJETO.md).
 
 > Este protótipo é a referência navegável para descoberta e homologação. A tradução formal das regras está em [`docs/`](docs/README.md); mudanças funcionais devem atualizar código, regra, teste e histórico juntos.

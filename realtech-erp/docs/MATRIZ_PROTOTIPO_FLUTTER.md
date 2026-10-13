@@ -1,5 +1,11 @@
 # Matriz protótipo → Flutter
 
+## Atualização v17 — 13/10/2026
+
+RN-ETQ-003/007: lote e validade preservados em datasEtiqueta; prazo em meses calculado sobre geração, saída MMM/AAAA. Flutter etapa 1 precisa metadados/origem, etapa 2 preparação persistida/idempotente/autorizada, etapa 3 renderização que não consulta relógio atual para etiqueta pronta. Legado não possui data exata de impressão; origem do Documento da OP é referência explicitada. RN-QUA-005: ocultar referência do laudo na UI, sem remover propriedade ou histórico. [Contrato](decisoes/2026-10-13-etiquetas-datas-qualidade.md). Nenhum Dart/SQL alterado.
+
+**Inventário técnico atualizado em 13/10/2026:** [matriz v16 e diagnóstico](../../Docs/MIGRACAO_FLUTTER_2026-10-13/01_DIAGNOSTICO_E_MATRIZ.md). A matriz abaixo preserva história e adendos; a composição Flutter já permite adicionar/remover itens, embora precise alinhar precisão, validação e rascunhos. [Plano/continuidade](../../Docs/MIGRACAO_FLUTTER_2026-10-13/README.md).
+
 **Revisão:** 01/10/2026. “Existe” indica estrutura encontrada, não homologação. [Contrato consolidado](../../Docs/CONSOLIDACAO_FLUTTER_2026-10-01.md) e [aceite por cenário](ROTEIRO_HOMOLOGACAO_FINAL.md) complementam esta matriz. Flutter não teve build/analyze executado nesta revisão.
 
 | Capacidade             | Protótipo                                                                                                | Flutter atual                                                                                               | Próxima ação                                                                                      |

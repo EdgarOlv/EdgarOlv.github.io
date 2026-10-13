@@ -1,5 +1,9 @@
 # Roteiro final de homologação — 01/10/2026
 
+## Atualização HF-10/HF-11 — 13/10/2026 (v17)
+
+HF-10 substitui lote do dia ao abrir: gerar etiqueta, anotar data/lote/validade, reabrir/recarregar e conferir valores preservados nos dois tamanhos/pedido/OP; 12 meses desde outubro/2026 → OUT/2027. Legado sem datas próprias usa Documento da OP com origem explicitada. Prazo não interpretável mostra A definir. HF-11: inspeção mostra resultado/observações, sem referência do laudo visível; registros históricos continuam íntegros. [Decisão](decisoes/2026-10-13-etiquetas-datas-qualidade.md). Reemissão/correção e emissão por lote parcial seguem pendentes. Não marcar impressão física homologada pelos testes Node.
+
 Base: protótipo v12 + correção de 01/10; cobre as entregas recentes e regressão do ciclo completo. Duração sugerida: uma sessão por setor, além da sessão integrada. Todos os dados são sintéticos.
 
 O Guia de demonstração apresenta dois casos sugeridos: **1º ciclo comercial** e **2º P&D, amostras e etiquetas**. O segundo percorre as atualizações recentes em 12 passos; os cenários HF abaixo permanecem como checklist detalhado fora da tela do guia. Os blocos de pendências empresariais e homologação final foram retirados apenas da apresentação navegável.

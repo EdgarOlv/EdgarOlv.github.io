@@ -1,5 +1,7 @@
 # Documentação do protótipo
 
+Para ajustar o Flutter à v16, consultar [preparação em três etapas de 13/10/2026](../../Docs/MIGRACAO_FLUTTER_2026-10-13/README.md). Inclui inventário, dados propostos, testes e checkpoint; aguarda revisão/OK. [Pontos a negociar](../../Docs/PONTOS_A_NEGOCIAR.md) distinguem ampliação funcional e inclusão comercial.
+
 Esta pasta transforma o comportamento navegável em requisitos implementáveis. O código permanece na raiz de `Prototipo/` para continuar simples de abrir e apresentar.
 
 Revisão consolidada em 01/10/2026: [contrato oficial para Flutter](../../Docs/CONSOLIDACAO_FLUTTER_2026-10-01.md) e [roteiro final de homologação](ROTEIRO_HOMOLOGACAO_FINAL.md). Estes documentos distinguem entregas confirmadas, propostas demonstradas e pendências.
