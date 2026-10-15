@@ -52,3 +52,5 @@ O modelo completo de registro está em [`COMO_REGISTRAR_MUDANCAS.md`](../COMO_RE
 - 05/10/2026 — P&D / Embalagens: [Rascunhos, orçamento e embalagens](2026-10-05-pd-rascunhos-orcamento-embalagens.md), RN-PD-006/007 e RN-EMB-001/002.
 
 - [09/10/2026 — Fornecedores e login](2026-10-09-fornecedores-login.md): RN-FOR-001 / RN-UX-003.
+
+- [15/10/2026 — P&D, recebimentos e estoque de embalagens](2026-10-15-pd-recebimentos-embalagens.md): RN-EST-008, RN-ING-004, RN-EMB-003/004, RN-FOR-002.

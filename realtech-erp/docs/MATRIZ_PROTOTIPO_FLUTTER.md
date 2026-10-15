@@ -86,3 +86,6 @@ A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. 
 
 ## 09/10/2026 — RN-FOR-001 / RN-UX-003
 Protótipo: CRUD de fornecedores com inativação, seleção de ativos no recebimento e login com ajuda. Flutter: já possui cadastro; paridade de campos/perfis e remoção do banner aguardam homologação. API/banco: validar ativo, unicidade e FK; decidir snapshots. [Contrato e matriz](decisoes/2026-10-09-fornecedores-login.md).
+
+## Adendo v18 — 15/10/2026
+[Decisão v18](decisoes/2026-10-15-pd-recebimentos-embalagens.md) traz campos, casos de uso, migração e matriz API/banco. Flutter atual sem grupos/custos por recebimento e sem baixa transacional por lote de embalagem. Dart/SQL não alterados.

@@ -78,8 +78,8 @@ function productsView() {
 function suppliersView() {
   return searchableList('suppliers', 'Buscar por nome, documento ou contato',
     intro('Fornecedores', 'Cadastro utilizado no recebimento de matéria-prima.', actionButton('+ Novo fornecedor', 'saveSupplier', null, true)) +
-    panel('Fornecedores cadastrados', table(['Fornecedor', 'Documento', 'Contato', 'Status', 'Ações'], state.fornecedores.map(f => [
-      esc(f.nome), esc(f.documento || '—'), esc(f.contato || '—'), badge(f.ativo === false ? 'inativo' : 'ativo'), actionButton('Editar', 'saveSupplier', f.id)
+    panel('Fornecedores cadastrados', table(['Fornecedor', 'CNPJ', 'Contato / endereço', 'Categorias / observação', 'Status', 'Ações'], state.fornecedores.map(f => [
+      esc(f.nome), esc(f.documento || '—'), `${esc(f.contato || '—')}<small>${esc(f.endereco || '')}</small>`, `${esc((f.categorias || []).join(', '))}<small>${esc(f.observacao || '')}</small>`, badge(f.ativo === false ? 'inativo' : 'ativo'), actionButton('Editar', 'saveSupplier', f.id)
     ]))) + notice('Inative fornecedores para impedir novas entradas sem apagar os vínculos dos lotes já recebidos.'))
 }
 function ingredientsView() {
@@ -103,14 +103,16 @@ function ingredientsView() {
           'Grupo',
           '% no rótulo',
           'Disponível',
+          'Último custo líquido / kg',
           'Ações'
         ],
         state.ingredientes.map(i => [
           esc(i.codigo),
           ingredientName(i),
-          esc(i.grupoPadronizacao || '—'),
+          esc(state.gruposIngredientes.find(g => g.id === i.grupoPadronizacao)?.nome || i.grupoPadronizacao || '—'),
           i.exibePercentualRotulo ? 'Sim' : 'Não',
           `${qty(stock(i))} kg`,
+          money(i.custoCentavos),
           `<div class="actions">${actionButton('Editar', 'saveIngredient', i.id)}${actionButton('Excluir', 'deleteIngredient', i.id)}</div>`
         ])
       )
@@ -122,9 +124,9 @@ function ingredientsView() {
 }
 function packagingView() {
   return intro('Embalagens', 'Cadastre capacidade e custo por unidade. A embalagem compõe o custo e a apresentação, sem entrar no rendimento da fórmula.', actionButton('+ Nova embalagem', 'savePackaging', null, true)) + panel('Catálogo de embalagens', table(
-    ['Código / embalagem', 'Tipo', 'Capacidade', 'Custo unitário', 'Situação', 'Ações'],
+    ['Código / embalagem', 'Tipo / medida', 'Capacidade', 'Custo unitário', 'Situação', 'Ações'],
     state.embalagens.map(pack => [
-      `${esc(pack.codigo)}<small>${esc(pack.nome)}</small>`, esc(pack.tipo),
+      `${esc(pack.codigo)}<small>${esc(pack.nome)}</small>`, `${esc(pack.tipo)}<small>${esc(pack.medida || '')}</small>`,
       `${qty(pack.capacidade)} ${pack.unidadeCapacidade === 'L' ? 'L' : 'kg'}`, money(pack.custoCentavos),
       badge(pack.ativo ? 'ativo' : 'inativo'), actionButton('Editar', 'savePackaging', pack.id)
     ])
@@ -371,17 +373,19 @@ function stockView() {
           'Lote',
           'Item / origem',
           'Saldo',
+          'Custo líquido / unidade',
           'Fabricação',
           'Validade',
           'Status',
           'Ação'
         ],
-        state.lotes.map(l => [
+        state.lotes.filter(l => l.tipo !== 'embalagem').map(l => [
           esc(l.codigo),
           l.tipo === 'ingrediente'
             ? `${ingredientName(find(state.ingredientes, l.ingredienteId))}<small>${esc(find(state.fornecedores, l.fornecedorId).nome)}</small>`
             : esc(find(state.produtos, l.produtoId).nome),
           `${qty(l.saldo)} ${l.tipo === 'ingrediente' ? 'kg' : unitLabel(l)}${l.sobrasKg ? `<small>${qty(l.sobrasKg)} kg de sobra segregada</small>` : ''}`,
+          `${l.tipo === 'ingrediente' ? money(l.custoCentavos ?? find(state.ingredientes,l.ingredienteId).custoCentavos) : '—'}${l.quantidadeRecebida !== undefined ? `<small>Entrada: ${qty(l.quantidadeRecebida)} ${esc(l.unidadeRecebimento)} · bruto ${money(l.valorUnitarioCentavos)} · ICMS ${qty(l.icmsPercentual)}% ${l.icmsCreditado ? 'creditado':'sem crédito'} · IPI ${qty(l.ipiPercentual)}% ${l.ipiCreditado ? 'creditado':'sem crédito'}</small>` : ''}`,
           fmtDate(l.fabricacao),
           fmtDate(l.validade),
           l.validade < D.today() ? badge('Vencido') : badge(l.status),
@@ -1026,3 +1030,10 @@ function guideView() {
   )
 }
 
+
+function ingredientGroupsView() {
+  return intro('Grupos de ingredientes', 'Grupos padronizados compartilhados pelo cadastro de ingredientes.', actionButton('+ Novo grupo','saveIngredientGroup',null,true)) + panel('Grupos',table(['Código','Nome','Situação','Ações'],state.gruposIngredientes.map(g => [esc(g.id),esc(g.nome),badge(g.ativo ? 'ativo':'inativo'),actionButton('Editar','saveIngredientGroup',g.id)])))
+}
+function packagingStockView() {
+  return intro('Estoque de embalagens','Entradas por lote, custo unitário e consumo na produção.', actionButton('+ Receber embalagem','receivePackagingLot',null,true)) + panel('Saldos por embalagem',table(['Embalagem','Saldo liberado','Último custo líquido / UN'],state.embalagens.map(p => [esc(p.nome),qty(state.lotes.filter(l => l.tipo === 'embalagem' && l.embalagemId === p.id && l.status === 'liberado' && l.validade >= D.today()).reduce((n,l) => n+l.saldo,0))+' UN',money(p.custoCentavos)]))) + panel('Lotes de embalagens',table(['Lote','Embalagem / fornecedor','Saldo','Custo líquido / UN','Validade','Situação','Ações'],state.lotes.filter(l => l.tipo === 'embalagem').map(l => [esc(l.codigo),`${esc(find(state.embalagens,l.embalagemId).nome)}<small>${esc(find(state.fornecedores,l.fornecedorId).nome)}</small>`,qty(l.saldo)+' UN',money(l.custoCentavos),fmtDate(l.validade),badge(l.validade < D.today() ? 'Vencido' : l.status),actionButton('Ajustar','adjustLot',l.id)]))) + panel('Movimentos de embalagens',table(['Data','Lote','Quantidade','Tipo','OP / motivo'],state.movimentacoes.filter(m => state.lotes.some(l => l.id === m.loteId && l.tipo === 'embalagem')).slice().reverse().map(m => [fmtTime(m.data),esc(find(state.lotes,m.loteId).codigo),qty(m.quantidade)+' UN',esc(m.tipo),esc(m.motivo)]))) + notice('Consumo no apontamento da OP, por validade mais próxima. Em produção parcial, o total de embalagens é arredondado cumulativamente. OPs antigas sem vínculo com embalagem são preservadas; reserva e múltiplas camadas ainda precisam de definição.')
+}

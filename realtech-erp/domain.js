@@ -70,8 +70,13 @@
     inadimplente: 'Inadimplente'
   }
   const releases = [
+    {version:'v18',date:'2026-10-15',current:true,title:'P&D, recebimentos e estoque de embalagens',summary:'Créditos ICMS/IPI, custo do último recebimento, grupos editáveis e fornecedores ampliados.',changes:[
+      {area:'Estoque',title:'Custos e unidades',description:'KG/L, peso manual, créditos selecionáveis e custo líquido por lote.',rules:['RN-EST-008'],status:'Confirmada; detalhes demonstrados',route:'estoque'},
+      {area:'P&D',title:'Grupos de ingredientes',description:'Cadastro, edição e inativação de grupos.',rules:['RN-ING-004'],status:'Confirmada',route:'gruposIngredientes'},
+      {area:'Embalagens',title:'Estoque por lote',description:'Recebimento, ajuste e consumo conjunto na produção; medida livre no catálogo.',rules:['RN-EMB-003','RN-EMB-004'],status:'Solicitação confirmada; consumo parcial demonstrado',route:'estoqueEmbalagens'},
+      {area:'Fornecedores',title:'Dados complementares',description:'CNPJ, endereço, observação e categorias fornecidas.',rules:['RN-FOR-002'],status:'Confirmada; categorias demonstradas',route:'fornecedores'}]},
     {
-      version: 'v17', date: '2026-10-13', current: true,
+      version: 'v17', date: '2026-10-13', current: false,
       title: 'Datas preservadas nas etiquetas e inspeção simplificada',
       summary: 'Lote preserva a data de geração; validade usa mês/ano e referência do laudo fica oculta.',
       changes: [
@@ -461,6 +466,8 @@
         'produtos',
         'formulas',
         'embalagens',
+        'gruposIngredientes',
+        'estoqueEmbalagens',
         'precificacao',
         'producao',
         'etiquetas',
@@ -551,6 +558,8 @@
         'produtos',
         'formulas',
         'embalagens',
+        'gruposIngredientes',
+        'estoqueEmbalagens',
         'precificacao',
         'fornecedores',
         'ingredientes',
@@ -562,7 +571,7 @@
     estoque: {
       label: 'Estoque',
       description: 'Receba lotes e registre ajustes justificados.',
-      modules: ['dashboard', 'fornecedores', 'ingredientes', 'estoque', 'relatorios', 'guia']
+      modules: ['dashboard', 'fornecedores', 'ingredientes', 'gruposIngredientes', 'estoqueEmbalagens', 'estoque', 'relatorios', 'guia']
     },
     diretor: {
       label: 'Diretor',
@@ -595,6 +604,8 @@
     dispatch: ['fiscal', 'qualidade'],
     confirmDelivery: ['fiscal', 'qualidade'],
     receiveLot: ['estoque'],
+    receivePackagingLot: ['estoque'],
+    saveIngredientGroup: ['estoque', 'pd'],
     adjustLot: ['estoque'],
     saveSupplier: ['estoque', 'pd'],
     saveIngredient: ['estoque', 'pd'],
@@ -815,7 +826,7 @@
     return s.lotes
       .filter(
         l =>
-          l.ingredienteId === id &&
+          l.tipo === 'ingrediente' && l.ingredienteId === id &&
           l.status === 'liberado' &&
           l.validade >= today() &&
           l.fabricacao <= today() &&
@@ -982,6 +993,21 @@
     if (billingIssues(s, o).length) return 'Qualidade / liberação'
     return 'Pronto para faturar e despachar'
   }
+  function ingredientGroupSeed() {
+    return ['Matéria-prima, aditivos únicos e especiarias', 'Condimentos, aditivos gerais, blends, mix e Max', 'Fumaças, óleos e corantes', 'Pastas e molhos'].map((nome, i) => ({id: `0${i + 1}`, nome, ativo: true}))
+  }
+  // A entrada conserva o valor bruto e os créditos; o custo por kg é uma projeção.
+  function receiptCost(payload, fallback = 0) {
+    const valorUnitarioCentavos = payload.valorUnitario === undefined ? fallback : Math.round(number(payload.valorUnitario, 'Valor unitário', 0) * 10000000) / 100000
+    const icmsPercentual = number(payload.icmsPercentual || 0, 'ICMS', 0)
+    const ipiPercentual = number(payload.ipiPercentual || 0, 'IPI', 0)
+    requireThat(icmsPercentual <= 100 && ipiPercentual <= 100, 'Impostos devem estar entre 0 e 100%.')
+    const icmsCreditado = payload.icmsCreditado === true, ipiCreditado = payload.ipiCreditado === true
+    const credito = (icmsCreditado ? icmsPercentual : 0) + (ipiCreditado ? ipiPercentual : 0)
+    requireThat(credito <= 100, 'Soma dos créditos não pode exceder 100%.')
+    return {valorUnitarioCentavos, icmsPercentual, ipiPercentual, icmsCreditado, ipiCreditado,
+      custoLiquidoCentavos: Math.round(valorUnitarioCentavos * (1 - credito / 100) * 100000) / 100000}
+  }
   function packagingSeed() {
     return [
       { id: 'emb-balde5', codigo: 'EMB-001', nome: 'Balde alimentício 5 kg', tipo: 'Balde', capacidade: 5, unidadeCapacidade: 'KG', custoCentavos: 450, ativo: true },
@@ -1112,6 +1138,7 @@
       ingredientes: ingredients,
       formulas,
       embalagens: packagingSeed(),
+      gruposIngredientes: ingredientGroupSeed(),
       fornecedores: [
         { id: 's1', nome: 'Fornecedor Alfa — demonstração' },
         { id: 's2', nome: 'Fornecedor Beta — demonstração' }
@@ -1637,7 +1664,7 @@
       'Sessão inválida ou usuário inativo.'
     )
     requireThat(can(user, action), 'Seu perfil não permite esta ação.')
-    const s = clone(state),
+    const s = validateState(clone(state)),
       now = new Date().toISOString()
     let target, before, result
     const audit = (entity, previous, next) => {
@@ -2116,7 +2143,7 @@
             ingredienteId: l.ingredienteId,
             quantidade: n,
             custoCentavos: Math.round(
-              n * get(s.ingredientes, l.ingredienteId).custoCentavos
+              n * (l.custoCentavos ?? get(s.ingredientes, l.ingredienteId).custoCentavos)
             )
           }
         })
@@ -2130,6 +2157,20 @@
             `Consumo de ${get(s.ingredientes, r.ingredienteId).nome} deve ser ${r.quantidade} kg.`
           )
         )
+        // Arredondamento cumulativo evita cobrar outra embalagem a cada apontamento parcial.
+        const packConsumptions = []
+        if (x.embalagemId) {
+          const weight = x.pesoEmbalagemKg || x.pesoKg
+          let remaining = Math.ceil(round((x.quantidadeProduzida + q) * x.pesoKg) / weight) - Math.ceil(round(x.quantidadeProduzida * x.pesoKg) / weight)
+          const lots = s.lotes.filter(l => l.tipo === 'embalagem' && l.embalagemId === x.embalagemId && l.status === 'liberado' && l.validade >= today() && l.saldo > 0).sort((a,b) => a.validade.localeCompare(b.validade))
+          for (const l of lots) {
+            const amount = Math.min(remaining, l.saldo)
+            if (amount) packConsumptions.push({loteId:l.id, embalagemId:x.embalagemId, quantidade:amount, custoCentavos:Math.round(amount * l.custoCentavos)})
+            remaining -= amount
+          }
+          requireThat(remaining === 0, 'Estoque insuficiente de embalagens. Registre o recebimento antes de apontar.')
+        }
+        packConsumptions.forEach(c => {const l = get(s.lotes,c.loteId); l.saldo -= c.quantidade; move(l,-c.quantidade,'consumo',x.numero,'UN',x.id)})
         // Todas as validações ocorrem antes das movimentações; execute trabalha numa cópia.
         consumptions.forEach(c => {
           const l = get(s.lotes, c.loteId)
@@ -2172,6 +2213,8 @@
           perdasKg: loss,
           sobrasKg: surplus,
           consumos: consumptions,
+          consumosEmbalagens: packConsumptions,
+          custoEmbalagensCentavos: packConsumptions.reduce((n,c) => n+c.custoCentavos,0),
           loteId: lot.id,
           observacoes: reason,
           custoInsumosCentavos: consumptions.reduce(
@@ -2378,8 +2421,22 @@
         }
         break
       }
+      case 'saveIngredientGroup': {
+        const old = payload.id ? get(s.gruposIngredientes, payload.id) : null
+        const code = old?.id || text(payload.codigo, 'Código do grupo')
+        const nome = text(payload.nome, 'Nome do grupo')
+        requireThat(!s.gruposIngredientes.some(g => g.id !== old?.id && (g.id === code || g.nome.toLocaleLowerCase('pt-BR') === nome.toLocaleLowerCase('pt-BR'))), 'Grupo já cadastrado.')
+        before = old ? clone(old) : null
+        target = old || {id: code}
+        Object.assign(target, {nome, ativo: payload.ativo !== false})
+        if (!old) s.gruposIngredientes.push(target)
+        break
+      }
+      case 'receivePackagingLot':
       case 'receiveLot': {
-        get(s.ingredientes, payload.ingredienteId)
+        const isPack = action === 'receivePackagingLot'
+        const item = isPack ? get(s.embalagens, payload.embalagemId) : get(s.ingredientes, payload.ingredienteId)
+        requireThat(!isPack || item.ativo, 'Embalagem inativa.')
         requireThat(get(s.fornecedores, payload.fornecedorId).ativo !== false, 'Fornecedor inativo não pode receber novos lotes.')
         const code = text(payload.codigo, 'Código do lote')
         requireThat(
@@ -2393,31 +2450,45 @@
           'Datas de fabricação e validade inconsistentes.'
         )
         const q = round(number(payload.quantidade, 'Quantidade', 0.001))
+        const unidadeRecebimento = isPack ? 'UN' : (payload.unidade || 'KG')
+        requireThat(isPack || ['KG', 'L'].includes(unidadeRecebimento), 'Unidade deve ser KG ou L.')
+        requireThat(!isPack || Number.isInteger(q), 'Embalagens exigem unidades inteiras.')
+        const pesoLiquidoKg = unidadeRecebimento === 'L' ? number(payload.pesoLiquidoKg, 'Peso líquido em kg', 0.001) : q
+        const costs = receiptCost(payload, item.custoCentavos)
+        const custoCentavos = Math.round(costs.custoLiquidoCentavos * q / pesoLiquidoKg * 100000) / 100000
         target = {
+          ...costs, custoCentavos, unidadeRecebimento, quantidadeRecebida: q, pesoLiquidoKg,
+          unidade: isPack ? 'UN' : 'KG', embalagemId: isPack ? item.id : null,
           id: uid(),
           codigo: code,
-          tipo: 'ingrediente',
-          ingredienteId: payload.ingredienteId,
+          tipo: isPack ? 'embalagem' : 'ingrediente',
+          ingredienteId: isPack ? null : payload.ingredienteId,
           fornecedorId: payload.fornecedorId,
-          quantidadeInicial: q,
-          saldo: q,
+          quantidadeInicial: pesoLiquidoKg,
+          saldo: pesoLiquidoKg,
           fabricacao: made,
           validade: expiry,
           status: expiry >= today() ? 'liberado' : 'bloqueado'
         }
         s.lotes.push(target)
-        move(target, q, 'entrada', 'Recebimento de demonstração')
+        s.lotes.filter(l => l.id !== target.id && l.tipo === target.tipo && (isPack ? l.embalagemId === item.id : l.ingredienteId === item.id) && l.custoCentavos === undefined).forEach(l => {l.custoCentavos = item.custoCentavos; l.custoOrigem = 'cadastro legado na migração, preço original indisponível'})
+        item.custoCentavos = custoCentavos
+        item.ultimoRecebimentoId = target.id
+        if (!isPack) s.produtos.filter(p => s.formulas.find(f => f.id === p.formulaId)?.itens.some(i => i.ingredienteId === item.id)).forEach(p => { p.precoLiberado = false })
+        move(target, pesoLiquidoKg, 'entrada', 'Recebimento de demonstração', target.unidade)
         break
       }
       case 'saveSupplier': {
         const old = payload.id ? get(s.fornecedores, payload.id) : null
         const nome = text(payload.nome, 'Nome do fornecedor')
-        const documento = text(payload.documento, 'Documento', false).toUpperCase()
+        const documento = text(payload.cnpj ?? payload.documento, 'CNPJ', false).toUpperCase()
         const normalized = value => value.replace(/[^A-Z0-9]/g, '')
         requireThat(!documento || !s.fornecedores.some(f => f.id !== old?.id && normalized((f.documento || '').toUpperCase()) === normalized(documento)), 'Documento já cadastrado.')
         before = old ? clone(old) : null
         target = old || { id: uid() }
-        Object.assign(target, { nome, documento, contato: text(payload.contato, 'Contato', false), ativo: payload.ativo !== false })
+        const categorias = payload.categorias ?? old?.categorias ?? []
+        requireThat(Array.isArray(categorias) && categorias.every(c => ['ingredientes', 'embalagens'].includes(c)), 'Categorias inválidas.')
+        Object.assign(target, { endereco: text(payload.endereco ?? old?.endereco ?? '', 'Endereço', false), observacao: text(payload.observacao ?? old?.observacao ?? '', 'Observação', false), categorias, nome, documento, contato: text(payload.contato, 'Contato', false), ativo: payload.ativo !== false })
         if (!old) s.fornecedores.push(target)
         break
       }
@@ -2458,7 +2529,7 @@
           'Grupo padronizado'
         )
         requireThat(
-          ['01', '02', '03', '04'].includes(target.grupoPadronizacao),
+          s.gruposIngredientes.some(g => g.id === target.grupoPadronizacao && (g.ativo || before?.grupoPadronizacao === g.id)),
           'Grupo padronizado inválido.'
         )
         target.exibePercentualRotulo = !!payload.exibePercentualRotulo
@@ -2499,10 +2570,11 @@
         target = l
         before = clone(l)
         requireThat(
-          l.tipo === 'ingrediente',
-          'Ajuste demonstrativo disponível apenas para matéria-prima.'
+          ['ingrediente', 'embalagem'].includes(l.tipo),
+          'Ajuste disponível para ingredientes e embalagens.'
         )
         const q = round(number(payload.saldo, 'Novo saldo'))
+        requireThat(l.tipo !== 'embalagem' || Number.isInteger(q), 'Saldo de embalagens deve ser inteiro.')
         const reason = text(payload.justificativa, 'Justificativa')
         move(l, round(q - l.saldo), 'ajuste', reason)
         l.saldo = q
@@ -2587,7 +2659,7 @@
         requireThat(!s.embalagens.some(pack => pack.id !== old?.id && pack.codigo.toLocaleLowerCase('pt-BR') === code.toLocaleLowerCase('pt-BR')), 'Código da embalagem já cadastrado.')
         const unit = text(payload.unidadeCapacidade, 'Unidade de capacidade')
         requireThat(['KG', 'L'].includes(unit), 'Capacidade deve usar KG ou L.')
-        target = { id: old?.id || uid(), codigo: code, nome: text(payload.nome, 'Nome da embalagem'), tipo: text(payload.tipo, 'Tipo da embalagem'),
+        target = { medida: text(payload.medida ?? old?.medida ?? '', 'Medida da embalagem', false), id: old?.id || uid(), codigo: code, nome: text(payload.nome, 'Nome da embalagem'), tipo: text(payload.tipo, 'Tipo da embalagem'),
           capacidade: number(payload.capacidade, 'Capacidade', 0.00001), unidadeCapacidade: unit,
           custoCentavos: Math.round(number(payload.custo, 'Custo unitário') * 100), ativo: payload.ativo !== false }
         if (old) Object.assign(old, target)
@@ -3159,6 +3231,7 @@
       'auditoria'
     ])
       requireThat(Array.isArray(s[key]), 'Arquivo de demonstração incompleto.')
+    if (!Array.isArray(s.gruposIngredientes)) s.gruposIngredientes = ingredientGroupSeed()
     if (!Array.isArray(s.embalagens)) s.embalagens = packagingSeed()
     // A correção das medidas não invalida pedidos ou textos já editados no navegador.
     for (const model of s.etiquetas) {

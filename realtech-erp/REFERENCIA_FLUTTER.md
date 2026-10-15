@@ -145,3 +145,6 @@ Portabilidade de KG/UN, preço/kg, embalagem separada e batidas exige snapshots 
 
 ## 09/10/2026 — Fornecedores e login
 Referência: docs/decisoes/2026-10-09-fornecedores-login.md. Cadastro Flutter existente deve revisar seleção de ativos e histórico; login deve refletir card único e ajuda após homologação. Nenhum Dart alterado.
+
+## v18 — contrato adicional
+Ver [recebimentos/P&D/embalagens](docs/decisoes/2026-10-15-pd-recebimentos-embalagens.md): último custo projetado separado do custo do lote, L→kg por peso manual, grupos, fornecedor ampliado, medida livre e consumo UN por apontamento. Portar por etapas, com transação, decimal exato e testes do contrato; nenhuma migração física nesta entrega.

@@ -116,3 +116,6 @@ A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. 
 
 ## 09/10/2026 — Fornecedores e login
 RN-FOR-001: cadastro alimenta recebimento (solicitação confirmada; campos/status/perfis demonstrados). RN-UX-003: card único de login com ajuda em modal (confirmada; apresentação demonstrada). [Aceite e pendências](decisoes/2026-10-09-fornecedores-login.md).
+
+## 15/10/2026 — v18
+RN-EST-008: unidades KG/L, créditos ICMS/IPI e último custo; RN-ING-004: grupos editáveis; RN-EMB-003: medida livre; RN-FOR-002: CNPJ/endereço/observação/categorias; RN-EMB-004: estoque e consumo de embalagens. Solicitações e custo/peso confirmados; FEFO, parcial cumulativa e categorias demonstrados. [Decisão v18](decisoes/2026-10-15-pd-recebimentos-embalagens.md).

@@ -684,27 +684,33 @@ function openAction(a, id, productContext = null) {
       d => commit(a, { id, ...d }),
       'Confirmar entrega'
     )
-  if (a === 'receiveLot' && !state.fornecedores.some(f => f.ativo !== false)) throw new Error('Cadastre ou ative um fornecedor em Fornecedores antes de receber matéria-prima.')
-  if (a === 'receiveLot')
+  if ((a === 'receiveLot' || a === 'receivePackagingLot') && !state.fornecedores.some(f => f.ativo !== false)) throw new Error('Cadastre ou ative um fornecedor em Fornecedores antes de receber matéria-prima.')
+  if ((a === 'receiveLot' || a === 'receivePackagingLot'))
     return modal(
-      'Receber matéria-prima',
+      a === 'receivePackagingLot' ? 'Receber embalagem' : 'Receber matéria-prima',
       `<div class="form-grid">${select(
-        'Ingrediente',
-        'ingredienteId',
-        state.ingredientes.map(i => [i.id, `${i.codigo} · ${i.nome}`])
+        a === 'receivePackagingLot' ? 'Embalagem' : 'Ingrediente',
+        a === 'receivePackagingLot' ? 'embalagemId' : 'ingredienteId',
+        (a === 'receivePackagingLot' ? state.embalagens.filter(p => p.ativo) : state.ingredientes).map(i => [i.id, `${i.codigo} · ${i.nome}`])
       )}${select(
         'Fornecedor',
         'fornecedorId',
         state.fornecedores.filter(i => i.ativo !== false).map(i => [i.id, i.nome])
-      )}${input('Código único do lote', 'codigo', '', 'text', 'required')}${input('Quantidade (kg)', 'quantidade', 100, 'number', 'min="0.001" step="0.001" required')}${input('Fabricação', 'fabricacao', D.today(), 'date', 'required')}${input('Validade', 'validade', D.day(180), 'date', 'required')}</div>`,
-      d => commit(a, d),
+      )}${input('Código único do lote', 'codigo', '', 'text', 'required')}${input('Quantidade recebida (na unidade escolhida)', 'quantidade', 100, 'number', 'min="0.001" step="0.001" required')}${a === 'receiveLot' ? select('Unidade recebida', 'unidade', [['KG','kg'],['L','Litro']]) + input('Peso líquido total em kg (obrigatório para litros)', 'pesoLiquidoKg', '', 'number', 'min="0.001" step="0.001"') : '<p>Unidade de estoque: UN</p>'}${input('Valor unitário bruto (R$/kg, R$/L ou R$/UN)', 'valorUnitario', '', 'number', 'required min="0" step="0.00001"')}${input('ICMS (%)', 'icmsPercentual', 0, 'number', 'required min="0" max="100" step="0.01"')}${input('IPI (%)', 'ipiPercentual', 0, 'number', 'required min="0" max="100" step="0.01"')}<label><input type="checkbox" name="icmsCreditado"> Creditar ICMS</label><label><input type="checkbox" name="ipiCreditado"> Creditar IPI</label>${input('Fabricação', 'fabricacao', D.today(), 'date', 'required')}${input('Validade', 'validade', D.day(180), 'date', 'required')}</div>`,
+      d => commit(a, {...d, icmsCreditado: !!document.querySelector('[name="icmsCreditado"]:checked'), ipiCreditado: !!document.querySelector('[name="ipiCreditado"]:checked')}),
       'Registrar entrada'
     )
   if (a === 'saveSupplier') {
     const supplier = id ? find(state.fornecedores, id) : null
     return modal(supplier ? 'Editar fornecedor' : 'Novo fornecedor',
-      `<div class="form-grid">${input('Nome / razão social', 'nome', supplier?.nome || '', 'text', 'required')}${input('Documento (opcional)', 'documento', supplier?.documento || '')}${input('Contato (opcional)', 'contato', supplier?.contato || '')}</div><label class="check-card"><input type="checkbox" name="ativo" ${supplier?.ativo !== false ? 'checked' : ''}><span>Fornecedor ativo <small>Disponível para novos recebimentos.</small></span></label>`,
-      d => commit(a, { ...d, id: supplier?.id, ativo: !!document.querySelector('[name="ativo"]:checked') }), 'Salvar fornecedor')
+      `<div class="form-grid">${input('Nome / razão social', 'nome', supplier?.nome || '', 'text', 'required')}${input('CNPJ (opcional)', 'documento', supplier?.documento || '')}${input('Contato (opcional)', 'contato', supplier?.contato || '')}${input('Endereço', 'endereco', supplier?.endereco || '')}${textarea('Observação', 'observacao', supplier?.observacao || '')}</div><p>Categorias fornecidas</p>${['ingredientes','embalagens'].map(c => `<label class="check-card"><input type="checkbox" name="categoriaFornecedor" value="${c}" ${supplier?.categorias?.includes(c) ? 'checked' : ''}>${c}</label>`).join('')}<label class="check-card"><input type="checkbox" name="ativo" ${supplier?.ativo !== false ? 'checked' : ''}><span>Fornecedor ativo <small>Disponível para novos recebimentos.</small></span></label>`,
+      d => commit(a, { ...d, categorias: [...document.querySelectorAll('[name="categoriaFornecedor"]:checked')].map(el => el.value), id: supplier?.id, ativo: !!document.querySelector('[name="ativo"]:checked') }), 'Salvar fornecedor')
+  }
+  if (a === 'saveIngredientGroup') {
+    const group = id ? find(state.gruposIngredientes, id) : null
+    return modal(group ? 'Editar grupo de ingredientes' : 'Novo grupo de ingredientes',
+      `<div class="form-grid">${input('Código', 'codigo', group?.id || '', 'text', group ? 'readonly' : 'required')}${input('Nome', 'nome', group?.nome || '', 'text', 'required')}${select('Situação', 'ativo', [['true','Ativo'],['false','Inativo']], String(group?.ativo ?? true))}</div>`,
+      d => commit(a, {...d, id, ativo:d.ativo === 'true'}), 'Salvar grupo')
   }
   if (a === 'saveIngredient') {
     const ingredient = id ? find(state.ingredientes, id) : null
@@ -724,12 +730,7 @@ function openAction(a, id, productContext = null) {
       'Aromatizantes',
       'Outros'
     ]
-    const standardizedGroups = [
-      ['01', '01 · Matéria-prima, aditivos únicos e especiarias'],
-      ['02', '02 · Condimentos, aditivos gerais, blends, mix e Max'],
-      ['03', '03 · Fumaças, óleos e corantes'],
-      ['04', '04 · Pastas e molhos']
-    ]
+    const standardizedGroups = state.gruposIngredientes.filter(g => g.ativo || g.id === ingredient?.grupoPadronizacao).map(g => [g.id, `${g.id} · ${g.nome}`])
     return modal(
       ingredient ? 'Editar ingrediente' : 'Novo ingrediente',
       `<div class="form-grid">${input('Código', 'codigo', ingredient?.codigo || '', 'text', 'required')}${input('Nome', 'nome', ingredient?.nome || '', 'text', 'required')}${input('INS (opcional)', 'ins', ingredient?.ins || '', 'text', 'inputmode="numeric"')}${select(
@@ -765,7 +766,7 @@ function openAction(a, id, productContext = null) {
     return modal(
       'Ajustar ' + find(state.lotes, id).codigo,
       input(
-        'Novo saldo (kg)',
+        find(state.lotes, id).tipo === 'embalagem' ? 'Novo saldo (UN)' : 'Novo saldo (kg)',
         'saldo',
         find(state.lotes, id).saldo,
         'number',
@@ -787,7 +788,7 @@ function openAction(a, id, productContext = null) {
   if (a === 'savePackaging') {
     const pack = id ? find(state.embalagens, id) : null
     return modal(pack ? 'Editar embalagem' : 'Nova embalagem',
-      `<div class="form-grid">${input('Código', 'codigo', pack?.codigo || '', 'text', 'required')}${input('Nome', 'nome', pack?.nome || '', 'text', 'required')}${input('Tipo de embalagem', 'tipo', pack?.tipo || '', 'text', 'required placeholder="Ex.: saco, balde, bombona"')}${input('Capacidade', 'capacidade', pack?.capacidade || '', 'number', 'required min="0.00001" step="0.00001"')}${select('Unidade da capacidade', 'unidadeCapacidade', [['KG', 'Quilos (kg)'], ['L', 'Litros (L)']], pack?.unidadeCapacidade || 'KG')}${input('Custo por unidade (R$)', 'custo', (pack?.custoCentavos || 0) / 100, 'number', 'required min="0" step="0.01"')}${select('Situação', 'ativo', [['true', 'Ativa'], ['false', 'Inativa']], String(pack?.ativo ?? true))}</div>`,
+      `<div class="form-grid">${input('Código', 'codigo', pack?.codigo || '', 'text', 'required')}${input('Nome', 'nome', pack?.nome || '', 'text', 'required')}${input('Medida da embalagem (texto livre)', 'medida', pack?.medida || '')}${input('Tipo de embalagem', 'tipo', pack?.tipo || '', 'text', 'required placeholder="Ex.: saco, balde, bombona"')}${input('Capacidade', 'capacidade', pack?.capacidade || '', 'number', 'required min="0.00001" step="0.00001"')}${select('Unidade da capacidade', 'unidadeCapacidade', [['KG', 'Quilos (kg)'], ['L', 'Litros (L)']], pack?.unidadeCapacidade || 'KG')}${input('Custo por unidade (R$)', 'custo', (pack?.custoCentavos || 0) / 100, 'number', 'required min="0" step="0.01"')}${select('Situação', 'ativo', [['true', 'Ativa'], ['false', 'Inativa']], String(pack?.ativo ?? true))}</div>`,
       d => commit(a, { ...d, id, ativo: d.ativo === 'true' }), 'Salvar embalagem')
   }
   if (a === 'productDetails') {

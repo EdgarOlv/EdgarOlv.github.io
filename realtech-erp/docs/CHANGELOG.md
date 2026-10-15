@@ -177,3 +177,6 @@ A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. 
 - RN-FOR-001: tabela, busca, criação/edição e inativação; recebimento usa fornecedores ativos, preservando vínculos existentes.
 - RN-UX-003: login com card único; instruções, perfis e modo de dados em modal.
 - Testes de domínio para cadastro/recebimento e compatibilidade com fornecedores legados; Flutter/API/SQL não alterados.
+
+## v18 — 15/10/2026
+Recebimentos KG/L com peso manual, bruto/créditos e custo líquido do último recebimento; grupos editáveis; medida de embalagem; fornecedor ampliado; estoque/ajustes e consumo de embalagem na produção, com atomicidade. [Decisão v18](decisoes/2026-10-15-pd-recebimentos-embalagens.md).

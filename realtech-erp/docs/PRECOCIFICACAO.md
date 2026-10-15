@@ -158,3 +158,6 @@ A planilha anexada continua sendo a referência operativa para validar:
 - preço de venda final
 
 A implementação foi desenhada para refletir esse fluxo sem exigir toda a complexidade da planilha diretamente na tela do usuário.
+
+## Custo de ingrediente — 15/10/2026
+RN-EST-008 substitui custo cadastral estático após novo recebimento: usa último custo líquido (créditos marcados), convertido de L para kg pelo peso total manual. Consumo histórico usa custo do lote. Ver decisão v18.

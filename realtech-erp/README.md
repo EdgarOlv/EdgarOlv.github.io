@@ -1,3 +1,7 @@
+# Atualização vigente: v18 — 15/10/2026
+
+Recebimentos, grupos, fornecedores e estoque de embalagens. [Contrato e roteiro](docs/decisoes/2026-10-15-pd-recebimentos-embalagens.md). Usar `node --test tests/*.test.cjs`. A descrição v17 abaixo é histórica.
+
 # Protótipo interativo REALTECH
 
 Versão atual **v17 de 13/10/2026**, esquema local 12: lote/validade da etiqueta são preservados; validade MMM/AAAA e referência de laudo oculta na inspeção. [Decisão](docs/decisoes/2026-10-13-etiquetas-datas-qualidade.md). Verificação completa: `node --test tests/domain.test.cjs tests/pd.test.cjs tests/quality.test.cjs tests/search.test.cjs tests/suppliers.test.cjs tests/labels.test.cjs` (68 aprovados nesta entrega).

@@ -79,6 +79,8 @@ const names = {
   fornecedores: 'Fornecedores',
   ingredientes: 'Ingredientes',
   embalagens: 'P&D · Embalagens',
+  gruposIngredientes: 'Grupos de ingredientes',
+  estoqueEmbalagens: 'Estoque de embalagens',
   formulas: 'P&D · Fórmulas e precificação',
   producao: 'Ordens de produção',
   etiquetas: 'Etiquetas',
@@ -106,7 +108,7 @@ const navGroups = [
       ['comissoes', '◉']
     ]
   ],
-  ['Pesquisa e desenvolvimento', [['formulas', '⚗'], ['embalagens', '▣']]],
+  ['Pesquisa e desenvolvimento', [['formulas', '⚗'], ['embalagens', '▣'], ['gruposIngredientes', '◌'], ['estoqueEmbalagens', '▣']]],
   [
     'Operação',
     [
@@ -158,6 +160,8 @@ const actionNames = {
   confirmDelivery: 'Entrega confirmada',
   cancelOrder: 'Cancelamento',
   receiveLot: 'Recebimento',
+  receivePackagingLot: 'Recebimento de embalagem',
+  saveIngredientGroup: 'Grupo de ingredientes salvo',
   adjustLot: 'Ajuste de estoque',
   saveSupplier: 'Fornecedor salvo',
   saveIngredient: 'Ingrediente salvo',
@@ -486,6 +490,8 @@ function render() {
     fornecedores: suppliersView,
     ingredientes: ingredientsView,
     embalagens: packagingView,
+    gruposIngredientes: ingredientGroupsView,
+    estoqueEmbalagens: packagingStockView,
     formulas: formulasView,
     precificacao: pricingView,
     producao: () => (selectedId ? opView(selectedId) : productionView()),

@@ -120,3 +120,13 @@ RN-OP-003: botão **Modificar** imediatamente ao lado de **Gerar fórmula para p
 
 ## Correção v15.2 — 05/10/2026
 A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. RN-OP-003 passa a permitir **Modificar** ao lado da fórmula em OP aguardando ou em produção. Substitui a limitação anterior ao início. Ajuste revisa planejamento da ficha para o total da OP, com auditoria; não modifica produção, lotes, consumos ou versão da fórmula já registrados. OP concluída permanece bloqueada. Capacidades reais seguem pendentes. 58 testes, incluindo preservação após apontamento parcial.
+
+## v18 — 15/10/2026
+Nova suíte tests/pd-receipts.test.cjs cobre custo/créditos/L/kg/grupos/fornecedor/embalagens/atomicidade e parciais. Ver decisão v18 para aceite e pendências.
+
+
+### Evidências finais — v18
+- 74 testes aprovados, zero falhas; quatro arquivos JS passaram em node --check. Log: `Docs/MIGRACAO_FLUTTER_2026-10-13/evidencias/prototipo-v18-testes.txt`.
+- QA no navegador em origem isolada `http://127.0.0.1:8772`, sem alterar origem habitual 8765: entrada de 10 L/8 kg/ICMS18% com custo exibido R$10,25/kg; entrada de 20 UN a R$4,50 com saldo e movimento; criação de grupo; fornecedor com duas categorias/endereço/observação salvo e exibido; medida livre salva e exibida na embalagem. Console sem erros ao fim.
+- Evidência visual: `Prototipo/docs/v18-estoque-embalagens.png` (somente dados sintéticos). Consumo conjunto e parcial validado no teste de domínio, sem afirmar ciclo visual completo ou aceite empresarial.
+- Arquivos operacionais Flutter/Dart/SQL não alterados. Pendências de produção, reserva, parcial e taxonomia permanecem conforme decisão v18.
