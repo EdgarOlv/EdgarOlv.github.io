@@ -180,3 +180,12 @@ A captura da OP em produção evidenciou uma restrição indevida da v15/v15.1. 
 
 ## v18 — 15/10/2026
 Recebimentos KG/L com peso manual, bruto/créditos e custo líquido do último recebimento; grupos editáveis; medida de embalagem; fornecedor ampliado; estoque/ajustes e consumo de embalagem na produção, com atomicidade. [Decisão v18](decisoes/2026-10-15-pd-recebimentos-embalagens.md).
+
+## v19 — 19/10/2026
+Embalagem separada do orçamento nos editores de fórmula/produto/formação de preço; visão geral com ingredientes, créditos, custos adicionais, markup, encargos e preços; ajuda matemática com valores e origem do custo. RN-PD-008; 78 testes aprovados. [Decisão](decisoes/2026-10-19-orcamento-calculos.md).
+
+## v19.1 — 19/10/2026
+Composição nos detalhes: cinco colunas, custo líquido unitário e custo de produção, soma das quatro colunas numéricas, nota distinguindo soma unitária/custo/kg da fórmula. RN-PD-009; 79 testes aprovados. [Decisão](decisoes/2026-10-19-composicao-custos-totais.md).
+
+## v20 — 19/10/2026
+Categorias de rotulagem gerenciáveis na segunda tabela de Grupos de ingredientes e compartilhadas com ingredientes/fornecedores. Mantidas categorias gerais do fornecedor; IDs estáveis, inativação, migração aditiva e regras especiais da declaração preservadas. RN-ING-005/RN-FOR-002; 85 testes aprovados. [Decisão](decisoes/2026-10-19-categorias-rotulagem-fornecedores.md).

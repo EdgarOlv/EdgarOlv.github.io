@@ -41,3 +41,6 @@ Cenário para empresa: cadastrar grupo e fornecedor das duas categorias; receber
 ## Pendências para fechar
 
 Empresa/P&D/Estoque: parcial entre apontamentos, baixa/reserva e prioridade entre pedidos, perdas de embalagem/múltiplas camadas, validade de embalagem, taxonomia de fornecedor, permissões e política para lote bloqueado alterar orçamento. Edgar/empresa: escopo comercial em NEG-010. Flutter/backend ainda dependem do recorte/arquitetura descritos no pacote de migração; v18 não equivale a sistema pronto para produção.
+
+## Esclarecimento posterior — 19/10/2026
+A granularidade das categorias de fornecedor foi esclarecida por Edgar: manter Ingredientes/Embalagens e acrescentar categorias de rotulagem do mesmo catálogo dos ingredientes, gerenciável em segunda tabela de Grupos. Substitui a pendência desse item; permanece sem trava de recebimento por categoria. [Contrato v20](2026-10-19-categorias-rotulagem-fornecedores.md).

@@ -396,7 +396,70 @@ function labelPreview(op, model, lot, printAction = null, order = null) {
 function packagingEditor(product = {}, suggest = false) {
   const selected = product.embalagemId || (suggest ? D.suggestPackaging(state, 'KG', product.pesoKg || 1)?.id : '') || ''
   const weight = product.pesoKg || 1
-  return `<section class="budget-editor"><h3>Embalagem final e orçamento</h3><p class="muted small">A embalagem soma custo, sem somar peso à fórmula. Para litros, informe o volume e o peso líquido manualmente.</p><div class="form-grid">${select('Embalagem final', 'embalagemId', [['', 'Manter apresentação atual'], ...state.embalagens.filter(pack => pack.ativo || pack.id === selected).map(pack => [pack.id, `${pack.codigo} · ${pack.nome} · ${money(pack.custoCentavos)}/UN${pack.ativo ? '' : ' (inativa)'}`])], selected)}${input('Peso líquido por embalagem (kg)', 'pesoLiquidoKg', weight, 'number', 'required min="0.00001" step="0.00001"')}${input('Volume preenchido por embalagem (L)', 'volumeLitros', product.volumeLitros || '', 'number', 'min="0.00001" step="0.00001"')}${input('Lucratividade para orçamento (%)', 'orcamentoMargem', D.pricingProfile(state, product).margemPercentual, 'number', 'required min="0" step="0.01"')}</div><div class="actions">${btn('Sugerir embalagem', 'suggestBudgetPackaging')}${btn('Calcular orçamento', 'calculateDraftBudget')}</div><p id="packagingSuggestion" class="muted small" role="status"></p><div id="draftBudgetResult" aria-live="polite"></div></section>`
+  return `<section class="budget-editor"><h3>Embalagem final</h3><p class="muted small">A embalagem soma custo, sem somar peso à fórmula. Para litros, informe o volume e o peso líquido manualmente.</p><div class="form-grid">${select('Embalagem final', 'embalagemId', [['', 'Manter apresentação atual'], ...state.embalagens.filter(pack => pack.ativo || pack.id === selected).map(pack => [pack.id, `${pack.codigo} · ${pack.nome} · ${money(pack.custoCentavos)}/UN${pack.ativo ? '' : ' (inativa)'}`])], selected)}${input('Peso líquido por embalagem (kg)', 'pesoLiquidoKg', weight, 'number', 'required min="0.00001" step="0.00001"')}${input('Volume preenchido por embalagem (L)', 'volumeLitros', product.volumeLitros || '', 'number', 'min="0.00001" step="0.00001"')}</div><div class="actions">${btn('Sugerir embalagem', 'suggestBudgetPackaging')}</div><p id="packagingSuggestion" class="muted small" role="status"></p></section>`
+}
+function budgetEditor(product = {}) {
+  return `<section class="budget-editor product-budget"><div class="section-heading"><div><h3>Orçamento do produto</h3><p class="muted small">Visão geral da composição, custos e preço estimado. Use os botões ? para entender as contas.</p></div></div><div class="form-grid">${input('Lucratividade / markup para orçamento (%)', 'orcamentoMargem', D.pricingProfile(state, product).margemPercentual, 'number', 'required min="0" max="9999" step="0.01"')}</div>${btn('Calcular orçamento', 'calculateDraftBudget')}<div id="draftBudgetResult" aria-live="polite"></div></section>`
+}
+let calculationHelpSequence = 0
+function calculationHelp(label, explanation) {
+  const id = `calculation-help-${++calculationHelpSequence}`
+  return `<span class="calculation-help"><button type="button" class="calculation-help-button" data-calculation-help aria-label="Como calcular: ${esc(label)}" aria-expanded="false" aria-controls="${id}" aria-describedby="${id}">?</button><span id="${id}" class="calculation-help-panel" role="tooltip">${esc(explanation)}</span></span>`
+}
+function budgetOverview(sim, product, formula, options = {}) {
+  const preciseMoney = cents => 'R$ ' + (Number(cents) / 100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:7})
+  const val = cents => `${money(cents)}/kg`
+  const line = (name, value, help) => [name + ' ' + calculationHelp(name, help), value]
+  const weight = sim.pesoKg || product.pesoKg
+  const packagingCost = options.packagingCost ?? product.embalagemCentavos ?? 0
+  const n = sim.unidadesEmbalagem ?? Math.ceil(formula.rendimento / weight)
+  const ingredientRows = formula.itens.map(item => {
+    const ingredient = find(state.ingredientes, item.ingredienteId)
+    const receipt = state.lotes.find(l => l.id === ingredient.ultimoRecebimentoId)
+    let origin = 'Custo líquido = valor unitário × (1 − (ICMS creditado + IPI creditado)/100). Custo cadastrado: ' + preciseMoney(ingredient.custoCentavos) + '/kg. Sem recebimento de origem disponível: não é possível detalhar bruto e créditos.'
+    if (receipt && receipt.valorUnitarioCentavos !== undefined) {
+      const icms = receipt.icmsCreditado ? receipt.icmsPercentual : 0
+      const ipi = receipt.ipiCreditado ? receipt.ipiPercentual : 0
+      origin = `Último recebimento ${receipt.codigo}. Custo líquido = valor unitário × (1 − (ICMS creditado + IPI creditado)/100). ${preciseMoney(receipt.valorUnitarioCentavos)} × (1 − (${icms} + ${ipi})/100) = ${preciseMoney(receipt.custoLiquidoCentavos)}/${receipt.unidadeRecebimento}. ICMS informado: ${receipt.icmsPercentual}% (${receipt.icmsCreditado ? 'creditado' : 'não creditado'}); IPI informado: ${receipt.ipiPercentual}% (${receipt.ipiCreditado ? 'creditado' : 'não creditado'}).`
+      if (receipt.unidadeRecebimento === 'L') origin += ` Conversão: ${preciseMoney(receipt.custoLiquidoCentavos)}/L × ${qty(receipt.quantidadeRecebida)} L ÷ ${qty(receipt.pesoLiquidoKg)} kg = ${preciseMoney(ingredient.custoCentavos)}/kg.`
+    }
+    const subtotal = Number(item.quantidade) * ingredient.custoCentavos
+    return [esc(ingredient.nome), `${formulaQty(item.quantidade)} kg`, `${preciseMoney(ingredient.custoCentavos)}/kg ${calculationHelp('Custo líquido de ' + ingredient.nome, origin)}`, `${money(subtotal)} ${calculationHelp('Participação de ' + ingredient.nome, `Custo na fórmula = quantidade em kg × custo líquido/kg. ${formulaQty(item.quantidade)} × ${preciseMoney(ingredient.custoCentavos)} = ${preciseMoney(subtotal)}. Contribuição por kg do produto = este subtotal ÷ rendimento (${formulaQty(formula.rendimento)} kg). Créditos já estão descontados; não descontar novamente.`)}`]
+  })
+  const raw = formula.itens.reduce((sum,i) => sum+i.quantidade*find(state.ingredientes,i.ingredienteId).custoCentavos,0)
+  const packHelp = options.manualPackaging
+    ? `Custo de embalagem por kg informado nesta formação: ${val(sim.embalagemCentavosKg)}. Não é recalculado do catálogo. Custo proporcional por embalagem = custo/kg × ${qty(weight)} kg; não altera o cadastro ou apresentação do produto.`
+    : `Custo da embalagem por kg = custo unitário ÷ peso líquido por embalagem. ${preciseMoney(packagingCost)} ÷ ${qty(weight)} kg. A embalagem não altera a massa da fórmula. Litros usam peso líquido manual em kg.`
+  const summary = [
+    line('Matéria-prima', val(sim.materiaPrimaCentavosKg), `Σ(quantidade do ingrediente × custo líquido/kg) ÷ rendimento. ${preciseMoney(raw)} ÷ ${formulaQty(formula.rendimento)} kg. Usa custo do último recebimento, sem descontar créditos novamente.`),
+    line('Embalagem', val(sim.embalagemCentavosKg), packHelp),
+    line('Materiais', val(sim.materiaisCentavosKg), `Materiais = matéria-prima + embalagem por kg. ${val(sim.materiaPrimaCentavosKg)} + ${val(sim.embalagemCentavosKg)} ≈ ${val(sim.materiaisCentavosKg)}. As parcelas são somadas antes do arredondamento de exibição.`),
+    line('Financeiro', val(sim.financeiroCentavosKg), `Custo adicional informado por kg: ${val(sim.financeiroCentavosKg)}. Na fórmula inteira: este custo × ${formulaQty(formula.rendimento)} kg. Não é uma taxa aplicada sobre o preço de venda.`),
+    line('Mão de obra / custo fixo', val(sim.maoDeObraCentavosKg), `Custo adicional informado por kg: ${val(sim.maoDeObraCentavosKg)}; custo da fórmula = custo/kg × rendimento.`),
+    line('Outros custos', val(sim.outrosCustosCentavosKg), `Outros custos por kg: ${val(sim.outrosCustosCentavosKg)}; custo da fórmula = custo/kg × rendimento.`),
+    line('Custo primário', val(sim.custoPrimarioCentavos), `Custo primário = matéria-prima + embalagem + financeiro + mão de obra + outros custos. ${val(sim.materiaPrimaCentavosKg)} + ${val(sim.embalagemCentavosKg)} + ${val(sim.financeiroCentavosKg)} + ${val(sim.maoDeObraCentavosKg)} + ${val(sim.outrosCustosCentavosKg)} ≈ ${val(sim.custoPrimarioCentavos)}. Soma calculada antes de arredondar ao centavo por kg.`),
+    line('Lucro / markup', `${val(sim.valorLucroCentavos)} · ${qty(sim.margemPercentual)}%`, `Lucro = custo primário × markup/100. ${money(sim.custoPrimarioCentavos)} × ${qty(sim.margemPercentual)}% = ${money(sim.valorLucroCentavos)} (arredondado ao centavo). Este percentual é acréscimo sobre custo, não margem líquida sobre venda.`),
+    line('Base com lucro', val(sim.baseComLucroCentavos), `Base = custo primário + lucro. ${money(sim.custoPrimarioCentavos)} + ${money(sim.valorLucroCentavos)} = ${money(sim.baseComLucroCentavos)}.`),
+    line('Encargos sobre venda', `${qty(sim.encargosPercentual)}%`, `Soma dos encargos sobre venda: ${sim.encargosFixos.map(c => `${c.nome}: ${qty(c.percentual)}%`).join(' + ')} = ${qty(sim.encargosPercentual)}%. São encargos de venda; não são os créditos de ICMS/IPI da compra. A soma precisa ser menor que 100%.`),
+    line('Preço estimado', `<strong>${val(sim.precoKgCentavos)}</strong>`, `Preço/kg = base com lucro ÷ (1 − encargos/100). ${money(sim.baseComLucroCentavos)} ÷ (1 − ${qty(sim.encargosPercentual)}/100) = ${money(sim.precoKgCentavos)}, arredondado para cima ao próximo centavo.`),
+    line('Preço por embalagem', `${money(sim.precoCentavos)}/UN · ${qty(weight)} kg`, `Preço por embalagem = preço/kg × peso líquido. ${money(sim.precoKgCentavos)} × ${qty(weight)} kg = ${money(sim.precoCentavos)} (arredondado ao centavo).`),
+    line('Venda estimada da fórmula', money(Math.round(sim.precoKgCentavos * formula.rendimento)), `Venda estimada = preço/kg × rendimento. ${money(sim.precoKgCentavos)} × ${formulaQty(formula.rendimento)} kg. É uma projeção, não faturamento ou preço aprovado.`),
+    line('Embalagens para a fórmula', `${n} UN · ${money(sim.custoEmbalagensLoteCentavos ?? n * packagingCost)}`, `Quantidade = arredondar para cima(rendimento ÷ peso por embalagem). ceil(${formulaQty(formula.rendimento)} ÷ ${qty(weight)}) = ${n} UN. Custo = ${n} × ${preciseMoney(packagingCost)}. Última embalagem pode ficar incompleta. O preço/kg usa rateio proporcional; este total considera embalagens inteiras e não é somado novamente ao preço.`)
+  ]
+  if (options.approved !== undefined) summary.push(line('Preço comercial informado', options.approved === '' ? 'Não informado' : `${money(Number(options.approved)*100)}/kg`, 'Preço comercial é informado separadamente. Só será liberado ao confirmar a ação. Ajuste manual exige motivo; não substitui o cálculo estimado acima.'))
+  return `<div class="budget-product-summary"><strong>${esc(product.nome || 'Produto em edição')}</strong><span>Rendimento: ${formulaQty(formula.rendimento)} kg · ${esc(sim.embalagem || product.embalagem || 'Apresentação atual')} · ${qty(weight)} kg/UN</span></div><h4>Ingredientes e créditos na compra</h4>${table(['Ingrediente','Quantidade na fórmula','Custo líquido / kg','Custo na fórmula'], ingredientRows)}<h4>Composição do preço</h4>${fields(summary)}<p class="muted small">Valores exibidos são arredondados; as ajudas mostram a regra aplicada. Orçamento não salva alterações nem libera preço comercial.</p>`
+}
+function productCompositionTable(formula) {
+  const rows = formula.itens.map(item => {
+    const ingredient = find(state.ingredientes, item.ingredienteId)
+    return [esc(ingredient.nome), `${formulaQty(item.quantidade)} kg`, `${qty(item.quantidade / formula.rendimento * 100)}%`, `${money(ingredient.custoCentavos)}/kg`, money(item.quantidade * ingredient.custoCentavos)]
+  })
+  const totalQuantity = formula.itens.reduce((sum, item) => sum + Number(item.quantidade), 0)
+  const totalUnitCost = formula.itens.reduce((sum, item) => sum + find(state.ingredientes, item.ingredienteId).custoCentavos, 0)
+  const totalProductionCost = formula.itens.reduce((sum, item) => sum + item.quantidade * find(state.ingredientes, item.ingredienteId).custoCentavos, 0)
+  return table(['Ingrediente', 'Quantidade', 'Participação', 'Custo unitário na fórmula (R$/kg)', 'Custo de produção (R$)'], rows,
+    ['Total', `${formulaQty(totalQuantity)} kg`, `${qty(totalQuantity / formula.rendimento * 100)}%`, `${money(totalUnitCost)}/kg`, money(totalProductionCost)]) +
+    `<p class="muted small composition-cost-note">Custo de produção = quantidade × custo unitário líquido do ingrediente. A soma dos custos unitários é apenas a soma da coluna, não o custo por kg do produto. O custo da fórmula por kg é ${money(totalProductionCost)} ÷ ${formulaQty(formula.rendimento)} kg = <strong>${money(totalProductionCost / formula.rendimento)}/kg</strong>. Embalagem e demais custos aparecem na formação de preço. Totais calculados antes do arredondamento de exibição.</p>`
 }
 function budgetPayload() {
   const value = name => $(`[name="${name}"]`)?.value
@@ -426,13 +489,9 @@ function updateDraftBudget() {
   try {
     const sim = D.draftBudget(state, payload)
     const balanced = Math.abs(sim.totalIngredientesKg - sim.rendimentoKg) < 0.00001
-    result.innerHTML = `${balanced ? '' : notice('Orçamento preliminar: a soma dos ingredientes ainda não fecha com o rendimento. Ajuste antes de salvar.', 'warn')}${fields([
-      ['Ingredientes / rendimento', `${formulaQty(sim.totalIngredientesKg)} / ${formulaQty(sim.rendimentoKg)} kg`],
-      ['Matéria-prima', `${money(sim.materiaPrimaCentavosKg)}/kg`], ['Embalagem', `${money(sim.embalagemCentavosKg)}/kg · ${esc(sim.embalagem)}`],
-      ['Custo primário', `${money(sim.custoPrimarioCentavos)}/kg`], ['Encargos sobre venda', `${qty(sim.encargosPercentual)}%`],
-      ['Preço estimado', `${money(sim.precoKgCentavos)}/kg`], ['Apresentação final', `${qty(sim.pesoKg)} kg · ${money(sim.precoCentavos)}/UN`],
-      ['Embalagens para a batida', `${sim.unidadesEmbalagem} UN · ${money(sim.custoEmbalagensLoteCentavos)}`]
-    ])}<p class="muted small">Simulação para decisão em P&D. A ativação e a liberação comercial do preço continuam separadas. A última embalagem da batida pode ficar incompleta.</p>`
+    const source = state.produtos.find(p => p.id === payload.sourceProductId) || state.produtos.find(p => p.formulaId)
+    const product = {...source, nome: $('[name="nome"]')?.value || source.nome}
+    result.innerHTML = `${balanced ? '' : notice('Orçamento preliminar: a soma dos ingredientes ainda não fecha com o rendimento. Ajuste antes de salvar.', 'warn')}${budgetOverview(sim, product, {rendimento:sim.rendimentoKg,itens:payload.itens}, {packagingCost: pack?.custoCentavos ?? product.embalagemCentavos})}`
   } catch (error) { result.innerHTML = notice(esc(error.message), 'warn') }
 }
 function suggestBudgetPackaging() {
@@ -703,8 +762,14 @@ function openAction(a, id, productContext = null) {
   if (a === 'saveSupplier') {
     const supplier = id ? find(state.fornecedores, id) : null
     return modal(supplier ? 'Editar fornecedor' : 'Novo fornecedor',
-      `<div class="form-grid">${input('Nome / razão social', 'nome', supplier?.nome || '', 'text', 'required')}${input('CNPJ (opcional)', 'documento', supplier?.documento || '')}${input('Contato (opcional)', 'contato', supplier?.contato || '')}${input('Endereço', 'endereco', supplier?.endereco || '')}${textarea('Observação', 'observacao', supplier?.observacao || '')}</div><p>Categorias fornecidas</p>${['ingredientes','embalagens'].map(c => `<label class="check-card"><input type="checkbox" name="categoriaFornecedor" value="${c}" ${supplier?.categorias?.includes(c) ? 'checked' : ''}>${c}</label>`).join('')}<label class="check-card"><input type="checkbox" name="ativo" ${supplier?.ativo !== false ? 'checked' : ''}><span>Fornecedor ativo <small>Disponível para novos recebimentos.</small></span></label>`,
-      d => commit(a, { ...d, categorias: [...document.querySelectorAll('[name="categoriaFornecedor"]:checked')].map(el => el.value), id: supplier?.id, ativo: !!document.querySelector('[name="ativo"]:checked') }), 'Salvar fornecedor')
+      `<div class="form-grid">${input('Nome / razão social', 'nome', supplier?.nome || '', 'text', 'required')}${input('CNPJ (opcional)', 'documento', supplier?.documento || '')}${input('Contato (opcional)', 'contato', supplier?.contato || '')}${input('Endereço', 'endereco', supplier?.endereco || '')}${textarea('Observação', 'observacao', supplier?.observacao || '')}</div><h3>Categorias gerais</h3>${['ingredientes','embalagens'].map(c => `<label class="check-card"><input type="checkbox" name="categoriaFornecedor" value="${c}" ${supplier?.categorias?.includes(c) ? 'checked' : ''}>${c === 'ingredientes' ? 'Ingredientes' : 'Embalagens'}</label>`).join('')}<h3>Categorias para rotulagem</h3><p class="muted small">Mesmo cadastro usado nos ingredientes. Selecione todas as categorias que o fornecedor fornece.</p><div class="supplier-label-categories">${state.categoriasRotulagem.filter(c => c.ativo || supplier?.categoriasRotulagem?.includes(c.id)).map(c => `<label class="check-card"><input type="checkbox" name="categoriaRotulagemFornecedor" value="${esc(c.id)}" ${supplier?.categoriasRotulagem?.includes(c.id) ? 'checked' : ''}>${esc(c.nome)}${c.ativo ? '' : ' (inativa)'}</label>`).join('')}</div><label class="check-card"><input type="checkbox" name="ativo" ${supplier?.ativo !== false ? 'checked' : ''}><span>Fornecedor ativo <small>Disponível para novos recebimentos.</small></span></label>`,
+      d => commit(a, { ...d, categoriasRotulagem: [...document.querySelectorAll('[name="categoriaRotulagemFornecedor"]:checked')].map(el => el.value), categorias: [...document.querySelectorAll('[name="categoriaFornecedor"]:checked')].map(el => el.value), id: supplier?.id, ativo: !!document.querySelector('[name="ativo"]:checked') }), 'Salvar fornecedor')
+  }
+  if (a === 'saveLabelCategory') {
+    const category = id ? find(state.categoriasRotulagem, id) : null
+    return modal(category ? 'Editar categoria de rotulagem' : 'Nova categoria de rotulagem',
+      `<p class="muted small">Categoria compartilhada por ingredientes e fornecedores. Inativar impede novos vínculos e preserva os existentes.</p><div class="form-grid">${input('Nome da categoria', 'nome', category?.nome || '', 'text', 'required')}${select('Situação', 'ativo', [['true','Ativa'],['false','Inativa']], String(category?.ativo ?? true))}</div>`,
+      d => commit(a, {...d, id, ativo:d.ativo === 'true'}), 'Salvar categoria')
   }
   if (a === 'saveIngredientGroup') {
     const group = id ? find(state.gruposIngredientes, id) : null
@@ -714,29 +779,14 @@ function openAction(a, id, productContext = null) {
   }
   if (a === 'saveIngredient') {
     const ingredient = id ? find(state.ingredientes, id) : null
-    const categories = [
-      'Base da fórmula',
-      'Acidulantes',
-      'Antioxidantes',
-      'Conservadores',
-      'Espessantes',
-      'Reguladores de acidez',
-      'Corantes',
-      'Umectantes',
-      'Realçadores de sabor',
-      'Estabilizantes',
-      'Antiumectantes',
-      'Especiarias',
-      'Aromatizantes',
-      'Outros'
-    ]
+    const categories = state.categoriasRotulagem.filter(c => c.ativo || c.id === ingredient?.categoriaRotulagem)
     const standardizedGroups = state.gruposIngredientes.filter(g => g.ativo || g.id === ingredient?.grupoPadronizacao).map(g => [g.id, `${g.id} · ${g.nome}`])
     return modal(
       ingredient ? 'Editar ingrediente' : 'Novo ingrediente',
       `<div class="form-grid">${input('Código', 'codigo', ingredient?.codigo || '', 'text', 'required')}${input('Nome', 'nome', ingredient?.nome || '', 'text', 'required')}${input('INS (opcional)', 'ins', ingredient?.ins || '', 'text', 'inputmode="numeric"')}${select(
         'Categoria para rotulagem',
         'categoriaRotulagem',
-        categories.map(c => [c, c]),
+        categories.map(c => [c.id, `${c.nome}${c.ativo ? '' : ' (inativa)'}`]),
         ingredient?.categoriaRotulagem || ingredient?.categoria || 'Outros'
       )}${select('Grupo padronizado', 'grupoPadronizacao', standardizedGroups, ingredient?.grupoPadronizacao || '01')}</div><label class="check-card"><input type="checkbox" name="exibePercentualRotulo" ${ingredient?.exibePercentualRotulo ? 'checked' : ''}><span>Exibir percentual na etiqueta <small>Permitido somente para sal, nitrito de sódio/INS 250 e nitrato de sódio/INS 251.</small></span></label>`,
       d =>
@@ -863,23 +913,7 @@ function openAction(a, id, productContext = null) {
         ]
       ])}${
         f
-          ? `<div class="grid-2"><section><h3>Composição da fórmula</h3>${table(
-              ['Ingrediente', 'Quantidade', 'Participação', 'Custo vigente'],
-              f.itens.map(item => {
-                const ingredient = find(state.ingredientes, item.ingredienteId)
-                return [
-                  esc(ingredient.nome),
-                  `${formulaQty(item.quantidade)} kg`,
-                  `${qty((item.quantidade / f.rendimento) * 100)}%`,
-                  money(
-                    Math.round(
-                      (item.quantidade / f.rendimento) *
-                        ingredient.custoCentavos
-                    )
-                  )
-                ]
-              })
-            )}${fields([['Embalagem final', esc(p.embalagem)], ['Peso líquido', `${qty(p.pesoKg)} kg`], ['Custo por embalagem', money(p.embalagemCentavos || 0)]])}</section>${
+          ? `<div class="product-detail-costs"><section><h3>Composição da fórmula</h3>${productCompositionTable(f)}${fields([['Embalagem final', esc(p.embalagem)], ['Peso líquido', `${qty(p.pesoKg)} kg`], ['Custo por embalagem', money(p.embalagemCentavos || 0)]])}</section>${
               sim
                 ? `<section><h3>Formação do preço por kg</h3>${fields([
                     ['Matéria-prima', money(sim.materiaPrimaCentavosKg)],
@@ -928,7 +962,7 @@ function openAction(a, id, productContext = null) {
           ['04', '04 · Pastas e molhos']
         ],
         p.grupoPadronizacao || '02'
-      )}${input('Validade do produto', 'validade', p.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${textarea('Descrição do produto na etiqueta', 'descricaoProduto', p.descricaoProduto || '')}${textarea('Modo de uso', 'modoUso', p.modoUso || '')}${textarea('Conservação', 'conservacao', p.conservacao || '')}</div><section class="product-label-options"><h3>Declarações da etiqueta</h3><label class="check-card"><input type="checkbox" name="alergenicosAtivo" ${p.alergenicosAtivo ? 'checked' : ''}><span>Exibir declaração de alérgicos</span></label>${textarea('Texto de alérgicos', 'alergenicosTexto', p.alergenicosTexto || '')}<label class="check-card"><input type="checkbox" name="naoContemGluten" ${p.naoContemGluten ? 'checked' : ''}><span>Exibir “Não contém glúten”</span></label></section>${containsEditor(formula, p.contemItens, p.contem)}${packagingEditor(p)}`,
+      )}${input('Validade do produto', 'validade', p.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${textarea('Descrição do produto na etiqueta', 'descricaoProduto', p.descricaoProduto || '')}${textarea('Modo de uso', 'modoUso', p.modoUso || '')}${textarea('Conservação', 'conservacao', p.conservacao || '')}</div><section class="product-label-options"><h3>Declarações da etiqueta</h3><label class="check-card"><input type="checkbox" name="alergenicosAtivo" ${p.alergenicosAtivo ? 'checked' : ''}><span>Exibir declaração de alérgicos</span></label>${textarea('Texto de alérgicos', 'alergenicosTexto', p.alergenicosTexto || '')}<label class="check-card"><input type="checkbox" name="naoContemGluten" ${p.naoContemGluten ? 'checked' : ''}><span>Exibir “Não contém glúten”</span></label></section>${containsEditor(formula, p.contemItens, p.contem)}${packagingEditor(p)}${budgetEditor(p)}`,
       d =>
         commit(a, {
           id,
@@ -986,7 +1020,7 @@ function openAction(a, id, productContext = null) {
             ['04', '04 · Pastas e molhos']
           ],
           source?.grupoPadronizacao || '02'
-        )}${input('Validade do produto', 'validade', source?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${input('Código da fórmula', 'formulaCodigo', id ? `${source.codigo}-FORM` : '', 'text', 'required')}${input('Nome da fórmula', 'formulaNome', id ? `${source.nome} · Fórmula` : '', 'text', 'required')}</div><section class="formula-editor" data-stock-only="true"><div class="section-heading"><div><h3>Composição inicial</h3><p class="muted small">A lista oferece ingredientes com saldo em lotes liberados e válidos.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div class="form-grid">${input('Rendimento (kg)', 'rendimento', source?.formulaId ? find(state.formulas, source.formulaId).rendimento : 100, 'number', 'required min="0.00001" step="0.00001"')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${sourceFormula ? containsEditor(sourceFormula, source.contemItens, source.contem) : ''}${packagingEditor(source, true)}${textarea('Observações', 'observacoes', '')}`,
+        )}${input('Validade do produto', 'validade', source?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}${input('Código da fórmula', 'formulaCodigo', id ? `${source.codigo}-FORM` : '', 'text', 'required')}${input('Nome da fórmula', 'formulaNome', id ? `${source.nome} · Fórmula` : '', 'text', 'required')}</div><section class="formula-editor" data-stock-only="true"><div class="section-heading"><div><h3>Composição inicial</h3><p class="muted small">A lista oferece ingredientes com saldo em lotes liberados e válidos.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div class="form-grid">${input('Rendimento (kg)', 'rendimento', source?.formulaId ? find(state.formulas, source.formulaId).rendimento : 100, 'number', 'required min="0.00001" step="0.00001"')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${sourceFormula ? containsEditor(sourceFormula, source.contemItens, source.contem) : ''}${packagingEditor(source, true)}${budgetEditor(source)}${textarea('Observações', 'observacoes', '')}`,
       d =>
         commit(a, {
           ...d,
@@ -1039,7 +1073,7 @@ function openAction(a, id, productContext = null) {
       notice(
         'A fórmula ativa será preservada. Salvar atualiza o mesmo rascunho; a próxima versão numerada nasce somente ao ativar. A soma dos insumos deve corresponder ao rendimento.'
       ) +
-        `<div class="form-grid">${input('Rendimento (kg)', 'rendimento', f.rendimento, 'number', 'required min="0.00001" step="0.00001"')}${input('Validade do produto', 'validade', p?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}</div><section class="formula-editor"><div class="section-heading"><div><h3>Ingredientes</h3><p class="muted small">Adicione, remova e informe cada quantidade com até 5 casas decimais.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${containsEditor(f, p?.contemItens, p?.contem)}${packagingEditor(f.apresentacaoRascunho || p)}${textarea('Justificativa da revisão', 'justificativa', f.observacoes || '', true)}`,
+        `<div class="form-grid">${input('Rendimento (kg)', 'rendimento', f.rendimento, 'number', 'required min="0.00001" step="0.00001"')}${input('Validade do produto', 'validade', p?.validade || '', 'text', 'placeholder="Ex.: 12 meses"')}</div><section class="formula-editor"><div class="section-heading"><div><h3>Ingredientes</h3><p class="muted small">Adicione, remova e informe cada quantidade com até 5 casas decimais.</p></div>${btn('+ Adicionar ingrediente', 'addFormulaIngredient')}</div><div id="formulaIngredientRows"></div><div id="formulaBalance"></div></section>${containsEditor(f, p?.contemItens, p?.contem)}${packagingEditor(f.apresentacaoRascunho || p)}${budgetEditor(f.apresentacaoRascunho || p)}${textarea('Justificativa da revisão', 'justificativa', f.observacoes || '', true)}`,
       d =>
         commit(a, {
           id,
@@ -1091,12 +1125,12 @@ function openAction(a, id, productContext = null) {
       notice(
         'Os campos abaixo começam com os parâmetros padrão da empresa e podem ser ajustados e salvos somente para este produto.'
       ) +
-        `<section class="product-pricing-card"><div class="section-heading"><div><span class="eyebrow">Parâmetros deste produto</span><h3>Formação de preço</h3></div></div><div class="form-grid">${select(
+        `<section class="budget-editor"><h3>Embalagem e volumes</h3><p class="muted small">${esc(p.embalagem || 'Apresentação atual')} · ${qty(p.pesoKg)} kg por embalagem. O custo por kg abaixo pode ser ajustado nesta formação de preço.</p><div class="form-grid">${input('Embalagem (R$/kg)', 'embalagemCentavosKg', defaults.embalagemCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Tipo de volume', 'volumeTipo', p.volumeTipo || 'Pacote', 'text', 'required')}${input('Unidades por volume', 'unidadesPorVolume', p.unidadesPorVolume || 1, 'number', 'required min="1" step="1"')}${input('Limite máximo por volume', 'limiteUnidadesPorVolume', p.limiteUnidadesPorVolume || 1, 'number', 'required min="1" step="1"')}</div></section><section class="product-pricing-card"><div class="section-heading"><div><span class="eyebrow">Parâmetros deste produto</span><h3>Formação de preço</h3></div></div><div class="form-grid">${select(
           'Lucratividade / markup (%)',
           'margem',
           scenarios.map(value => [value, `${value}%`]),
           p.precificacao?.margemPercentual ?? settings.margemPadrao ?? 60
-        )}${input('Embalagem (R$/kg)', 'embalagemCentavosKg', defaults.embalagemCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Financeiro (R$/kg)', 'financeiroCentavosKg', profile.financeiroCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Mão de obra (R$/kg)', 'maoDeObraCentavosKg', profile.maoDeObraCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Outros custos (R$/kg)', 'outrosCustosCentavosKg', profile.outrosCustosCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Nota fiscal / impostos (%)', 'notaFiscal', chargeValue('Nota fiscal'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão técnica (%)', 'comissaoTecnica', chargeValue('Comissão técnica'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão comercial (%)', 'comissaoComercial', chargeValue('Comissão comercial'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão extra cliente (%)', 'comissaoExtra', chargeValue('Comissão extra cliente'), 'number', 'required min="0" max="100" step="0.01"')}${input('Preço comercial aprovado (R$/kg)', 'precoVendaKg', p.precoVendaKgCentavos ? p.precoVendaKgCentavos / 100 : '', 'number', 'min="0" step="0.0001"')}${input('Tipo de volume', 'volumeTipo', p.volumeTipo || 'Pacote', 'text', 'required')}${input('Unidades por volume', 'unidadesPorVolume', p.unidadesPorVolume || 1, 'number', 'required min="1" step="1"')}${input('Limite máximo por volume', 'limiteUnidadesPorVolume', p.limiteUnidadesPorVolume || 1, 'number', 'required min="1" step="1"')}${textarea('Motivo do ajuste manual', 'motivoAjuste', '')}</div></section><div id="priceResult"></div>` +
+        )}${input('Financeiro (R$/kg)', 'financeiroCentavosKg', profile.financeiroCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Mão de obra (R$/kg)', 'maoDeObraCentavosKg', profile.maoDeObraCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Outros custos (R$/kg)', 'outrosCustosCentavosKg', profile.outrosCustosCentavosKg / 100, 'number', 'required min="0" step="0.0001"')}${input('Nota fiscal / impostos (%)', 'notaFiscal', chargeValue('Nota fiscal'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão técnica (%)', 'comissaoTecnica', chargeValue('Comissão técnica'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão comercial (%)', 'comissaoComercial', chargeValue('Comissão comercial'), 'number', 'required min="0" max="100" step="0.01"')}${input('Comissão extra cliente (%)', 'comissaoExtra', chargeValue('Comissão extra cliente'), 'number', 'required min="0" max="100" step="0.01"')}${input('Preço comercial aprovado (R$/kg)', 'precoVendaKg', p.precoVendaKgCentavos ? p.precoVendaKgCentavos / 100 : '', 'number', 'min="0" step="0.0001"')}${textarea('Motivo do ajuste manual', 'motivoAjuste', '')}</div></section><section class="budget-editor product-budget"><h3>Orçamento do produto</h3><p class="muted small">Composição completa do preço. Passe o mouse ou clique em ? para consultar os cálculos.</p><div id="priceResult" aria-live="polite"></div></section>` +
         notice(
           'A configuração define quantas unidades formam um volume e o limite máximo permitido. A nova liberação vale somente para pedidos criados ou revisados depois; histórico dos pedidos existentes não muda.'
         ),
@@ -1498,13 +1532,10 @@ function updatePrice() {
       }
     }
     const sim = D.priceSimulation(state, current, el.value)
-    $('#priceResult').innerHTML = fields([
-      ['Custo primário', `${money(sim.custoPrimarioCentavos)}/kg`],
-      ['Lucro aplicado', `${money(sim.valorLucroCentavos)}/kg`],
-      ['Base com lucro', `${money(sim.baseComLucroCentavos)}/kg`],
-      ['Encargos sobre venda', `${sim.encargosPercentual.toFixed(2)}%`],
-      ['Preço calculado', `${money(sim.precoKgCentavos)}/kg`]
-    ])
+    $('#priceResult').innerHTML = budgetOverview(sim, current, find(state.formulas, current.formulaId), {
+      manualPackaging:true, packagingCost:value('embalagemCentavosKg') * 100 * current.pesoKg,
+      approved:$('[name="precoVendaKg"]')?.value ?? ''
+    })
   } catch (e) {
     $('#priceResult').innerHTML = notice(esc(e.message), 'warn')
   }
@@ -1576,12 +1607,40 @@ function openTableRecord(row) {
     esc(headers[index]?.textContent || `Campo ${index + 1}`), esc(cell.textContent.trim()) || '—'
   ])))
 }
+function closeCalculationHelp() {
+  document.querySelectorAll('.calculation-help').forEach(help => {
+    help.classList.remove('is-open')
+    help.classList.add('is-dismissed')
+    help.querySelector('button').setAttribute('aria-expanded', 'false')
+  })
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.querySelector('.calculation-help.is-open, .calculation-help:focus-within')) {
+    e.preventDefault(); e.stopImmediatePropagation(); closeCalculationHelp()
+  }
+}, true)
+document.addEventListener('pointerover', e => {
+  e.target.closest('.calculation-help')?.classList.remove('is-dismissed')
+})
+document.addEventListener('focusin', e => {
+  e.target.closest('.calculation-help')?.classList.remove('is-dismissed')
+})
 document.addEventListener('keydown', e => {
   if (!['Enter', ' '].includes(e.key) || !e.target.matches('tr[data-table-row]')) return
   e.preventDefault()
   try { openTableRecord(e.target) } catch (error) { toast(error.message) }
 })
 document.addEventListener('click', e => {
+  const helpButton = e.target.closest('[data-calculation-help]')
+  if (helpButton) {
+    const help = helpButton.closest('.calculation-help'), open = !help.classList.contains('is-open')
+    closeCalculationHelp()
+    help.classList.toggle('is-open', open)
+    help.classList.toggle('is-dismissed', !open)
+    helpButton.setAttribute('aria-expanded', String(open))
+    return
+  }
+  if (!e.target.closest('.calculation-help')) closeCalculationHelp()
   const record = e.target.closest('tr[data-table-row]')
   if (record && user && !e.target.closest('button,a,input,select,textarea,label,summary,[contenteditable]')) {
     if (window.getSelection()?.toString()) return
@@ -1731,7 +1790,8 @@ document.addEventListener('input', e => {
       'financeiroCentavosKg',
       'maoDeObraCentavosKg',
       'outrosCustosCentavosKg',
-      'embalagemCentavosKg'
+      'embalagemCentavosKg',
+      'precoVendaKg'
     ].includes(e.target.name)
   )
     updatePrice()

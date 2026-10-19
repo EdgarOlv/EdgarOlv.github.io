@@ -162,6 +162,7 @@ const actionNames = {
   receiveLot: 'Recebimento',
   receivePackagingLot: 'Recebimento de embalagem',
   saveIngredientGroup: 'Grupo de ingredientes salvo',
+  saveLabelCategory: 'Categoria de rotulagem salva',
   adjustLot: 'Ajuste de estoque',
   saveSupplier: 'Fornecedor salvo',
   saveIngredient: 'Ingrediente salvo',

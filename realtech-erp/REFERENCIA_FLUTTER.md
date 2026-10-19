@@ -148,3 +148,12 @@ Referência: docs/decisoes/2026-10-09-fornecedores-login.md. Cadastro Flutter ex
 
 ## v18 — contrato adicional
 Ver [recebimentos/P&D/embalagens](docs/decisoes/2026-10-15-pd-recebimentos-embalagens.md): último custo projetado separado do custo do lote, L→kg por peso manual, grupos, fornecedor ampliado, medida livre e consumo UN por apontamento. Portar por etapas, com transação, decimal exato e testes do contrato; nenhuma migração física nesta entrega.
+
+## v19 — orçamento explicável
+RN-PD-008: [contrato](docs/decisoes/2026-10-19-orcamento-calculos.md). Separar blocos de embalagem e orçamento; compartilhar apresentação da memória do caso de uso entre edição de fórmula/formação de preço. Ajuda acessível por hover/foco e clique/toque, sem salvar. Dart não alterado.
+
+## v19.1 — tabela da composição
+RN-PD-009: [cinco colunas e totais](docs/decisoes/2026-10-19-composicao-custos-totais.md). Unitário líquido/kg, produção = quantidade × unitário. Soma dos unitários não representa custo/kg do produto; mostrar separadamente total produção ÷ rendimento. Sem Dart alterado.
+
+## v20 — categorias compartilhadas
+[RN-ING-005/RN-FOR-002](docs/decisoes/2026-10-19-categorias-rotulagem-fornecedores.md): catálogo id/nome/ativo; ingrediente referencia uma categoria e fornecedor várias. Grupos padronizados continuam separados. Preservar IDs/semântica especial e documentos; não duplicar lista fixa nos widgets. Portabilidade/SQL pendentes.

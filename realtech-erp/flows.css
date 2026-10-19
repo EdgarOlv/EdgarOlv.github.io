@@ -295,3 +295,29 @@ tr[data-table-row]:focus-visible { outline: 2px solid #2563eb; outline-offset: -
 #loginHelpDialog { padding: 24px; overflow-y: auto; }
 #loginHelpDialog .dialog-head, #loginHelpDialog .dialog-footer { padding: 0; }
 #loginHelpDialog .dialog-footer { margin-top: 20px; }
+
+/* RN-PD-008: embalagem e orçamento independentes, ajuda por hover/foco/clique. */
+.product-budget { background: #fff; border-color: #b8ccef; }
+.budget-product-summary { display: grid; gap: 6px; padding: 14px; margin: 16px 0; background: #eff6ff; border-radius: 10px; }
+.budget-product-summary span { font-size: .86rem; color: #475569; }
+.product-budget h4 { margin: 22px 0 12px; }
+.product-budget .table-wrap { overflow: visible; }
+.calculation-help { display: inline-block; position: relative; vertical-align: middle; margin-left: 4px; text-transform: none; letter-spacing: normal; }
+.calculation-help-button { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 1px solid #93b4e9; border-radius: 50%; background: #eff6ff; color: #1d4ed8; cursor: help; font: 700 13px/1 system-ui; }
+.calculation-help-button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.calculation-help-panel { display: none; position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: min(330px, 60vw); padding: 13px 15px; background: #17243b; color: white; border-radius: 10px; box-shadow: 0 8px 24px #0f172a33; font: 400 13px/1.65 system-ui; text-align: left; white-space: normal; }
+.calculation-help-panel::before { content: ''; position: absolute; height: 7px; top: -7px; left: 0; right: 0; }
+.calculation-help:hover:not(.is-dismissed) .calculation-help-panel,
+.calculation-help:has(.calculation-help-button:focus-visible):not(.is-dismissed) .calculation-help-panel,
+.calculation-help.is-open .calculation-help-panel { display: block; }
+.product-budget td:nth-last-child(-n+2) .calculation-help-panel { left: auto; right: 0; }
+@media(max-width: 650px) {
+  .product-budget .table-wrap { overflow-x: auto; }
+  .product-budget .calculation-help-panel { position: fixed; top: auto; bottom: 20px; left: 20px !important; right: 20px !important; width: auto; max-height: 45vh; overflow-y: auto; }
+}
+
+.product-detail-costs > section + section { margin-top: 24px; }
+.product-detail-costs .table-totals { font-weight: 700; background: #eff6ff; }
+.composition-cost-note { line-height: 1.6; }
+
+.supplier-label-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-bottom: 20px; }

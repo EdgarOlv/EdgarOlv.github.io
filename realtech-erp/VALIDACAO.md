@@ -130,3 +130,12 @@ Nova suíte tests/pd-receipts.test.cjs cobre custo/créditos/L/kg/grupos/fornece
 - QA no navegador em origem isolada `http://127.0.0.1:8772`, sem alterar origem habitual 8765: entrada de 10 L/8 kg/ICMS18% com custo exibido R$10,25/kg; entrada de 20 UN a R$4,50 com saldo e movimento; criação de grupo; fornecedor com duas categorias/endereço/observação salvo e exibido; medida livre salva e exibida na embalagem. Console sem erros ao fim.
 - Evidência visual: `Prototipo/docs/v18-estoque-embalagens.png` (somente dados sintéticos). Consumo conjunto e parcial validado no teste de domínio, sem afirmar ciclo visual completo ou aceite empresarial.
 - Arquivos operacionais Flutter/Dart/SQL não alterados. Pendências de produção, reserva, parcial e taxonomia permanecem conforme decisão v18.
+
+## v19 — 19/10/2026
+78 testes aprovados e quatro checks de sintaxe JS. Nova suíte budget-ui.test.cjs cobre resumo/separação/origem/ausência de mutação/legado/custo manual/HTML e controles. QA visual dos dois editores e Escape; detalhes e limitações em docs/decisoes/2026-10-19-orcamento-calculos.md.
+
+## v19.1
+79 testes aprovados. Novo caso em budget-ui.test.cjs valida custos e rodapé do detalhe, unidades, nota e ausência de escrita. QA visual em localhost:8773, evidência docs/v19-1-composicao-totais.png.
+
+## v20
+85 testes aprovados, quatro JS com sintaxe aprovada. Nova suíte label-categories.test.cjs cobre compartilhamento, status, migração, IDs, declaração e histórico. QA da criação/seleção/persistência nos dois cadastros e contagem de vínculos em localhost:8773; screenshot docs/v20-fornecedor-categorias.png.

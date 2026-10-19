@@ -1,0 +1,68 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const D = require('../domain.js')
+function harness(state=D.seed()) {let s=state;return {get s(){return s},run(a,p,u='admin'){const r=D.execute(s,D.get(s.usuarios,u),a,p);s=r.state;return r.id}}}
+const ingredient = (id,cat) => ({id,codigo:'ING-NOVO',nome:'Ingrediente teste',categoriaRotulagem:cat,grupoPadronizacao:'01'})
+test('categoria compartilhada aceita cadastro, renomeação estável, auditoria e bloqueia duplicata/perfil',()=>{
+ const h=harness();const id=h.run('saveLabelCategory',{nome:'Categoria nova'})
+ h.run('saveLabelCategory',{id,nome:'Categoria revisada'})
+ assert.equal(D.get(h.s.categoriasRotulagem,id).nome,'Categoria revisada')
+ assert.equal(h.s.auditoria.at(-1).acao,'saveLabelCategory')
+ assert.throws(()=>h.run('saveLabelCategory',{nome:'  CATEGORIA   REVISADA '}),/já cadastrada/)
+ assert.throws(()=>h.run('saveLabelCategory',{nome:'Outra'},'vendedor'),/perfil/)
+ assert.throws(()=>h.run('saveLabelCategory',{nome:' '}),/Nome/)
+})
+test('fornecedor mantém categorias gerais e seleciona as mesmas categorias do ingrediente',()=>{
+ const h=harness(), cat=h.run('saveLabelCategory',{nome:'Especialidades'})
+ const iid=h.run('saveIngredient',ingredient(undefined,cat))
+ const sid=h.run('saveSupplier',{nome:'Fornecedor',categorias:['ingredientes','embalagens'],categoriasRotulagem:[cat,'Acidulantes',cat]})
+ assert.deepEqual(D.get(h.s.fornecedores,sid).categorias,['ingredientes','embalagens'])
+ assert.deepEqual(D.get(h.s.fornecedores,sid).categoriasRotulagem,[cat,'Acidulantes'])
+ h.run('saveLabelCategory',{id:cat,nome:'Especialidades revisadas'})
+ assert.equal(D.get(h.s.ingredientes,iid).categoriaRotulagem,cat)
+ assert.equal(D.get(h.s.ingredientes,iid).categoria,'Especialidades revisadas')
+ assert.equal(D.labelCategoryName(h.s,D.get(h.s.fornecedores,sid).categoriasRotulagem[0]),'Especialidades revisadas')
+ assert.throws(()=>h.run('saveSupplier',{nome:'Inválido',categoriasRotulagem:['inexistente']}),/inválida/)
+})
+test('inativação preserva vínculos mas impede novas seleções em fornecedores e ingredientes',()=>{
+ const h=harness(), cat=h.run('saveLabelCategory',{nome:'Categoria teste'})
+ const iid=h.run('saveIngredient',ingredient(undefined,cat))
+ const sid=h.run('saveSupplier',{nome:'Vinculado',categoriasRotulagem:[cat]})
+ h.run('saveLabelCategory',{id:cat,nome:'Categoria teste',ativo:false})
+ assert.throws(()=>h.run('saveIngredient',{...ingredient(undefined,cat),codigo:'OUTRO'}),/inválida/)
+ assert.throws(()=>h.run('saveSupplier',{nome:'Novo',categoriasRotulagem:[cat]}),/inativa/)
+ h.run('saveIngredient',ingredient(iid,cat))
+ h.run('saveSupplier',{id:sid,nome:'Vinculado revisado',categoriasRotulagem:[cat]})
+ h.run('saveSupplier',{id:sid,nome:'Sem vínculo',categoriasRotulagem:[]})
+ assert.throws(()=>h.run('saveSupplier',{id:sid,nome:'Reassociar',categoriasRotulagem:[cat]}),/inativa/)
+ h.run('saveLabelCategory',{id:cat,nome:'Categoria teste',ativo:true})
+ h.run('saveSupplier',{id:sid,nome:'Reassociado',categoriasRotulagem:[cat]})
+})
+test('migração aditiva cria catálogo sem alterar categorias/vínculos de legado',()=>{
+ const s=D.seed();delete s.categoriasRotulagem
+ s.fornecedores[0].categorias=['embalagens']
+ const ingredients=D.clone(s.ingredientes),suppliers=D.clone(s.fornecedores)
+ const migrated=D.validateState(s)
+ assert.equal(migrated.categoriasRotulagem.length,14)
+ assert.deepEqual(migrated.ingredientes,ingredients);assert.deepEqual(migrated.fornecedores,suppliers)
+ const h=harness(migrated);h.run('saveSupplier',{id:'s1',nome:'Revisado'})
+ assert.deepEqual(D.get(h.s.fornecedores,'s1').categorias,['embalagens'])
+})
+test('renomear aromatizantes/especiarias preserva regra de declaração e históricos',()=>{
+ const h=harness(D.demoSeed()),orders=D.clone(h.s.pedidos),ops=D.clone(h.s.ordens)
+ h.run('saveIngredient',{id:'i1',codigo:'ING-001',nome:'Aroma fechado',categoriaRotulagem:'Aromatizantes',grupoPadronizacao:'01'})
+ h.run('saveIngredient',{id:'i2',codigo:'ING-002',nome:'Especiaria teste',categoriaRotulagem:'Especiarias',grupoPadronizacao:'01'})
+ h.run('saveLabelCategory',{id:'Aromatizantes',nome:'Aromas revisados'})
+ h.run('saveLabelCategory',{id:'Especiarias',nome:'Especiarias revisadas'})
+ const formula={rendimento:100,itens:[{ingredienteId:'i1',quantidade:80},{ingredienteId:'i2',quantidade:20}]}
+ const text=D.ingredientDeclaration(h.s,formula,['i1','i2'])
+ assert.match(text,/Aromas revisados/);assert.doesNotMatch(text,/Aroma fechado|Especiaria teste/)
+ formula.itens[1].quantidade=30
+ assert.match(D.ingredientDeclaration(h.s,formula,['i1','i2']),/Especiarias revisadas \(Especiaria teste\)/)
+ assert.deepEqual(h.s.pedidos,orders);assert.deepEqual(h.s.ordens,ops)
+})
+test('categoria personalizada participa da declaração com seu nome atual',()=>{
+ const h=harness(),cat=h.run('saveLabelCategory',{nome:'Categoria personalizada'}),id=h.run('saveIngredient',ingredient(undefined,cat))
+ const formula={rendimento:1,itens:[{ingredienteId:id,quantidade:1}]}
+ assert.equal(D.ingredientDeclaration(h.s,formula,[id]),'Categoria personalizada (Ingrediente teste)')
+})

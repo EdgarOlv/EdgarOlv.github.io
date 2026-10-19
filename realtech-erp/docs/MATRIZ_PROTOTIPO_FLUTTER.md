@@ -89,3 +89,12 @@ Protótipo: CRUD de fornecedores com inativação, seleção de ativos no recebi
 
 ## Adendo v18 — 15/10/2026
 [Decisão v18](decisoes/2026-10-15-pd-recebimentos-embalagens.md) traz campos, casos de uso, migração e matriz API/banco. Flutter atual sem grupos/custos por recebimento e sem baixa transacional por lote de embalagem. Dart/SQL não alterados.
+
+## 19/10/2026 — RN-PD-008
+Protótipo: seções de embalagem/orçamento independentes, resumo comum e tooltip acionável. Flutter: separar widgets e apresentar memória retornada pelo caso de uso, com hover/foco/clique/toque; não duplicar fórmula de preço na UI. API/banco sem nova mutação/campo nesta entrega. [Detalhes](decisoes/2026-10-19-orcamento-calculos.md).
+
+## v19.1 — RN-PD-009
+[Composição e totais](decisoes/2026-10-19-composicao-custos-totais.md): portar tabela de detalhe de produto e rodapé em Flutter; leitura/projeção dos custos existentes, sem novo campo API/banco ou mudança no motor de preço.
+
+## v20 — RN-ING-005 / RN-FOR-002
+[Catálogo compartilhado](decisoes/2026-10-19-categorias-rotulagem-fornecedores.md): nova entidade lógica de categoria, FK do ingrediente e relação múltipla fornecedor/categoria, mantendo categorias gerais separadas. API valida ativos e preserva vínculo inativo existente; Flutter deve compartilhar fonte por repositório e não repetir listas nas telas. Nenhum Dart/SQL alterado.

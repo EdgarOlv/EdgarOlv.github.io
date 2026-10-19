@@ -1,3 +1,15 @@
+# Versão vigente: v20 — 19/10/2026
+
+Categorias de rotulagem compartilhadas e gerenciáveis em Grupos de ingredientes. [Contrato](docs/decisoes/2026-10-19-categorias-rotulagem-fornecedores.md). 85 testes aprovados. Versões abaixo são históricas.
+
+# Versão vigente: v19.1 — 19/10/2026
+
+Composição com custos unitários/produção e totais por coluna. [Contrato](docs/decisoes/2026-10-19-composicao-custos-totais.md). 79 testes aprovados. Versões abaixo são históricas.
+
+# Versão vigente: v19 — 19/10/2026
+
+Embalagem e orçamento separados, visão geral do produto e ajuda dos cálculos. [Contrato](docs/decisoes/2026-10-19-orcamento-calculos.md). 78 testes aprovados. Versões anteriores abaixo são histórico.
+
 # Atualização vigente: v18 — 15/10/2026
 
 Recebimentos, grupos, fornecedores e estoque de embalagens. [Contrato e roteiro](docs/decisoes/2026-10-15-pd-recebimentos-embalagens.md). Usar `node --test tests/*.test.cjs`. A descrição v17 abaixo é histórica.

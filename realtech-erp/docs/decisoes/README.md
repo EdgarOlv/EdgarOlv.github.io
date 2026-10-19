@@ -54,3 +54,9 @@ O modelo completo de registro está em [`COMO_REGISTRAR_MUDANCAS.md`](../COMO_RE
 - [09/10/2026 — Fornecedores e login](2026-10-09-fornecedores-login.md): RN-FOR-001 / RN-UX-003.
 
 - [15/10/2026 — P&D, recebimentos e estoque de embalagens](2026-10-15-pd-recebimentos-embalagens.md): RN-EST-008, RN-ING-004, RN-EMB-003/004, RN-FOR-002.
+
+- [19/10/2026 — Orçamento completo e cálculos explicados](2026-10-19-orcamento-calculos.md): RN-PD-008; seções separadas e memória de cálculo.
+
+- [19/10/2026 — Custos e totais na composição](2026-10-19-composicao-custos-totais.md): RN-PD-009, v19.1.
+
+- [19/10/2026 — Categorias de rotulagem compartilhadas](2026-10-19-categorias-rotulagem-fornecedores.md): RN-ING-005/RN-FOR-002, v20.

@@ -70,7 +70,14 @@
     inadimplente: 'Inadimplente'
   }
   const releases = [
-    {version:'v18',date:'2026-10-15',current:true,title:'P&D, recebimentos e estoque de embalagens',summary:'Créditos ICMS/IPI, custo do último recebimento, grupos editáveis e fornecedores ampliados.',changes:[
+    {version:'v20',date:'2026-10-19',current:true,title:'Categorias de rotulagem compartilhadas',summary:'Segunda tabela em Grupos de ingredientes e seleção das mesmas categorias nos fornecedores.',changes:[
+      {area:'Ingredientes',title:'Cadastro de categorias de rotulagem',description:'Criar, editar e inativar; IDs estáveis preservam vínculos e regras especiais da declaração.',rules:['RN-ING-005'],status:'Solicitação confirmada; apresentação demonstrada',route:'gruposIngredientes'},
+      {area:'Fornecedores',title:'Categorias compartilhadas',description:'Mantém Ingredientes/Embalagens e acrescenta as categorias de rotulagem do mesmo cadastro dos ingredientes.',rules:['RN-FOR-002','RN-ING-005'],status:'Confirmada; categorias descritivas',route:'fornecedores'}]},
+    {version:'v19.1',date:'2026-10-19',current:false,title:'Orçamento completo e cálculos explicados',summary:'Embalagem separada do orçamento, memória de cálculo e tabela da fórmula com custos unitários, produção e totais.',changes:[
+      {area:'P&D',title:'Composição com totais',description:'Custo unitário líquido por ingrediente e custo de produção da fórmula, com soma de cada coluna numérica.',rules:['RN-PD-009'],status:'Solicitação confirmada; apresentação demonstrada',route:'formulas'},
+      {area:'P&D',title:'Embalagem e orçamento independentes',description:'Visão geral dos custos, créditos na compra, markup, encargos e preços com ajudas por mouse, clique e teclado.',rules:['RN-PD-008','RN-PD-007','RN-EST-008'],status:'Solicitação confirmada; apresentação demonstrada',route:'formulas'}]},
+    {version:'v19',date:'2026-10-19',current:false,title:'Orçamento completo e cálculos explicados',summary:'Embalagem separada do orçamento e memória de cálculo por ingrediente e preço.',changes:[{area:'P&D',title:'Orçamento explicável',description:'Resumo comum dos custos com ajudas matemáticas por mouse, teclado e clique.',rules:['RN-PD-008'],status:'Solicitação confirmada; apresentação demonstrada',route:'formulas'}]},
+    {version:'v18',date:'2026-10-15',current:false,title:'P&D, recebimentos e estoque de embalagens',summary:'Créditos ICMS/IPI, custo do último recebimento, grupos editáveis e fornecedores ampliados.',changes:[
       {area:'Estoque',title:'Custos e unidades',description:'KG/L, peso manual, créditos selecionáveis e custo líquido por lote.',rules:['RN-EST-008'],status:'Confirmada; detalhes demonstrados',route:'estoque'},
       {area:'P&D',title:'Grupos de ingredientes',description:'Cadastro, edição e inativação de grupos.',rules:['RN-ING-004'],status:'Confirmada',route:'gruposIngredientes'},
       {area:'Embalagens',title:'Estoque por lote',description:'Recebimento, ajuste e consumo conjunto na produção; medida livre no catálogo.',rules:['RN-EMB-003','RN-EMB-004'],status:'Solicitação confirmada; consumo parcial demonstrado',route:'estoqueEmbalagens'},
@@ -606,6 +613,7 @@
     receiveLot: ['estoque'],
     receivePackagingLot: ['estoque'],
     saveIngredientGroup: ['estoque', 'pd'],
+    saveLabelCategory: ['estoque', 'pd'],
     adjustLot: ['estoque'],
     saveSupplier: ['estoque', 'pd'],
     saveIngredient: ['estoque', 'pd'],
@@ -1139,6 +1147,7 @@
       formulas,
       embalagens: packagingSeed(),
       gruposIngredientes: ingredientGroupSeed(),
+      categoriasRotulagem: labelCategorySeed(),
       fornecedores: [
         { id: 's1', nome: 'Fornecedor Alfa — demonstração' },
         { id: 's2', nome: 'Fornecedor Beta — demonstração' }
@@ -1454,6 +1463,13 @@
     ...Object.keys(functionalCategoryLabels),
     'Outros'
   ]
+  function labelCategorySeed() {
+    // IDs legados continuam estáveis mesmo quando o nome exibido for editado.
+    return allowedLabelCategories.map(nome => ({id: nome, nome, ativo: true}))
+  }
+  function labelCategoryName(s, id) {
+    return s.categoriasRotulagem?.find(c => c.id === id)?.nome || id || 'Outros'
+  }
   const legacyLabelCategories = {
     Acidulante: 'Acidulantes',
     Antioxidante: 'Antioxidantes',
@@ -1507,7 +1523,7 @@
       }))
       .sort((a, b) => b.total - a.total)
       .map(group => {
-        const label = functionalCategoryLabels[group.category] || group.category
+        const label = labelCategoryName(s, group.category)
         if (group.category === 'Aromatizantes') return label
         if (group.category === 'Especiarias') {
           const groupPercent = (group.total / formula.rendimento) * 100
@@ -2421,6 +2437,19 @@
         }
         break
       }
+      case 'saveLabelCategory': {
+        const old = payload.id ? get(s.categoriasRotulagem, payload.id) : null
+        const nome = text(payload.nome, 'Nome da categoria de rotulagem')
+        const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim()
+        requireThat(!s.categoriasRotulagem.some(c => c.id !== old?.id && normalize(c.nome) === normalize(nome)), 'Categoria de rotulagem já cadastrada.')
+        before = old ? clone(old) : null
+        target = old || {id: uid()}
+        Object.assign(target, {nome, ativo: payload.ativo !== false})
+        if (!old) s.categoriasRotulagem.push(target)
+        // Só atualiza o nome do cadastro atual; documentos/snapshots não são reescritos.
+        s.ingredientes.filter(i => i.categoriaRotulagem === target.id).forEach(i => {i.categoria = nome})
+        break
+      }
       case 'saveIngredientGroup': {
         const old = payload.id ? get(s.gruposIngredientes, payload.id) : null
         const code = old?.id || text(payload.codigo, 'Código do grupo')
@@ -2488,7 +2517,9 @@
         target = old || { id: uid() }
         const categorias = payload.categorias ?? old?.categorias ?? []
         requireThat(Array.isArray(categorias) && categorias.every(c => ['ingredientes', 'embalagens'].includes(c)), 'Categorias inválidas.')
-        Object.assign(target, { endereco: text(payload.endereco ?? old?.endereco ?? '', 'Endereço', false), observacao: text(payload.observacao ?? old?.observacao ?? '', 'Observação', false), categorias, nome, documento, contato: text(payload.contato, 'Contato', false), ativo: payload.ativo !== false })
+        const categoriasRotulagem = payload.categoriasRotulagem ?? old?.categoriasRotulagem ?? []
+        requireThat(Array.isArray(categoriasRotulagem) && categoriasRotulagem.every(id => s.categoriasRotulagem.some(c => c.id === id && (c.ativo || old?.categoriasRotulagem?.includes(id)))), 'Categoria de rotulagem inválida ou inativa.')
+        Object.assign(target, { categoriasRotulagem: [...new Set(categoriasRotulagem)], endereco: text(payload.endereco ?? old?.endereco ?? '', 'Endereço', false), observacao: text(payload.observacao ?? old?.observacao ?? '', 'Observação', false), categorias, nome, documento, contato: text(payload.contato, 'Contato', false), ativo: payload.ativo !== false })
         if (!old) s.fornecedores.push(target)
         break
       }
@@ -2520,10 +2551,10 @@
           legacyLabelCategories[target.categoriaRotulagem] ||
           target.categoriaRotulagem
         requireThat(
-          allowedLabelCategories.includes(target.categoriaRotulagem),
+          s.categoriasRotulagem.some(c => c.id === target.categoriaRotulagem && (c.ativo || before?.categoriaRotulagem === c.id)),
           'Categoria de rotulagem inválida.'
         )
-        target.categoria = target.categoriaRotulagem
+        target.categoria = labelCategoryName(s, target.categoriaRotulagem)
         target.grupoPadronizacao = text(
           payload.grupoPadronizacao || '01',
           'Grupo padronizado'
@@ -3231,6 +3262,7 @@
       'auditoria'
     ])
       requireThat(Array.isArray(s[key]), 'Arquivo de demonstração incompleto.')
+    if (!Array.isArray(s.categoriasRotulagem)) s.categoriasRotulagem = labelCategorySeed()
     if (!Array.isArray(s.gruposIngredientes)) s.gruposIngredientes = ingredientGroupSeed()
     if (!Array.isArray(s.embalagens)) s.embalagens = packagingSeed()
     // A correção das medidas não invalida pedidos ou textos já editados no navegador.
@@ -3289,6 +3321,7 @@
     formulaCost,
     containsText,
     ingredientDeclaration,
+    labelCategoryName,
     pricingProfile,
     priceSimulation,
     priceScenarios,

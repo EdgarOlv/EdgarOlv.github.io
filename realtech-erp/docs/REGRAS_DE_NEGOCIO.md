@@ -119,3 +119,12 @@ RN-FOR-001: cadastro alimenta recebimento (solicitação confirmada; campos/stat
 
 ## 15/10/2026 — v18
 RN-EST-008: unidades KG/L, créditos ICMS/IPI e último custo; RN-ING-004: grupos editáveis; RN-EMB-003: medida livre; RN-FOR-002: CNPJ/endereço/observação/categorias; RN-EMB-004: estoque e consumo de embalagens. Solicitações e custo/peso confirmados; FEFO, parcial cumulativa e categorias demonstrados. [Decisão v18](decisoes/2026-10-15-pd-recebimentos-embalagens.md).
+
+## 19/10/2026 — v19
+**RN-PD-008:** separar embalagem/orçamento e explicar cálculos no ? (hover, foco, clique). Orçamento completo usa resultados do cálculo existente; créditos na compra e encargos sobre venda são distintos. Solicitação confirmada, apresentação demonstrada. [Aceite e impacto](decisoes/2026-10-19-orcamento-calculos.md).
+
+## 19/10/2026 — v19.1
+**RN-PD-009:** composição no detalhe com custo unitário líquido/kg e custo de produção (quantidade × unitário), somas em rodapé. Soma unitária identificada como soma aritmética, separada do custo/kg da mistura. [Aceite e impacto](decisoes/2026-10-19-composicao-custos-totais.md).
+
+## 19/10/2026 — v20
+**RN-ING-005:** catálogo compartilhado de categorias de rotulagem, segunda tabela em grupos; IDs estáveis, criar/editar/inativar. **RN-FOR-002 ampliada/esclarecida:** manter Ingredientes/Embalagens e selecionar também várias categorias do mesmo catálogo do ingrediente. [Contrato e aceite](decisoes/2026-10-19-categorias-rotulagem-fornecedores.md).

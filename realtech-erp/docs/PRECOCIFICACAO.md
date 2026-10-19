@@ -161,3 +161,9 @@ A implementação foi desenhada para refletir esse fluxo sem exigir toda a compl
 
 ## Custo de ingrediente — 15/10/2026
 RN-EST-008 substitui custo cadastral estático após novo recebimento: usa último custo líquido (créditos marcados), convertido de L para kg pelo peso total manual. Consumo histórico usa custo do lote. Ver decisão v18.
+
+## 19/10/2026 — orçamento explicável
+RN-PD-008: embalagem separada do orçamento, resumo compartilhado de composição/custos/preços e ajuda matemática por hover/foco/clique. Motor e arredondamentos mantidos; origem dos créditos explicada sem reaplicar desconto sobre líquido. [Contrato e aceite](decisoes/2026-10-19-orcamento-calculos.md).
+
+## v19.1 — composição no detalhe
+RN-PD-009: custo unitário líquido do ingrediente por kg e custo de produção da fórmula (quantidade × unitário), com totais. Soma unitária é apenas aritmética; custo/kg da mistura = total produção ÷ rendimento. Não altera formação do preço.
