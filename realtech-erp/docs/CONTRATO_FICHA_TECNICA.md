@@ -1,3 +1,7 @@
+## Contrato vigente de 22/10/2026
+
+A ficha editável por produto está em [decisão v21](decisoes/2026-10-22-ficha-tecnica-qualidade.md). RN-FT-001/002 confirmadas; RN-FT-003 demonstrada. O texto abaixo documenta a ficha legada por pedido/lote, ainda sem integração com novas revisões.
+
 # Contrato funcional — Ficha Técnica
 
 **Status:** demonstrado; conteúdo oficial pendente de homologação da Qualidade.

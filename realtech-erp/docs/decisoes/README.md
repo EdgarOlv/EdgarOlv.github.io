@@ -60,3 +60,16 @@ O modelo completo de registro está em [`COMO_REGISTRAR_MUDANCAS.md`](../COMO_RE
 - [19/10/2026 — Custos e totais na composição](2026-10-19-composicao-custos-totais.md): RN-PD-009, v19.1.
 
 - [19/10/2026 — Categorias de rotulagem compartilhadas](2026-10-19-categorias-rotulagem-fornecedores.md): RN-ING-005/RN-FOR-002, v20.
+
+
+## 22/10/2026 — Ficha técnica v21
+
+[22/10/2026 — Ficha técnica editável pela Qualidade](2026-10-22-ficha-tecnica-qualidade.md): RN-FT-001/002/003, aceite e impacto Flutter/API/banco.
+
+- [22/10/2026 — P&D ingredientes únicos, RN-PD-010, mesma v21](2026-10-22-pd-ingredientes-unicos.md).
+
+- [22/10/2026 — Recebimentos, compra/custo e fornecedores v22](2026-10-22-recebimentos-precos-fornecedores.md).
+
+- [22/10/2026 — Demonstração integrada v23](2026-10-22-demonstracao-integrada.md).
+
+- [22/10/2026 — Quatro cenários e guia completo v24](2026-10-22-quatro-cenarios-apresentacao.md).

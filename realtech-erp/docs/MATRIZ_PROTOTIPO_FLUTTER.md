@@ -98,3 +98,34 @@ Protótipo: seções de embalagem/orçamento independentes, resumo comum e toolt
 
 ## v20 — RN-ING-005 / RN-FOR-002
 [Catálogo compartilhado](decisoes/2026-10-19-categorias-rotulagem-fornecedores.md): nova entidade lógica de categoria, FK do ingrediente e relação múltipla fornecedor/categoria, mantendo categorias gerais separadas. API valida ativos e preserva vínculo inativo existente; Flutter deve compartilhar fonte por repositório e não repetir listas nas telas. Nenhum Dart/SQL alterado.
+
+
+## 22/10/2026 — Ficha técnica v21
+
+Ficha técnica por produto: RN-FT-001/002 confirmadas e 003 demonstrada. Flutter/API/banco: cabeçalho/linhas/revisões, repositório/casos de uso, projeção pública, ViewModel/editor e PDF. [Matriz detalhada e aceite](decisoes/2026-10-22-ficha-tecnica-qualidade.md). Dart/SQL não alterados; integração com pedido/lote pendente.
+
+
+## Ajuste P&D na v21 — ingrediente único durante a edição
+
+RN-PD-010 (confirmada por Edgar em 22/10/2026): impedir ingrediente duplicado já na seleção da composição, tanto em novo produto quanto em criação/edição de fórmula. Não esperar o salvamento final.
+
+Correção: cada seletor mantém sua escolha atual e desabilita ingredientes usados nas outras linhas, identificando-os como já incluídos. Adicionar também rejeita ID repetido; trocar a seleção atualiza todas as opções; remover libera a opção novamente. Seleção duplicada recebida por evento é revertida imediatamente com aviso para editar a quantidade existente. Quantidades, filtro de estoque e validação final do domínio permanecem.
+
+Aceite: selecionar A na primeira linha e conferir A desabilitado nas outras; trocar A por C e conferir A disponível; remover uma linha e conferir liberação; adicionar até esgotar opções sem repetir; salvar segue a validação de integridade existente. Cobertura em tests/formula-choices.test.cjs (seleção/troca/remoção/reversão e estoque). 92 testes passam; sintaxe JS aprovada. QA visual pendente. Não há nova regra comercial ou cálculo: correção preventiva de uma duplicidade já rejeitada pelo domínio.
+
+Impacto Flutter/API/banco: na etapa de telas, derivar opções disponíveis dos IDs selecionados no ViewModel e atualizar ao adicionar/trocar/remover; manter validação de unicidade no caso de uso/API e futura restrição composta (revisão da fórmula, ingrediente). Não remover opção atual ao reconstruir formulário. Sem novo campo, DDL ou Dart nesta entrega. Próximo cenário: demonstrar duas linhas e troca/remoção para P&D; não há pendência funcional para este bloqueio.
+
+
+## 22/10/2026 — Recebimentos e fornecedores v22
+
+RN-EMB-005/EST-009/FOR-003: [matriz dados/casos de uso/API/banco/UI](decisoes/2026-10-22-recebimentos-precos-fornecedores.md). Manter CNPJ string alfanumérica e preço bruto por lote/unidade de origem; preservar legado sem inferências. Dart/SQL sem alteração.
+
+
+## 22/10/2026 — v23 apresentação integrada
+
+RN-DEMO-002: um pedido de 100 kg/R$1.100, 20 baldes/2 caixas, 2 fornecedores, recebimentos, OP, ficha, lote aprovado, despacho e duas parcelas de R$550 (uma paga). 100 testes aprovados; chave local nova preserva a anterior e o modo vazio. Contrato, aceite, migração e impacto Flutter em [decisão v23](decisoes/2026-10-22-demonstracao-integrada.md). Guia atualizado; QA visual pendente. Sem mudanças Dart/SQL/backend. E1/E2/E3 continuam não iniciadas.
+
+
+## 22/10/2026 — v24 quatro cenários
+
+RN-DEMO-002 corrigida por solicitação de Edgar: quatro pedidos em rascunho, análise, produção parcial e despacho; duas OPs iniciais; guia completo com links e ações ponta a ponta. [Contrato, aceite e impacto Flutter](decisoes/2026-10-22-quatro-cenarios-apresentacao.md). 102 testes passam, inclusive concluir os quatro em sequência, sem faltar estoque. Nova chave local preserva bases antigas. QA visual pendente; E1/E2/E3 e Dart/SQL/backend sem execução.

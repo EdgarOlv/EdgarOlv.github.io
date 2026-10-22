@@ -70,7 +70,17 @@
     inadimplente: 'Inadimplente'
   }
   const releases = [
-    {version:'v20',date:'2026-10-19',current:true,title:'Categorias de rotulagem compartilhadas',summary:'Segunda tabela em Grupos de ingredientes e seleção das mesmas categorias nos fornecedores.',changes:[
+    {version:'v24',date:'2026-10-22',current:true,title:'Quatro cenários para apresentação',summary:'Rascunho, análise, produção parcial e despacho com guia de ponta a ponta.',changes:[
+      {area:'Demonstração',title:'Volume moderado e roteiros completos',description:'Quatro pedidos, duas OPs e saldos suficientes para concluir os cenários.',rules:['RN-DEMO-002'],status:'Solicitação confirmada; roteiros demonstrados',route:'guia'}]},
+    {version:'v23',date:'2026-10-22',current:false,title:'Demonstração integrada e enxuta',summary:'Um pedido conectado aos cadastros, recebimentos, produção, Qualidade, financeiro e despacho.',changes:[
+      {area:'Demonstração',title:'Um fluxo completo',description:'100 kg, 20 baldes, duas parcelas; dados sintéticos coerentes, sem cenários paralelos na apresentação.',rules:['RN-DEMO-002'],status:'Apresentação demonstrada',route:'guia'}]},
+    {version:'v22',date:'2026-10-22',current:false,title:'Recebimentos e fornecedores',summary:'Embalagem por código, preço de compra e custo separados e fornecedor com CNPJ validado.',changes:[
+      {area:'Estoque',title:'Código e preços do recebimento',description:'Nome/apresentação da embalagem vêm do cadastro; compra e custo separados em lotes e saldos.',rules:['RN-EMB-005','RN-EST-009'],status:'Confirmada; apresentação demonstrada',route:'estoqueEmbalagens'},
+      {area:'Fornecedores',title:'CNPJ obrigatório e endereço estruturado',description:'Formato e DV, unicidade, IE opcional, bairro/cidade/UF/CEP separados.',rules:['RN-FOR-003'],status:'Confirmada; apresentação demonstrada',route:'fornecedores'}]},
+    {version:'v21',date:'2026-10-22',current:false,title:'Ficha técnica editável pela Qualidade',summary:'Documento do produto com percentuais públicos independentes da fórmula do P&D.',changes:[
+      {area:'P&D',title:'Bloqueio antecipado de ingrediente repetido',description:'Seletores da composição impedem duplicidade e liberam opções após troca ou remoção.',rules:['RN-PD-010'],status:'Confirmada; correção de interface',route:'formulas'},
+      {area:'Qualidade',title:'Ficha por produto',description:'Pré-preenchimento, faixas livres, revisões e prévia para impressão; fórmula de produção preservada.',rules:['RN-FT-001','RN-FT-002','RN-FT-003'],status:'Edição confirmada; aprovação e layout demonstrados',route:'qualidade'}]},
+    {version:'v20',date:'2026-10-19',current:false,title:'Categorias de rotulagem compartilhadas',summary:'Segunda tabela em Grupos de ingredientes e seleção das mesmas categorias nos fornecedores.',changes:[
       {area:'Ingredientes',title:'Cadastro de categorias de rotulagem',description:'Criar, editar e inativar; IDs estáveis preservam vínculos e regras especiais da declaração.',rules:['RN-ING-005'],status:'Solicitação confirmada; apresentação demonstrada',route:'gruposIngredientes'},
       {area:'Fornecedores',title:'Categorias compartilhadas',description:'Mantém Ingredientes/Embalagens e acrescenta as categorias de rotulagem do mesmo cadastro dos ingredientes.',rules:['RN-FOR-002','RN-ING-005'],status:'Confirmada; categorias descritivas',route:'fornecedores'}]},
     {version:'v19.1',date:'2026-10-19',current:false,title:'Orçamento completo e cálculos explicados',summary:'Embalagem separada do orçamento, memória de cálculo e tabela da fórmula com custos unitários, produção e totais.',changes:[
@@ -607,6 +617,8 @@
     startOp: ['producao', 'qualidade'],
     reportProduction: ['producao', 'qualidade'],
     inspect: ['qualidade'],
+    saveProductSheet: ['qualidade'],
+    approveProductSheet: ['qualidade'],
     bill: ['fiscal'],
     dispatch: ['fiscal', 'qualidade'],
     confirmDelivery: ['fiscal', 'qualidade'],
@@ -1015,6 +1027,12 @@
     requireThat(credito <= 100, 'Soma dos créditos não pode exceder 100%.')
     return {valorUnitarioCentavos, icmsPercentual, ipiPercentual, icmsCreditado, ipiCreditado,
       custoLiquidoCentavos: Math.round(valorUnitarioCentavos * (1 - credito / 100) * 100000) / 100000}
+  }
+  function receiptPrices(lot) {
+    if (!lot) return {compraCentavos:null,custoCentavos:null,unidade:null}
+    const factor = lot.unidadeRecebimento === 'L' ? lot.quantidadeRecebida / lot.pesoLiquidoKg : 1
+    return {compraCentavos:lot.valorUnitarioCentavos == null ? null : lot.valorUnitarioCentavos * factor,
+      custoCentavos:lot.custoCentavos ?? null, unidade:lot.tipo === 'embalagem' ? 'UN' : 'kg'}
   }
   function packagingSeed() {
     return [
@@ -1656,20 +1674,45 @@
       return { margem, precoKgCentavos: sim.precoKgCentavos }
     })
   }
+  function normalizeCnpj(value) {
+    const raw = String(value ?? '').trim().toUpperCase()
+    if (!/^(?:[A-Z0-9]{12}[0-9]{2}|[A-Z0-9]{2}\.[A-Z0-9]{3}\.[A-Z0-9]{3}\/[A-Z0-9]{4}-[0-9]{2})$/.test(raw)) return ''
+    return raw.replace(/[.\/-]/g, '')
+  }
+  function formatCnpj(value) {
+    const n = normalizeCnpj(value)
+    return n ? `${n.slice(0,2)}.${n.slice(2,5)}.${n.slice(5,8)}/${n.slice(8,12)}-${n.slice(12)}` : String(value ?? '')
+  }
   function validCnpj(value) {
-    const n = value.replace(/\D/g, '')
+    const n = normalizeCnpj(value)
     if (n.length !== 14 || /^(\d)\1+$/.test(n)) return false
     for (let len = 12; len < 14; len++) {
       let sum = 0,
         w = len - 7
       for (let i = 0; i < len; i++) {
-        sum += Number(n[i]) * w--
+        sum += (n.charCodeAt(i) - 48) * w--
         if (w < 2) w = 9
       }
       const r = sum % 11
       if (Number(n[len]) !== (r < 2 ? 0 : 11 - r)) return false
     }
     return true
+  }
+  function productSheetDraft(s, produtoId) {
+    const p = get(s.produtos, produtoId), f = get(s.formulas, p.formulaId)
+    requireThat(p && f, 'Produto sem fórmula disponível.')
+    return { produtoId, produtoNome: p.nome, formulaId: f.id, formulaVersao: f.versao,
+      formulaSnapshot: clone(f), tipo: 'fechada', descricao: p.descricaoProduto || '',
+      modoUso: p.modoUso || '', conservacao: p.conservacao || '', embalagem: p.embalagem || '',
+      validade: p.validade || '', alergenicos: [p.alergenicosTexto, p.naoContemGluten ? 'NÃO CONTÉM GLÚTEN.' : ''].filter(Boolean).join(' '),
+      composicao: f.itens.map(i => { const ing = get(s.ingredientes, i.ingredienteId)
+        const percentual = Number((i.quantidade / f.rendimento * 100).toFixed(5))
+        return {ingredienteId: i.ingredienteId, nome: ing.nome + (ing.ins ? ' (INS '+ing.ins+')' : ''), percentualInterno: percentual, percentualExibicao: String(percentual).replace('.', ',')+'%'}
+      }) }
+  }
+  function productSheetStale(s, sheet) {
+    const p = get(s.produtos, sheet.produtoId), f = get(s.formulas, p?.formulaId)
+    return !f || JSON.stringify(f) !== JSON.stringify(sheet.formulaSnapshot)
   }
   function execute(state, user, action, payload = {}) {
     requireThat(
@@ -1734,6 +1777,40 @@
         responsavel: user.nome
       })
     switch (action) {
+      case 'saveProductSheet': {
+        const previous = payload.id ? get(s.fichasTecnicas, payload.id) : null
+        requireThat(!payload.id || (previous && previous.produtoId === payload.produtoId && previous.status === 'rascunho'), 'Somente rascunhos podem ser editados.')
+        const source = payload.sourceId ? get(s.fichasTecnicas, payload.sourceId) : null
+        requireThat(!payload.sourceId || source?.produtoId === payload.produtoId, 'Revisão de origem inválida.')
+        const base = previous || source || productSheetDraft(s, payload.produtoId)
+        requireThat(['aberta','fechada'].includes(payload.tipo), 'Tipo de ficha inválido.')
+        requireThat(String(payload.motivo || '').trim(), 'Informe o motivo da revisão.')
+        requireThat(Array.isArray(payload.composicao) && payload.composicao.length === base.composicao.length, 'Composição incompleta.')
+        const clean = value => String(value ?? '').trim().slice(0,2000)
+        const data = {...clone(base), id: previous?.id || uid(), status:'rascunho',
+          revisao: previous?.revisao || 1 + Math.max(0,...s.fichasTecnicas.filter(f => f.produtoId === payload.produtoId).map(f => f.revisao)),
+          tipo:payload.tipo, motivo:clean(payload.motivo), atualizadoEm:now, autor:user.nome,
+          composicao:base.composicao.map((r,i) => ({...r,nome:clean(payload.composicao[i].nome),percentualExibicao:clean(payload.composicao[i].percentualExibicao)}))}
+        delete data.aprovadoEm; delete data.aprovadoPor
+        requireThat(data.composicao.every(r => r.nome), 'Informe os ingredientes.')
+        for (const key of ['descricao','registro','modoUso','especificacoes','conservacao','transporte','embalagem','alergenicos','nutricao','validade','responsavel']) data[key] = clean(payload[key])
+        if (previous) s.fichasTecnicas[s.fichasTecnicas.indexOf(previous)] = data
+        else s.fichasTecnicas.push(data)
+        audit('fichaTecnica', previous, data); result = data.id
+        break
+      }
+      case 'approveProductSheet': {
+        const sheet = get(s.fichasTecnicas, payload.id)
+        requireThat(sheet?.status === 'rascunho', 'Apenas rascunho pode ser aprovado.')
+        requireThat(!productSheetStale(s, sheet), 'A fórmula mudou. Crie novo rascunho com a fórmula atual.')
+        const old = clone(sheet)
+        for (const f of s.fichasTecnicas.filter(f => f.produtoId === sheet.produtoId && f.status === 'aprovada')) {
+          const prior = clone(f); f.status = 'substituida'; audit('fichaTecnica',prior,f)
+        }
+        sheet.status = 'aprovada'; sheet.aprovadoEm = now; sheet.aprovadoPor = user.nome
+        audit('fichaTecnica',old,sheet); result = sheet.id
+        break
+      }
       case 'prepareLabel': {
         const x = payload.opId ? get(s.ordens, payload.opId) : null
         const o = get(s.pedidos, x?.pedidoId || payload.pedidoId)
@@ -2510,16 +2587,21 @@
       case 'saveSupplier': {
         const old = payload.id ? get(s.fornecedores, payload.id) : null
         const nome = text(payload.nome, 'Nome do fornecedor')
-        const documento = text(payload.cnpj ?? payload.documento, 'CNPJ', false).toUpperCase()
-        const normalized = value => value.replace(/[^A-Z0-9]/g, '')
-        requireThat(!documento || !s.fornecedores.some(f => f.id !== old?.id && normalized((f.documento || '').toUpperCase()) === normalized(documento)), 'Documento já cadastrado.')
+        const rawCnpj = text(payload.cnpj ?? payload.documento ?? old?.documento, 'CNPJ')
+        requireThat(validCnpj(rawCnpj), 'CNPJ inválido: confira o formato e os dígitos verificadores.')
+        const documento = normalizeCnpj(rawCnpj)
+        requireThat(!s.fornecedores.some(f => f.id !== old?.id && normalizeCnpj(f.documento) === documento), 'Documento já cadastrado.')
+        const estado = text(payload.estado ?? old?.estado ?? '', 'Estado', false).toUpperCase()
+        requireThat(!estado || 'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ').includes(estado), 'Estado inválido: selecione uma UF.')
+        const rawCep = text(payload.cep ?? old?.cep ?? '', 'CEP', false)
+        requireThat(!rawCep || /^(?:[0-9]{8}|[0-9]{5}-[0-9]{3})$/.test(rawCep), 'CEP inválido: informe 8 dígitos.')
         before = old ? clone(old) : null
         target = old || { id: uid() }
         const categorias = payload.categorias ?? old?.categorias ?? []
         requireThat(Array.isArray(categorias) && categorias.every(c => ['ingredientes', 'embalagens'].includes(c)), 'Categorias inválidas.')
         const categoriasRotulagem = payload.categoriasRotulagem ?? old?.categoriasRotulagem ?? []
         requireThat(Array.isArray(categoriasRotulagem) && categoriasRotulagem.every(id => s.categoriasRotulagem.some(c => c.id === id && (c.ativo || old?.categoriasRotulagem?.includes(id)))), 'Categoria de rotulagem inválida ou inativa.')
-        Object.assign(target, { categoriasRotulagem: [...new Set(categoriasRotulagem)], endereco: text(payload.endereco ?? old?.endereco ?? '', 'Endereço', false), observacao: text(payload.observacao ?? old?.observacao ?? '', 'Observação', false), categorias, nome, documento, contato: text(payload.contato, 'Contato', false), ativo: payload.ativo !== false })
+        Object.assign(target, { inscricaoEstadual: text(payload.inscricaoEstadual ?? old?.inscricaoEstadual ?? '', 'Inscrição estadual', false), bairro: text(payload.bairro ?? old?.bairro ?? '', 'Bairro', false), cidade: text(payload.cidade ?? old?.cidade ?? '', 'Cidade', false), estado, cep: rawCep.replace('-', ''), categoriasRotulagem: [...new Set(categoriasRotulagem)], endereco: text(payload.endereco ?? old?.endereco ?? '', 'Endereço', false), observacao: text(payload.observacao ?? old?.observacao ?? '', 'Observação', false), categorias, nome, documento, contato: text(payload.contato, 'Contato', false), ativo: payload.ativo !== false })
         if (!old) s.fornecedores.push(target)
         break
       }
@@ -2612,13 +2694,13 @@
         break
       }
       case 'saveClient': {
-        const cnpj = text(payload.cnpj, 'CNPJ').replace(/\D/g, '')
+        const cnpj = normalizeCnpj(text(payload.cnpj, 'CNPJ'))
         requireThat(
           validCnpj(cnpj),
           'CNPJ inválido: confira os dígitos verificadores.'
         )
         requireThat(
-          !s.clientes.some(c => c.cnpj.replace(/\D/g, '') === cnpj),
+          !s.clientes.some(c => normalizeCnpj(c.cnpj) === cnpj),
           'CNPJ já cadastrado.'
         )
         target = {
@@ -3227,6 +3309,84 @@
     s.revision = 0
     return clone(s)
   }
+  function meetingSeed() {
+    let s = seed()
+    s.produtos = [s.produtos[0]]
+    s.formulas = [get(s.formulas, s.produtos[0].formulaId)]
+    const ingredientIds = new Set(s.formulas[0].itens.map(i => i.ingredienteId))
+    s.ingredientes = s.ingredientes.filter(i => ingredientIds.has(i.id))
+    s.embalagens = [get(s.embalagens, 'emb-balde5')]
+    s.clientes = [s.clientes[0]]
+    Object.assign(s.clientes[0], {nomeFantasia:'AlimNorte — demonstração',razaoSocial:'Alimentos do Norte — empresa fictícia',
+      exposicaoInicialCentavos:0,limiteCentavos:1000000,historicoFinanceiro:[],endereco:'Rua Exemplo, 100 — São Carlos/SP (fictício)',
+      contato:'Compras — compras@example.com'})
+    Object.assign(s.produtos[0], {nome:'Condimento demonstração 5 kg',validade:'180 dias',volumeTipo:'Caixa',embalagemId:'emb-balde5',embalagem:'Balde alimentício 5 kg',
+      descricaoProduto:'Mistura sintética para demonstrar o fluxo do ERP. Não utilizar como formulação industrial.'})
+    Object.assign(s.embalagens[0], {medida:'Capacidade nominal 5 kg'})
+    for (const key of ['fornecedores','lotes','pedidos','ordens','recebiveis','movimentacoes','auditoria']) s[key] = []
+    s.fichasTecnicas = []
+    s.seq = {pedido:1000,op:0,lote:0}
+    const run = (action,payload) => {const r=execute(s,get(s.usuarios,'admin'),action,payload);s=r.state;return r.id}
+    const supplier = run('saveSupplier',{nome:'Insumos Alfa — fornecedor fictício',documento:'12345678000195',
+      inscricaoEstadual:'ISENTO',endereco:'Rua Exemplo, 20',bairro:'Distrito Industrial',cidade:'São Carlos',estado:'SP',cep:'13560000',
+      contato:'Compras — insumos@example.com',categorias:['ingredientes'],observacao:'Cadastro sintético de apresentação.'})
+    const packagingSupplier = run('saveSupplier',{nome:'Embalagens Beta — fornecedor fictício',documento:'11222333000181',
+      endereco:'Avenida Exemplo, 40',bairro:'Centro',cidade:'São Carlos',estado:'SP',cep:'13560000',
+      contato:'Vendas — embalagens@example.com',categorias:['embalagens'],observacao:'Cadastro sintético de apresentação.'})
+    const formula = s.formulas[0]
+    for (const [index,item] of formula.itens.entries()) {
+      const ingredient = get(s.ingredientes,item.ingredienteId)
+      run('receiveLot',{ingredienteId:item.ingredienteId,fornecedorId:supplier,codigo:'DEMO-MP-0'+(index+1),
+        quantidade:item.quantidade * 2,unidade:'KG',valorUnitario:ingredient.custoCentavos/100,
+        icmsPercentual:18,icmsCreditado:true,ipiPercentual:0,ipiCreditado:false,fabricacao:today(),validade:day(180)})
+    }
+    run('receivePackagingLot',{embalagemId:'emb-balde5',fornecedorId:packagingSupplier,codigo:'DEMO-EMB-01',quantidade:40,
+      valorUnitario:4.50,icmsPercentual:18,icmsCreditado:true,fabricacao:today(),validade:day(365)})
+    run('releasePrice',{id:'p1',margem:40,precoVendaKg:11,motivoAjuste:'Preço sintético de apresentação: R$11/kg.'})
+    const draft = productSheetDraft(s,'p1')
+    const sheetId = run('saveProductSheet',{...draft,motivo:'Modelo sintético para apresentação do fluxo.',
+      registro:'Demonstração — sem documento regulatório.',especificacoes:'Dados de exemplo, sujeitos à revisão da Qualidade.',
+      transporte:'Veículo fechado — exemplo.',responsavel:'Equipe de Qualidade — demonstração',nutricao:'Não informado — dados demonstrativos.',
+      tipo:'aberta',composicao:draft.composicao.map(row => ({...row,percentualExibicao:''}))})
+    run('approveProductSheet',{id:sheetId})
+    const orderId = run('saveOrder',{clienteId:'c1',modoQuantidade:'KG',itens:[{produtoId:'p1',quantidade:100}],
+      prazoEntrega:day(7),condicoesPagamentoDias:[14,28],condicoesComerciais:'Duas parcelas iguais; frete do destinatário.',
+      observacoes:'Demonstração integrada: 100 kg, 20 baldes de 5 kg, R$ 1.100,00. Produzido, aprovado e despachado; primeira parcela paga, segunda em aberto.'})
+    run('submitOrder',{id:orderId})
+    run('analyze',{id:orderId,decisao:'liberado',justificativa:'Limite disponível — demonstração.'})
+    run('approveOrder',{id:orderId});run('createOps',{id:orderId})
+    const op = s.ordens.find(o => o.pedidoId === orderId)
+    run('issueSheet',{id:op.id});run('startOp',{id:op.id})
+    run('reportProduction',{id:op.id,quantidade:100,perdasKg:0,sobrasKg:0,validade:day(180),
+      consumos:suggestConsumption(s,op,100),observacoes:'100 kg em duas batidas de 50 kg — demonstração.'})
+    const lot = s.lotes.find(l => l.tipo === 'produto' && l.opId === op.id)
+    run('inspect',{id:lot.id,decisao:'aprovado',observacoes:'Conferência demonstrativa aprovada.'})
+    run('bill',{id:orderId,referencia:'FAT-DEMO-001'})
+    run('registerReceipt',{id:s.recebiveis[0].id,recebidoEm:today(),referencia:'REC-DEMO-001'})
+    run('dispatch',{id:orderId,transportadora:'Transporte Exemplo — fictício',valor:120,tomadorFrete:'destinatario',
+      rastreamento:'DEMO-ENVIO-001',comprovante:'ROMANEIO-DEMO-001',dataSaida:today(),prazo:day(3)})
+    s.demonstracao = {tipo:'fluxo-unico-v23',pedidoId:orderId,opId:op.id,loteId:lot.id,fichaId:sheetId}
+    s.revision = 0
+    return clone(s)
+  }
+  function meetingScenariosSeed() {
+    let s = meetingSeed()
+    const run = (a,p) => {const r=execute(s,get(s.usuarios,'admin'),a,p);s=r.state;return r.id}
+    s.pedidos[0].observacoes = 'Cenário 4 — Despachado: confirmar entrega e baixar a segunda parcela de R$550; conferir comissão e auditoria.'
+    const create = (kg,note) => run('saveOrder',{clienteId:'c1',modoQuantidade:'KG',itens:[{produtoId:'p1',quantidade:kg}],prazoEntrega:day(7),condicoesPagamentoDias:[14,28],observacoes:note})
+    const draft = create(20,'Cenário 1 — Rascunho: revisar 20 kg/R$220, enviar ao Financeiro e percorrer todo o ciclo até entrega e recebimento.')
+    const financial = create(20,'Cenário 2 — Análise financeira: liberar ou testar bloqueio com justificativa; aprovar, gerar OP e seguir até o despacho.')
+    run('submitOrder',{id:financial})
+    const partial = create(40,'Cenário 3 — Produção parcial: 20 de 40 kg produzidos; inspecionar lote, apontar os 20 kg restantes, aprovar novo lote e faturar.')
+    run('submitOrder',{id:partial});run('analyze',{id:partial,decisao:'liberado',justificativa:'Cliente regular — demonstração.'})
+    run('approveOrder',{id:partial});run('createOps',{id:partial})
+    const op=s.ordens.find(o=>o.pedidoId===partial)
+    run('issueSheet',{id:op.id});run('startOp',{id:op.id})
+    run('reportProduction',{id:op.id,quantidade:20,perdasKg:0,sobrasKg:0,validade:day(180),consumos:suggestConsumption(s,op,20),observacoes:'Primeira parcial: quatro baldes de 5 kg.'})
+    s.demonstracao = {...s.demonstracao,tipo:'quatro-cenarios-v24',cenarios:[draft,financial,partial,s.pedidos[0].id]}
+    s.revision = 0
+    return clone(s)
+  }
   function emptySeed() {
     const s = seed()
     // Keep synthetic reference data so the empty presentation can still run a new order.
@@ -3262,6 +3422,7 @@
       'auditoria'
     ])
       requireThat(Array.isArray(s[key]), 'Arquivo de demonstração incompleto.')
+    if (!Array.isArray(s.fichasTecnicas)) s.fichasTecnicas = []
     if (!Array.isArray(s.categoriasRotulagem)) s.categoriasRotulagem = labelCategorySeed()
     if (!Array.isArray(s.gruposIngredientes)) s.gruposIngredientes = ingredientGroupSeed()
     if (!Array.isArray(s.embalagens)) s.embalagens = packagingSeed()
@@ -3278,6 +3439,8 @@
   }
   return {
     VERSION,
+    productSheetDraft,
+    productSheetStale,
     profiles,
     labels,
     releases,
@@ -3292,6 +3455,8 @@
     get,
     seed,
     demoSeed,
+    meetingSeed,
+    meetingScenariosSeed,
     emptySeed,
     execute,
     orderTotal,
@@ -3326,6 +3491,9 @@
     priceSimulation,
     priceScenarios,
     validCnpj,
+    normalizeCnpj,
+    formatCnpj,
+    receiptPrices,
     validateState
   }
 })

@@ -4,10 +4,10 @@ const D = require('../domain.js')
 test('cadastro, edição, auditoria e recebimento mantêm vínculo; inativo bloqueia entrada', () => {
  let s = D.seed()
  const run = (a,p,user='estoque') => { const r=D.execute(s,D.get(s.usuarios,user),a,p); s=r.state; return r.id }
- const id=run('saveSupplier',{nome:'Fornecedor teste',documento:'DOC-001',contato:'Compras',ativo:true})
+ const id=run('saveSupplier',{nome:'Fornecedor teste',documento:'12.345.678/0001-95',contato:'Compras',ativo:true})
  assert.equal(D.get(s.fornecedores,id).nome,'Fornecedor teste')
  assert.equal(s.auditoria.at(-1).acao,'saveSupplier')
- assert.throws(()=>run('saveSupplier',{nome:'Duplicado',documento:'doc001'}),/Documento já cadastrado/)
+ assert.throws(()=>run('saveSupplier',{nome:'Duplicado',documento:'12345678000195'}),/Documento já cadastrado/)
  const lot={ingredienteId:'i1',fornecedorId:id,codigo:'FORN-TESTE',quantidade:2,fabricacao:D.today(),validade:D.day(60)}
  const lid=run('receiveLot',lot)
  run('saveSupplier',{id,nome:'Nome revisado',ativo:false})

@@ -1,4 +1,14 @@
 'use strict'
+function syncReceiptPackaging() {
+  const control = document.querySelector('[name="embalagemId"]')
+  const name = document.querySelector('[name="embalagemNome"]')
+  const presentation = document.querySelector('[name="embalagemApresentacao"]')
+  if (!control || !name || !presentation) return
+  control.required = true
+  const pack = state.embalagens.find(p => p.id === control.value && p.ativo)
+  name.value = pack?.nome || ''
+  presentation.value = pack ? [pack.tipo, pack.medida, `${pack.capacidade} ${pack.unidadeCapacidade}`].filter(Boolean).join(' — ') : ''
+}
 function openOrderForm(id = null, complement = false, sampleOnly = false) {
   sampleOnly = sampleOnly || user.perfil === 'qualidade'
   if (!can('saveOrder')) throw new Error('Sem permissão para criar pedidos.')
@@ -744,14 +754,14 @@ function openAction(a, id, productContext = null) {
       'Confirmar entrega'
     )
   if ((a === 'receiveLot' || a === 'receivePackagingLot') && !state.fornecedores.some(f => f.ativo !== false)) throw new Error('Cadastre ou ative um fornecedor em Fornecedores antes de receber matéria-prima.')
-  if ((a === 'receiveLot' || a === 'receivePackagingLot'))
-    return modal(
+  if ((a === 'receiveLot' || a === 'receivePackagingLot')) {
+    modal(
       a === 'receivePackagingLot' ? 'Receber embalagem' : 'Receber matéria-prima',
       `<div class="form-grid">${select(
-        a === 'receivePackagingLot' ? 'Embalagem' : 'Ingrediente',
+        a === 'receivePackagingLot' ? 'Código cadastrado da embalagem' : 'Ingrediente',
         a === 'receivePackagingLot' ? 'embalagemId' : 'ingredienteId',
-        (a === 'receivePackagingLot' ? state.embalagens.filter(p => p.ativo) : state.ingredientes).map(i => [i.id, `${i.codigo} · ${i.nome}`])
-      )}${select(
+        a === 'receivePackagingLot' ? [['','Selecione o código'], ...state.embalagens.filter(p => p.ativo).map(i => [i.id,i.codigo])] : state.ingredientes.map(i => [i.id, `${i.codigo} — ${i.nome}`])
+      )}${a === 'receivePackagingLot' ? input('Nomenclatura cadastrada', 'embalagemNome', '', 'text', 'readonly') + input('Apresentação cadastrada', 'embalagemApresentacao', '', 'text', 'readonly') : ''}${select(
         'Fornecedor',
         'fornecedorId',
         state.fornecedores.filter(i => i.ativo !== false).map(i => [i.id, i.nome])
@@ -759,10 +769,13 @@ function openAction(a, id, productContext = null) {
       d => commit(a, {...d, icmsCreditado: !!document.querySelector('[name="icmsCreditado"]:checked'), ipiCreditado: !!document.querySelector('[name="ipiCreditado"]:checked')}),
       'Registrar entrada'
     )
+    syncReceiptPackaging()
+    return
+  }
   if (a === 'saveSupplier') {
     const supplier = id ? find(state.fornecedores, id) : null
     return modal(supplier ? 'Editar fornecedor' : 'Novo fornecedor',
-      `<div class="form-grid">${input('Nome / razão social', 'nome', supplier?.nome || '', 'text', 'required')}${input('CNPJ (opcional)', 'documento', supplier?.documento || '')}${input('Contato (opcional)', 'contato', supplier?.contato || '')}${input('Endereço', 'endereco', supplier?.endereco || '')}${textarea('Observação', 'observacao', supplier?.observacao || '')}</div><h3>Categorias gerais</h3>${['ingredientes','embalagens'].map(c => `<label class="check-card"><input type="checkbox" name="categoriaFornecedor" value="${c}" ${supplier?.categorias?.includes(c) ? 'checked' : ''}>${c === 'ingredientes' ? 'Ingredientes' : 'Embalagens'}</label>`).join('')}<h3>Categorias para rotulagem</h3><p class="muted small">Mesmo cadastro usado nos ingredientes. Selecione todas as categorias que o fornecedor fornece.</p><div class="supplier-label-categories">${state.categoriasRotulagem.filter(c => c.ativo || supplier?.categoriasRotulagem?.includes(c.id)).map(c => `<label class="check-card"><input type="checkbox" name="categoriaRotulagemFornecedor" value="${esc(c.id)}" ${supplier?.categoriasRotulagem?.includes(c.id) ? 'checked' : ''}>${esc(c.nome)}${c.ativo ? '' : ' (inativa)'}</label>`).join('')}</div><label class="check-card"><input type="checkbox" name="ativo" ${supplier?.ativo !== false ? 'checked' : ''}><span>Fornecedor ativo <small>Disponível para novos recebimentos.</small></span></label>`,
+      `<div class="form-grid">${input('Nome / razão social', 'nome', supplier?.nome || '', 'text', 'required')}${input('CNPJ', 'documento', D.formatCnpj(supplier?.documento || ''), 'text', 'required maxlength="18" placeholder="00.000.000/0001-00"') + input('Inscrição estadual (opcional)', 'inscricaoEstadual', supplier?.inscricaoEstadual || '')}${input('Contato (opcional)', 'contato', supplier?.contato || '')}${input('Endereço', 'endereco', supplier?.endereco || '')}${input('Bairro', 'bairro', supplier?.bairro || '')}${input('Cidade', 'cidade', supplier?.cidade || '')}${select('Estado', 'estado', [['','Selecione'], ...'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ').map(uf => [uf,uf])], supplier?.estado || '')}${input('CEP', 'cep', supplier?.cep || '', 'text', 'maxlength="9" placeholder="00000-000"')}${textarea('Observação', 'observacao', supplier?.observacao || '')}</div><h3>Categorias gerais</h3>${['ingredientes','embalagens'].map(c => `<label class="check-card"><input type="checkbox" name="categoriaFornecedor" value="${c}" ${supplier?.categorias?.includes(c) ? 'checked' : ''}>${c === 'ingredientes' ? 'Ingredientes' : 'Embalagens'}</label>`).join('')}<h3>Categorias para rotulagem</h3><p class="muted small">Mesmo cadastro usado nos ingredientes. Selecione todas as categorias que o fornecedor fornece.</p><div class="supplier-label-categories">${state.categoriasRotulagem.filter(c => c.ativo || supplier?.categoriasRotulagem?.includes(c.id)).map(c => `<label class="check-card"><input type="checkbox" name="categoriaRotulagemFornecedor" value="${esc(c.id)}" ${supplier?.categoriasRotulagem?.includes(c.id) ? 'checked' : ''}>${esc(c.nome)}${c.ativo ? '' : ' (inativa)'}</label>`).join('')}</div><label class="check-card"><input type="checkbox" name="ativo" ${supplier?.ativo !== false ? 'checked' : ''}><span>Fornecedor ativo <small>Disponível para novos recebimentos.</small></span></label>`,
       d => commit(a, { ...d, categoriasRotulagem: [...document.querySelectorAll('[name="categoriaRotulagemFornecedor"]:checked')].map(el => el.value), categorias: [...document.querySelectorAll('[name="categoriaFornecedor"]:checked')].map(el => el.value), id: supplier?.id, ativo: !!document.querySelector('[name="ativo"]:checked') }), 'Salvar fornecedor')
   }
   if (a === 'saveLabelCategory') {
@@ -1163,6 +1176,15 @@ function openAction(a, id, productContext = null) {
       traceBody(id)
     )
   }
+  if (['productSheet','newProductSheet','sheetRevision','previewProductSheet','approveProductSheet'].includes(a)) {
+    if (!can('saveProductSheet')) throw new Error('Ficha restrita à Qualidade.')
+    if (a === 'productSheet') return openProductSheet(id)
+    if (a === 'newProductSheet') return openProductSheet(id, '__new__')
+    const f = find(state.fichasTecnicas || [],id)
+    if (a === 'sheetRevision') return openProductSheet(f.produtoId,id)
+    if (a === 'previewProductSheet') return modal('Prévia da ficha técnica',productSheetPreview(f))
+    commit('approveProductSheet',{id}); return openProductSheet(f.produtoId,id)
+  }
   if (a === 'technicalSheet') {
     const sample = find(state.pedidos, id).tipo === 'amostra'
     if (
@@ -1461,7 +1483,7 @@ function openAction(a, id, productContext = null) {
     if (user.perfil !== 'administrador')
       throw new Error('Somente Administrador pode reiniciar.')
     const label =
-      dataMode === 'with-data' ? 'três cenários iniciais' : 'ambiente vazio'
+      dataMode === 'with-data' ? 'quatro cenários de apresentação' : 'ambiente vazio'
     return modal(
       'Reiniciar demonstração',
       notice(
@@ -1540,6 +1562,22 @@ function updatePrice() {
     $('#priceResult').innerHTML = notice(esc(e.message), 'warn')
   }
 }
+function syncFormulaIngredientChoices(changed = null) {
+  const selects = [...document.querySelectorAll('.formula-ingredient-row select')]
+  if (changed && selects.some(el => el !== changed && el.value === changed.value)) {
+    changed.value = changed.dataset.previousIngredient || ''
+    toast('Ingrediente já incluído. Altere a quantidade na linha existente.')
+  }
+  const stockOnly = !!document.querySelector('.formula-editor[data-stock-only="true"]')
+  for (const el of selects) {
+    const current = el.value
+    const usedElsewhere = new Set(selects.filter(other => other !== el).map(other => other.value))
+    const available = state.ingredientes.filter(i => i.id === current || !stockOnly || D.eligibleLots(state,i.id).some(l => l.saldo > 0))
+    el.innerHTML = available.map(i => `<option value="${esc(i.id)}" ${i.id === current ? 'selected' : ''} ${usedElsewhere.has(i.id) ? 'disabled' : ''}>${esc(i.codigo)} — ${esc(i.nome)}${usedElsewhere.has(i.id) ? ' (já incluído)' : ''}</option>`).join('')
+    el.value = current
+    el.dataset.previousIngredient = current
+  }
+}
 function addFormulaIngredientRow(item = {}) {
   const used = new Set(
     [...document.querySelectorAll('.formula-ingredient-row select')].map(
@@ -1554,6 +1592,8 @@ function addFormulaIngredientRow(item = {}) {
       (i.id === item.ingredienteId || !used.has(i.id)) &&
       (!stockOnly || D.eligibleLots(state, i.id).some(l => l.saldo > 0))
   )
+  if (item.ingredienteId && used.has(item.ingredienteId))
+    return toast('Ingrediente já incluído. Altere a quantidade na linha existente.')
   if (!available.length)
     return toast('Todos os ingredientes já foram adicionados.')
   const n = document.querySelectorAll('.formula-ingredient-row').length + 1
@@ -1566,6 +1606,7 @@ function addFormulaIngredientRow(item = {}) {
       item.ingredienteId || available[0].id
     )}${input('Quantidade (kg)', 'formulaQuantity', item.quantidade ?? 0, 'number', 'required min="0" step="0.00001"')}<button type="button" class="ghost-btn remove-formula-ingredient" data-action="removeFormulaIngredient" aria-label="Remover ingrediente ${n}">×</button></div>`
   )
+  syncFormulaIngredientChoices()
   updateFormulaBalance()
   syncContainsOptions()
 }
@@ -1689,6 +1730,7 @@ document.addEventListener('click', e => {
   }
   if (action.dataset.action === 'removeFormulaIngredient') {
     action.closest('.formula-ingredient-row').remove()
+    syncFormulaIngredientChoices()
     updateFormulaBalance()
     syncContainsOptions()
     return
@@ -1766,8 +1808,10 @@ function filterSearchList(input) {
   })
   $(`#${key}SearchSummary`).textContent = visible ? `${visible} de ${rows.length} registros encontrados.` : 'Nenhum registro encontrado. Limpe ou altere a busca.'
 }
-document.addEventListener('change', e => { if (e.target.closest('.budget-editor') || e.target.name === 'sourceProductId' || e.target.name === 'formulaIngredient') updateDraftBudget() })
+document.addEventListener('change', e => { if (e.target.name === 'embalagemId') syncReceiptPackaging(); if (e.target.name === 'documento' && D.validCnpj(e.target.value)) e.target.value = D.formatCnpj(e.target.value); if (e.target.name === 'formulaIngredient') syncFormulaIngredientChoices(e.target); if (e.target.closest('.budget-editor') || e.target.name === 'sourceProductId' || e.target.name === 'formulaIngredient') updateDraftBudget() })
 document.addEventListener('input', e => {
+  if (e.target.name === 'documento') e.target.setCustomValidity(D.validCnpj(e.target.value) ? '' : 'Informe um CNPJ válido, com formato e dígitos verificadores corretos.')
+  if (e.target.name === 'formulaIngredient') syncFormulaIngredientChoices(e.target)
   if (['maximoKg', 'quantidadeBatidas'].includes(e.target.name)) updateBatchPlan(e.target.name)
   if (e.target.closest('.budget-editor')) updateDraftBudget()
   if (e.target.dataset.listSearch) filterSearchList(e.target)

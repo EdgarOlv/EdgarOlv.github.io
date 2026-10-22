@@ -1,3 +1,19 @@
+# Versão vigente v24 — quatro cenários de apresentação
+
+Ative Dados de demonstração e recarregue. Quatro pedidos, duas OPs, produção parcial, qualidade pendente, financeiro e despacho; Guia com links e passos até entrega e pagamento. 102 testes aprovados. Bases antigas preservadas. [Roteiro](docs/decisoes/2026-10-22-quatro-cenarios-apresentacao.md). Descrições anteriores são históricas.
+
+# Versão vigente v23 — apresentação integrada
+
+Ative Dados de demonstração no login. Um único pedido de 100 kg/R$1.100 conecta os módulos; consulte o Guia. Nova base local preserva dados das apresentações anteriores e modo sem histórico. [Roteiro e dados](docs/decisoes/2026-10-22-demonstracao-integrada.md). 100 testes aprovados. Instruções antigas de oito cenários abaixo são histórico.
+
+# Versão vigente v22 — 22/10/2026
+
+Recebimento de embalagem por código, colunas compra/custo e fornecedor com CNPJ obrigatório validado, IE e endereço separados. [Contrato](docs/decisoes/2026-10-22-recebimentos-precos-fornecedores.md). 98 testes aprovados. Versões seguintes são histórico.
+
+# Versão vigente v21 — 22/10/2026
+
+Qualidade > Fichas técnicas dos produtos > Gerenciar ficha técnica. Pré-preenchimento do P&D, percentuais públicos editáveis, revisões e prévia para imprimir. Salvar antes de aprovar. [Contrato](docs/decisoes/2026-10-22-ficha-tecnica-qualidade.md). Incluir `technical-sheets.js` na distribuição estática. Flutter documentado, ainda não implementado.
+
 # Versão vigente: v20 — 19/10/2026
 
 Categorias de rotulagem compartilhadas e gerenciáveis em Grupos de ingredientes. [Contrato](docs/decisoes/2026-10-19-categorias-rotulagem-fornecedores.md). 85 testes aprovados. Versões abaixo são históricas.

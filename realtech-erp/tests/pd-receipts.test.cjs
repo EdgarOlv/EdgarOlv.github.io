@@ -20,7 +20,7 @@ test('impostos e créditos fora de faixa falham atomicamente; 100% é aceito',()
 test('grupos editáveis, migração de legado e fornecedor com categorias/endereço/observação',()=>{
  const h=harness();h.run('saveIngredientGroup',{codigo:'05',nome:'Novo grupo'});h.run('saveIngredient',{codigo:'ING-T',nome:'Teste',categoriaRotulagem:'Outros',grupoPadronizacao:'05'})
  h.run('saveIngredientGroup',{id:'05',nome:'Grupo revisado',ativo:false});assert.throws(()=>h.run('saveIngredient',{codigo:'ING-T2',nome:'Teste2',categoriaRotulagem:'Outros',grupoPadronizacao:'05'}),/Grupo/)
- const id=h.run('saveSupplier',{nome:'Teste',cnpj:'DEMO-CNPJ',endereco:'Rua teste',observacao:'Observação',categorias:['ingredientes','embalagens']});assert.equal(D.get(h.s.fornecedores,id).documento,'DEMO-CNPJ');assert.equal(D.get(h.s.fornecedores,id).endereco,'Rua teste')
+ const id=h.run('saveSupplier',{nome:'Teste',cnpj:'12345678000195',endereco:'Rua teste',observacao:'Observação',categorias:['ingredientes','embalagens']});assert.equal(D.get(h.s.fornecedores,id).documento,'12345678000195');assert.equal(D.get(h.s.fornecedores,id).endereco,'Rua teste')
  const legacy=D.seed();delete legacy.gruposIngredientes;assert.equal(D.validateState(legacy).gruposIngredientes.length,4)
  assert.throws(()=>h.run('saveIngredientGroup',{codigo:'06',nome:'Sem permissão'},'vendedor'),/perfil/)
 })

@@ -1,0 +1,28 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const vm = require('node:vm')
+const fs = require('node:fs')
+const path = require('node:path')
+const D = require('../domain.js')
+const source = fs.readFileSync(path.join(__dirname,'../interactions.js'),'utf8')
+test('seletores bloqueiam ingrediente usado, liberam removido e revertem duplicação imediatamente',()=>{
+ const state=D.seed(),rows=[{value:'i1',dataset:{}},{value:'i2',dataset:{}}];let warning=''
+ const c=vm.createContext({state,D,esc:String,toast:t=>warning=t,document:{querySelectorAll:()=>rows,querySelector:()=>null}})
+ vm.runInContext(source.slice(source.indexOf('function syncFormulaIngredientChoices('),source.indexOf('function addFormulaIngredientRow(')),c)
+ c.syncFormulaIngredientChoices()
+ assert.match(rows[0].innerHTML,/<option value="i2"[^>]*disabled/)
+ assert.match(rows[1].innerHTML,/<option value="i1"[^>]*disabled/)
+ rows[0].value='i2';c.syncFormulaIngredientChoices(rows[0])
+ assert.equal(rows[0].value,'i1');assert.match(warning,/já incluído/)
+ rows.pop();c.syncFormulaIngredientChoices()
+ assert.doesNotMatch(rows[0].innerHTML,/<option value="i2"[^>]*disabled/)
+ rows[0].value='i3';c.syncFormulaIngredientChoices(rows[0]);assert.equal(rows[0].dataset.previousIngredient,'i3')
+})
+test('sincronização mantém filtro de estoque para novo produto e preserva seleção atual',()=>{
+ const state=D.seed(),rows=[{value:'i1',dataset:{}}]
+ const c=vm.createContext({state,D:{eligibleLots:(s,id)=>id==='i2'?[{saldo:1}]:[]},esc:String,toast:()=>{},document:{querySelectorAll:()=>rows,querySelector:()=>({})}})
+ vm.runInContext(source.slice(source.indexOf('function syncFormulaIngredientChoices('),source.indexOf('function addFormulaIngredientRow(')),c)
+ c.syncFormulaIngredientChoices()
+ assert.match(rows[0].innerHTML,/value="i1"/);assert.match(rows[0].innerHTML,/value="i2"/)
+ assert.doesNotMatch(rows[0].innerHTML,/value="i3"/)
+})

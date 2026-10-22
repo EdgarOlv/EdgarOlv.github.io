@@ -1,4 +1,9 @@
 'use strict'
+function receiptPriceCell(lot, kind) {
+  const prices = D.receiptPrices(lot)
+  const value = kind === 'compra' ? prices.compraCentavos : prices.custoCentavos
+  return value == null ? 'Não informado (legado)' : money(value)
+}
 function searchableList(key, label, content) {
   return `${input(label, `${key}Search`, '', 'search', 'autocomplete="off" data-list-search="'+key+'"')}<p id="${key}SearchSummary" class="muted small" role="status" aria-live="polite"></p><div data-search-list="${key}">${content}</div>`
 }
@@ -79,7 +84,7 @@ function suppliersView() {
   return searchableList('suppliers', 'Buscar por nome, documento ou contato',
     intro('Fornecedores', 'Cadastro utilizado no recebimento de matéria-prima.', actionButton('+ Novo fornecedor', 'saveSupplier', null, true)) +
     panel('Fornecedores cadastrados', table(['Fornecedor', 'CNPJ', 'Contato / endereço', 'Categorias / observação', 'Status', 'Ações'], state.fornecedores.map(f => [
-      esc(f.nome), esc(f.documento || '—'), `${esc(f.contato || '—')}<small>${esc(f.endereco || '')}</small>`, `${esc([...(f.categorias || []).map(c => c === 'ingredientes' ? 'Ingredientes' : 'Embalagens'), ...(f.categoriasRotulagem || []).map(id => D.labelCategoryName(state, id))].join(', '))}<small>${esc(f.observacao || '')}</small>`, badge(f.ativo === false ? 'inativo' : 'ativo'), actionButton('Editar', 'saveSupplier', f.id)
+      esc(f.nome), esc(f.documento || '—'), `${esc(f.contato || '—')}<small>${esc([f.endereco, f.bairro, f.cidade, f.estado, f.cep].filter(Boolean).join(' — '))}</small>`, `${esc([...(f.categorias || []).map(c => c === 'ingredientes' ? 'Ingredientes' : 'Embalagens'), ...(f.categoriasRotulagem || []).map(id => D.labelCategoryName(state, id))].join(', '))}<small>${esc(f.observacao || '')}</small>`, badge(f.ativo === false ? 'inativo' : 'ativo'), actionButton('Editar', 'saveSupplier', f.id)
     ]))) + notice('Inative fornecedores para impedir novas entradas sem apagar os vínculos dos lotes já recebidos.'))
 }
 function ingredientsView() {
@@ -103,7 +108,8 @@ function ingredientsView() {
           'Grupo',
           '% no rótulo',
           'Disponível',
-          'Último custo líquido / kg',
+          'Preço de compra R$ / kg (última entrada)',
+          'Custo R$ / kg',
           'Ações'
         ],
         state.ingredientes.map(i => [
@@ -112,6 +118,7 @@ function ingredientsView() {
           esc(state.gruposIngredientes.find(g => g.id === i.grupoPadronizacao)?.nome || i.grupoPadronizacao || '—'),
           i.exibePercentualRotulo ? 'Sim' : 'Não',
           `${qty(stock(i))} kg`,
+          receiptPriceCell(state.lotes.find(l => l.id === i.ultimoRecebimentoId), 'compra'),
           money(i.custoCentavos),
           `<div class="actions">${actionButton('Editar', 'saveIngredient', i.id)}${actionButton('Excluir', 'deleteIngredient', i.id)}</div>`
         ])
@@ -373,7 +380,8 @@ function stockView() {
           'Lote',
           'Item / origem',
           'Saldo',
-          'Custo líquido / unidade',
+          'Preço de compra R$ / kg',
+          'Custo R$ / kg',
           'Fabricação',
           'Validade',
           'Status',
@@ -385,6 +393,7 @@ function stockView() {
             ? `${ingredientName(find(state.ingredientes, l.ingredienteId))}<small>${esc(find(state.fornecedores, l.fornecedorId).nome)}</small>`
             : esc(find(state.produtos, l.produtoId).nome),
           `${qty(l.saldo)} ${l.tipo === 'ingrediente' ? 'kg' : unitLabel(l)}${l.sobrasKg ? `<small>${qty(l.sobrasKg)} kg de sobra segregada</small>` : ''}`,
+          l.tipo === 'ingrediente' ? receiptPriceCell(l, 'compra') : '-',
           `${l.tipo === 'ingrediente' ? money(l.custoCentavos ?? find(state.ingredientes,l.ingredienteId).custoCentavos) : '—'}${l.quantidadeRecebida !== undefined ? `<small>Entrada: ${qty(l.quantidadeRecebida)} ${esc(l.unidadeRecebimento)} · bruto ${money(l.valorUnitarioCentavos)} · ICMS ${qty(l.icmsPercentual)}% ${l.icmsCreditado ? 'creditado':'sem crédito'} · IPI ${qty(l.ipiPercentual)}% ${l.ipiCreditado ? 'creditado':'sem crédito'}</small>` : ''}`,
           fmtDate(l.fabricacao),
           fmtDate(l.validade),
@@ -417,6 +426,7 @@ function qualityView() {
       'Controle de qualidade',
       'Cada lote produzido exige uma decisão. Reprovação bloqueia o faturamento.'
     ) +
+    productSheetList() +
     panel(
       'Lotes produzidos',
       table(
@@ -1010,6 +1020,7 @@ function updatesView() {
   )
 }
 function guideView() {
+  if (state.demonstracao?.tipo === 'quatro-cenarios-v24') return meetingGuideView()
   const scenarios = dataMode === 'with-data' ? panel('Cenários prontos para a reunião', table(
     ['Pedido / cliente', 'Objetivo da demonstração', 'Etapa atual', 'Abrir'],
     orders().filter(o => o.observacoes?.startsWith('Cenário')).map(o => [
@@ -1038,5 +1049,32 @@ function ingredientGroupsView() {
     notice('Renomear mantém os vínculos. Inativar retira a categoria de novas seleções e preserva os cadastros que já a utilizam. Categorias de rotulagem e grupos padronizados são cadastros separados.')
 }
 function packagingStockView() {
-  return intro('Estoque de embalagens','Entradas por lote, custo unitário e consumo na produção.', actionButton('+ Receber embalagem','receivePackagingLot',null,true)) + panel('Saldos por embalagem',table(['Embalagem','Saldo liberado','Último custo líquido / UN'],state.embalagens.map(p => [esc(p.nome),qty(state.lotes.filter(l => l.tipo === 'embalagem' && l.embalagemId === p.id && l.status === 'liberado' && l.validade >= D.today()).reduce((n,l) => n+l.saldo,0))+' UN',money(p.custoCentavos)]))) + panel('Lotes de embalagens',table(['Lote','Embalagem / fornecedor','Saldo','Custo líquido / UN','Validade','Situação','Ações'],state.lotes.filter(l => l.tipo === 'embalagem').map(l => [esc(l.codigo),`${esc(find(state.embalagens,l.embalagemId).nome)}<small>${esc(find(state.fornecedores,l.fornecedorId).nome)}</small>`,qty(l.saldo)+' UN',money(l.custoCentavos),fmtDate(l.validade),badge(l.validade < D.today() ? 'Vencido' : l.status),actionButton('Ajustar','adjustLot',l.id)]))) + panel('Movimentos de embalagens',table(['Data','Lote','Quantidade','Tipo','OP / motivo'],state.movimentacoes.filter(m => state.lotes.some(l => l.id === m.loteId && l.tipo === 'embalagem')).slice().reverse().map(m => [fmtTime(m.data),esc(find(state.lotes,m.loteId).codigo),qty(m.quantidade)+' UN',esc(m.tipo),esc(m.motivo)]))) + notice('Consumo no apontamento da OP, por validade mais próxima. Em produção parcial, o total de embalagens é arredondado cumulativamente. OPs antigas sem vínculo com embalagem são preservadas; reserva e múltiplas camadas ainda precisam de definição.')
+  return intro('Estoque de embalagens','Entradas por lote, custo unitário e consumo na produção.', actionButton('+ Receber embalagem','receivePackagingLot',null,true)) + panel('Saldos por embalagem',table(['Embalagem','Saldo liberado','Preço de compra R$ / UN (última entrada)','Custo R$ / UN'],state.embalagens.map(p => [esc(p.nome),qty(state.lotes.filter(l => l.tipo === 'embalagem' && l.embalagemId === p.id && l.status === 'liberado' && l.validade >= D.today()).reduce((n,l) => n+l.saldo,0))+' UN',receiptPriceCell(state.lotes.find(l => l.id === p.ultimoRecebimentoId),'compra'),money(p.custoCentavos)]))) + panel('Lotes de embalagens',table(['Lote','Embalagem / fornecedor','Saldo','Preço de compra R$ / UN','Custo R$ / UN','Validade','Situação','Ações'],state.lotes.filter(l => l.tipo === 'embalagem').map(l => [esc(l.codigo),`${esc(find(state.embalagens,l.embalagemId).nome)}<small>${esc(find(state.fornecedores,l.fornecedorId).nome)}</small>`,qty(l.saldo)+' UN',receiptPriceCell(l,'compra'),receiptPriceCell(l,'custo'),fmtDate(l.validade),badge(l.validade < D.today() ? 'Vencido' : l.status),actionButton('Ajustar','adjustLot',l.id)]))) + panel('Movimentos de embalagens',table(['Data','Lote','Quantidade','Tipo','OP / motivo'],state.movimentacoes.filter(m => state.lotes.some(l => l.id === m.loteId && l.tipo === 'embalagem')).slice().reverse().map(m => [fmtTime(m.data),esc(find(state.lotes,m.loteId).codigo),qty(m.quantidade)+' UN',esc(m.tipo),esc(m.motivo)]))) + notice('Consumo no apontamento da OP, por validade mais próxima. Em produção parcial, o total de embalagens é arredondado cumulativamente. OPs antigas sem vínculo com embalagem são preservadas; reserva e múltiplas camadas ainda precisam de definição.')
+}
+
+function meetingGuideView() {
+  const visible = new Set(orders().map(o => o.id))
+  const scenarioRows = state.demonstracao.cenarios.filter(id => visible.has(id)).map(id => {
+    const o = find(state.pedidos,id)
+    return [esc(o.numero),esc(o.observacoes),esc(D.stage(state,o)),link('Abrir pedido','pedidos',id)]
+  })
+  const steps = [
+    ['1. Comercial — pedido','No cenário 1, abra o rascunho de 20 kg (R$220). Revise produto, kg e parcelas de 14/28 dias; salve e envie ao Financeiro. Após envio, edição fica bloqueada.'],
+    ['2. Financeiro — análise','Abra o cenário 2 ou o pedido enviado. Confira limite e libere a análise. Para testar bloqueio, informe justificativa e depois faça nova análise liberada.'],
+    ['3. Comercial — aprovação','Com análise liberada, aprove o pedido. Não confundir aprovação comercial com pagamento.'],
+    ['4. Produção — OP','Gere a OP do pedido aprovado, emita a Fórmula para produção e confira batidas, quantidades e etiquetas antes de iniciar.'],
+    ['5. Produção — apontamento','No cenário 3, a OP tem 40 kg previstos e 20 kg apontados. Aponte mais 20 kg, sem perdas/sobras para este teste, com os lotes sugeridos. Cada apontamento cria seu lote. Nos pedidos de 20 kg, aponte 20 kg.'],
+    ['6. Qualidade — inspeção','Inspecione e aprove TODOS os lotes do pedido. O cenário 3 já tem um lote pendente. Antes de concluir produção/qualidade, tente faturar e confira o bloqueio. Reprovação não pode ser desfeita por aprovação simples: use uma cópia reiniciada para esse teste.'],
+    ['7. Fiscal — faturamento','Após OP concluída e lotes aprovados, registre referência de faturamento. Duas parcelas são abertas; não há emissão real de NF-e.'],
+    ['8. Expedição — despacho e entrega','Preencha transportadora, frete/tomador, saída, previsão e referência. Despache mesmo com parcelas abertas e confirme entrega com data e recebedor. O cenário 4 já está despachado, pronto para confirmar entrega.'],
+    ['9. Financeiro — recebimento','Baixe cada parcela com data e referência; cenário 4 tem uma parcela de R$550 paga e uma aberta. Confira comissão pela competência do recebimento.'],
+    ['10. Rastreabilidade — auditoria','Abra lote/OP/pedido e confira os mesmos fornecedores, lotes consumidos e cliente. Recarregue para verificar persistência.']
+  ]
+  const pd = '<ol class="guide-list"><li>Em Fornecedores, reabra os dois cadastros: CNPJ, IE, endereço e categorias. Tente salvar um CNPJ inválido.</li><li>Em Estoque de embalagens, abra Receber embalagem: selecione EMB-001 e confira nome/apresentação automáticos. Cadastre um novo lote com código único e compare compra/custo com e sem créditos.</li><li>Em Ingredientes/Estoque, confira preço bruto, custo e saldo dos quatro lotes. Quantidades usadas no cenário são sintéticas.</li><li>Em P&D, edite uma fórmula: ingrediente repetido deve ficar indisponível, rendimento divergente deve impedir salvar. Salvar reaproveita rascunho; ativar gera versão e exige nova liberação de preço.</li><li>Em Qualidade, abra a ficha do produto, crie revisão e ajuste percentuais públicos/faixas. Salve antes de aprovar/prévia. A fórmula de fabricação não muda.</li><li>Em Amostras, crie uma amostra de 5 kg com o produto liberado. Gere OP, documento, produção e inspeção e depois despache; não exige análise financeira nem faturamento comercial.</li><li>Na OP, confira etiquetas grande e pequena e suas quantidades; Imprimir/Salvar PDF usa o navegador, sem cópias automáticas nem arquivo .nlbl.</li></ol>'
+  return intro('Teste os cenários de ponta a ponta','Quatro pedidos em etapas diferentes, com estoque e vínculos para continuar o fluxo.') +
+    panel('Cenários prontos para a reunião',table(['Pedido','Cenário / objetivo','Etapa atual','Abrir'],scenarioRows)) +
+    panel('Roteiro completo — do pedido ao recebimento',table(['Etapa / responsável','Ação e resultado esperado'],steps.map(row=>row.map(esc)))) +
+    panel('P&D, recebimentos, ficha, amostra e etiquetas',pd) +
+    notice('Use Administrador para percorrer tudo, ou Trocar perfil para apresentar as responsabilidades. Comece pelos cenários comerciais antes de ativar revisões do P&D. Todas as quantidades e fórmulas são fictícias. Novas compras e testes de reprovação alteram o cenário; reinicie somente se desejar voltar à base inicial.') +
+    (user.perfil === 'administrador' ? panel('Ferramentas da apresentação',btn('Reiniciar os quatro cenários','resetDemo')) : '')
 }
