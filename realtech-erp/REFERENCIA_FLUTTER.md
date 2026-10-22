@@ -188,3 +188,8 @@ RN-DEMO-002: um pedido de 100 kg/R$1.100, 20 baldes/2 caixas, 2 fornecedores, re
 ## 22/10/2026 — v24 quatro cenários
 
 RN-DEMO-002 corrigida por solicitação de Edgar: quatro pedidos em rascunho, análise, produção parcial e despacho; duas OPs iniciais; guia completo com links e ações ponta a ponta. [Contrato, aceite e impacto Flutter](docs/decisoes/2026-10-22-quatro-cenarios-apresentacao.md). 102 testes passam, inclusive concluir os quatro em sequência, sem faltar estoque. Nova chave local preserva bases antigas. QA visual pendente; E1/E2/E3 e Dart/SQL/backend sem execução.
+
+
+## 22/10/2026 — v25 catálogo e acesso à ficha
+
+RN-DEMO-002 ampliada: 12 ingredientes, 5 produtos, 4 embalagens, 4 fornecedores, 3 clientes, 18 lotes; quatro pedidos/duas OPs e guia preservados. RN-FT-004: Visualizar ficha técnica como ação primária no início do modal, prévia da revisão salva. [Contrato e impacto Flutter](docs/decisoes/2026-10-22-catalogo-ampliado-ficha-acesso.md). 104 testes aprovados; chave local nova preserva anteriores. QA visual pendente. Dart/SQL/backend/E1/E2/E3 sem execução.

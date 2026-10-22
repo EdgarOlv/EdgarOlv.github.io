@@ -70,7 +70,8 @@
     inadimplente: 'Inadimplente'
   }
   const releases = [
-    {version:'v24',date:'2026-10-22',current:true,title:'Quatro cenários para apresentação',summary:'Rascunho, análise, produção parcial e despacho com guia de ponta a ponta.',changes:[
+    {version:'v25',date:'2026-10-22',current:true,title:'Catálogos e estoque ampliados',summary:'12 ingredientes, 5 produtos, 4 embalagens, 4 fornecedores e 3 clientes; quatro pedidos preservados.',changes:[{area:'Demonstração',title:'Mais cadastros vinculados',description:'Novos ingredientes com recebimentos e produtos com fórmulas e preços; guia e quatro cenários mantidos.',rules:['RN-DEMO-002'],status:'Solicitação confirmada; dados sintéticos',route:'guia'}]},
+    {version:'v24',date:'2026-10-22',current:false,title:'Quatro cenários para apresentação',summary:'Rascunho, análise, produção parcial e despacho com guia de ponta a ponta.',changes:[
       {area:'Demonstração',title:'Volume moderado e roteiros completos',description:'Quatro pedidos, duas OPs e saldos suficientes para concluir os cenários.',rules:['RN-DEMO-002'],status:'Solicitação confirmada; roteiros demonstrados',route:'guia'}]},
     {version:'v23',date:'2026-10-22',current:false,title:'Demonstração integrada e enxuta',summary:'Um pedido conectado aos cadastros, recebimentos, produção, Qualidade, financeiro e despacho.',changes:[
       {area:'Demonstração',title:'Um fluxo completo',description:'100 kg, 20 baldes, duas parcelas; dados sintéticos coerentes, sem cenários paralelos na apresentação.',rules:['RN-DEMO-002'],status:'Apresentação demonstrada',route:'guia'}]},
@@ -3387,6 +3388,49 @@
     s.revision = 0
     return clone(s)
   }
+  function expandedMeetingSeed() {
+    let s = meetingScenariosSeed()
+    const run = (a,p) => {const r=execute(s,get(s.usuarios,'admin'),a,p);s=r.state;return r.id}
+    const extraSupplier = run('saveSupplier',{nome:'Especiarias Gama — fictício',documento:'45723174000110',endereco:'Rua Exemplo, 60',bairro:'Industrial',cidade:'Ribeirão Preto',estado:'SP',cep:'14000000',categorias:['ingredientes'],contato:'especiarias@example.com'})
+    const extraPackSupplier = run('saveSupplier',{nome:'Distribuidora Delta — fictício',documento:'60708408000144',endereco:'Rua Exemplo, 80',bairro:'Centro',cidade:'Araraquara',estado:'SP',cep:'14800000',categorias:['embalagens'],contato:'distribuidora@example.com'})
+    const extras = [
+      ['Alho em pó','Especiarias',24],['Cebola em pó','Especiarias',18],['Pimenta-do-reino moída','Especiarias',38],
+      ['Páprica doce','Especiarias',22],['Orégano desidratado','Especiarias',32],['Cominho moído','Especiarias',28],
+      ['Amido de milho','Base da fórmula',5],['Maltodextrina','Base da fórmula',9]
+    ]
+    const ids = extras.map(([nome,categoria,price],index) => {
+      const id=run('saveIngredient',{codigo:'ING-'+String(index+5).padStart(3,'0'),nome,categoriaRotulagem:categoria,grupoPadronizacao:'01'})
+      run('receiveLot',{ingredienteId:id,fornecedorId:extraSupplier,codigo:'DEMO-MP-'+String(index+5).padStart(2,'0'),quantidade:80,unidade:'KG',valorUnitario:price,icmsPercentual:18,icmsCreditado:true,fabricacao:today(),validade:day(240)})
+      return id
+    })
+    const basePacks = packagingSeed().filter(p=>p.id!=='emb-balde5')
+    for(const pack of basePacks){
+      s.embalagens.push({...pack,medida:'Capacidade nominal '+pack.capacidade+' '+pack.unidadeCapacidade})
+      run('receivePackagingLot',{embalagemId:pack.id,fornecedorId:extraPackSupplier,codigo:'DEMO-EMB-'+pack.codigo,quantidade:60,valorUnitario:pack.custoCentavos/100,icmsPercentual:18,icmsCreditado:true,fabricacao:today(),validade:day(365)})
+    }
+    const variants = [
+      ['Tempero alho e cebola — demo','emb-pote1',1,[[ids[0],30],[ids[1],30],['i3',40]],true],
+      ['Condimento especiarias — demo','emb-saco20',20,[[ids[2],10],[ids[3],20],[ids[4],10],[ids[5],10],['i3',50]],true],
+      ['Base para preparo — demo','emb-bombona20',16,[[ids[6],50],[ids[7],30],['i3',20]],true],
+      ['Blend piloto — desenvolvimento','emb-pote1',1,[[ids[0],20],[ids[3],20],[ids[6],60]],false]
+    ]
+    for(const [index,[nome,packId,pesoKg,lines,active]] of variants.entries()){
+      const pack=get(s.embalagens,packId),id='p-demo-'+(index+2),formulaId='f-demo-'+(index+2)
+      s.formulas.push({...clone(s.formulas[0]),id:formulaId,codigo:'FORM-DEMO-00'+(index+2),nome,versao:1,status:active?'ativa':'rascunho',rendimento:100,itens:lines.map(([ingredienteId,quantidade])=>({ingredienteId,quantidade})),observacoes:'Composição sintética; não utilizar na fabricação.'})
+      const product={...clone(s.produtos[0]),id,codigo:'PROD-DEMO-00'+(index+2),nome,formulaId,embalagemId:packId,embalagem:pack.nome,embalagemSnapshot:clone(pack),pesoKg,embalagemCentavos:pack.custoCentavos,
+        volumeLitros:pack.unidadeCapacidade==='L'?pack.capacidade:null,status:active?'ativo':'emDesenvolvimento',precoLiberado:false,contemItens:lines.map(([ingredientId])=>ingredientId),precificacao:{margemPercentual:40},nutricao:null}
+      delete product.liberacaoPreco;delete product.precoCalculadoKgCentavos;delete product.precoVendaKgCentavos
+      s.produtos.push(product)
+      if(active)run('releasePrice',{id,margem:40})
+    }
+    for(const [index,name] of ['Cozinha Horizonte — fictício','Alimentos Vale — fictício'].entries()){
+      const base=seed().clientes[index+1]
+      s.clientes.push({...base,nomeFantasia:name,razaoSocial:name,exposicaoInicialCentavos:0,historicoFinanceiro:[],limiteCentavos:1000000,contato:'compras'+(index+2)+'@example.com'})
+    }
+    s.demonstracao = {...s.demonstracao,catalogo:'ampliado-v25'}
+    s.revision = 0
+    return clone(s)
+  }
   function emptySeed() {
     const s = seed()
     // Keep synthetic reference data so the empty presentation can still run a new order.
@@ -3457,6 +3501,7 @@
     demoSeed,
     meetingSeed,
     meetingScenariosSeed,
+    expandedMeetingSeed,
     emptySeed,
     execute,
     orderTotal,

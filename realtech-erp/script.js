@@ -1,7 +1,7 @@
 'use strict'
 // Presentation and repository adapter. Business rules stay in domain.js.
 const D = Realtech,
-  DEMO_KEY = 'realtech.prototype.meeting-four-scenarios-v24',
+  DEMO_KEY = 'realtech.prototype.meeting-expanded-v25',
   EMPTY_KEY = 'realtech.prototype.v8.empty',
   MODE_KEY = 'realtech.prototype.data-mode'
 const $ = s => document.querySelector(s)
@@ -41,7 +41,7 @@ let state,
 let dataMode = 'with-data',
   KEY = DEMO_KEY
 function freshState() {
-  return dataMode === 'with-data' ? D.meetingScenariosSeed() : D.emptySeed()
+  return dataMode === 'with-data' ? D.expandedMeetingSeed() : D.emptySeed()
 }
 function loadDataMode(mode) {
   dataMode = mode

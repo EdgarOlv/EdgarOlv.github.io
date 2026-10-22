@@ -1,3 +1,7 @@
+# Versão vigente v25 — catálogo ampliado e acesso à ficha
+
+12 ingredientes, 5 produtos, 4 embalagens, 4 fornecedores, 3 clientes e 18 lotes; quatro cenários mantidos. Ative Dados de demonstração e recarregue para a base nova, preservando anteriores. Visualizar ficha técnica destacado no início do modal. [Contrato](docs/decisoes/2026-10-22-catalogo-ampliado-ficha-acesso.md). 104 testes aprovados.
+
 # Versão vigente v24 — quatro cenários de apresentação
 
 Ative Dados de demonstração e recarregue. Quatro pedidos, duas OPs, produção parcial, qualidade pendente, financeiro e despacho; Guia com links e passos até entrega e pagamento. 102 testes aprovados. Bases antigas preservadas. [Roteiro](docs/decisoes/2026-10-22-quatro-cenarios-apresentacao.md). Descrições anteriores são históricas.

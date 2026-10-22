@@ -13,8 +13,8 @@ test('quatro cenários têm estados distintos, duas OPs e guia completo com link
  for(const id of s.demonstracao.cenarios) assert.ok(html.includes('pedidos:'+id))
  for(const term of ['Financeiro','apontamento','inspeção','faturamento','recebimento','Amostras','etiquetas']) assert.ok(html.includes(term))
 })
-test('todos os cenários podem ser concluídos em sequência sem faltar estoque',()=>{
- let s=D.meetingScenariosSeed()
+for (const factory of [D.meetingScenariosSeed,D.expandedMeetingSeed]) test('todos os cenários podem ser concluídos: '+factory.name,()=>{
+ let s=factory()
  const run=(a,p)=>{const r=D.execute(s,D.get(s.usuarios,'admin'),a,p);s=r.state;return r.id}
  const ids=[...s.demonstracao.cenarios]
  for(const id of ids){
@@ -44,6 +44,6 @@ test('todos os cenários podem ser concluídos em sequência sem faltar estoque'
  }
  assert.equal(s.ordens.length,4);assert.ok(s.ordens.every(o=>o.status==='concluida'))
  assert.ok(s.recebiveis.every(r=>r.status==='pago'));assert.ok(s.lotes.every(l=>l.saldo>=0))
- assert.equal(s.lotes.filter(l=>l.tipo==='ingrediente').reduce((v,l)=>v+l.saldo,0),20)
+ assert.equal(s.lotes.filter(l=>l.tipo==='ingrediente').reduce((v,l)=>v+l.saldo,0),factory === D.expandedMeetingSeed ? 660 : 20)
  assert.equal(s.lotes.find(l=>l.tipo==='embalagem').saldo,4)
 })

@@ -50,3 +50,8 @@ Ainda confirmar com a empresa: medida caseira, alergênicos, lista de ingredient
 
 ## v15 — unidade preservada
 Novos pedidos/amostras usam KG e base 1 kg; documentos preservam quantidade em kg e peso líquido da embalagem separado. Históricos UN permanecem em unidades. Fórmula de produção na OP usa plano de batidas e somatórios, independente do rendimento cadastrado e da embalagem final.
+
+
+## 22/10/2026 — v25 catálogo e acesso à ficha
+
+RN-DEMO-002 ampliada: 12 ingredientes, 5 produtos, 4 embalagens, 4 fornecedores, 3 clientes, 18 lotes; quatro pedidos/duas OPs e guia preservados. RN-FT-004: Visualizar ficha técnica como ação primária no início do modal, prévia da revisão salva. [Contrato e impacto Flutter](decisoes/2026-10-22-catalogo-ampliado-ficha-acesso.md). 104 testes aprovados; chave local nova preserva anteriores. QA visual pendente. Dart/SQL/backend/E1/E2/E3 sem execução.

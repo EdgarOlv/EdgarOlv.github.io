@@ -73,3 +73,5 @@ O modelo completo de registro está em [`COMO_REGISTRAR_MUDANCAS.md`](../COMO_RE
 - [22/10/2026 — Demonstração integrada v23](2026-10-22-demonstracao-integrada.md).
 
 - [22/10/2026 — Quatro cenários e guia completo v24](2026-10-22-quatro-cenarios-apresentacao.md).
+
+- [22/10/2026 — Catálogo ampliado e acesso rápido à ficha v25](2026-10-22-catalogo-ampliado-ficha-acesso.md).

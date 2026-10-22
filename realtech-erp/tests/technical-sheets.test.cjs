@@ -57,6 +57,6 @@ test('editor abre sem revisão, salva a declaração e reabre histórico com aç
  const data={tipo:'aberta',motivo:'Teste UI'}
  h.draft().composicao.forEach((r,i)=>{data['nome'+i]=r.nome;data['percentual'+i]='faixa '+i})
  form(data);assert.equal(payload.composicao[0].percentualExibicao,'faixa 0')
- c.openProductSheet('p1');assert.match(html,/approveProductSheet:/);assert.match(html,/faixa 0/)
+ c.openProductSheet('p1');assert.match(html,/approveProductSheet:/);assert.match(html,/faixa 0/);assert.ok(html.indexOf('previewProductSheet:') < html.indexOf('name="percentual0"'))
  c.openProductSheet('p1','__new__');assert.doesNotMatch(html,/approveProductSheet:/)
 })

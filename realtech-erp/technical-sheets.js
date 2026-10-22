@@ -17,13 +17,14 @@ function openProductSheet(productId, revisionId) {
   const rows = base.composicao.map((r, i) => `<div class="form-grid">${input('Ingrediente', 'nome'+i, r.nome, 'text', 'required')}${input('Percentual interno — referência P&D', 'interno'+i, r.percentualInterno+'%', 'text', 'readonly')}${input('Percentual para exibição (vazio = ocultar)', 'percentual'+i, r.percentualExibicao)}</div>`).join('')
   const names = [['descricao','Descrição'],['registro','Registro'],['modoUso','Modo de uso'],['especificacoes','Especificações técnicas'],['conservacao','Estocagem'],['transporte','Transporte'],['embalagem','Embalagem'],['alergenicos','Declaração de alergênicos e glúten'],['nutricao','Informações nutricionais revisadas'],['validade','Validade'],['responsavel','Responsável técnico e registro']]
   modal('Ficha técnica — '+p.nome,
+    (sheet ? `<div class="actions">${btn('Visualizar ficha técnica', 'previewProductSheet', sheet.id, true)}<span class="muted small">Revisão ${sheet.revisao} salva — ${esc(sheet.status)}</span></div>` : '<p class="muted small">Salve o primeiro rascunho para visualizar a ficha técnica.</p>') +
     notice('Demonstração. Revise os percentuais antes de aprovar. Editar esta ficha não altera a fórmula. O tipo aberta/fechada não aplica margens automáticas.') +
     (stale ? notice('A fórmula do P&D mudou. Revise a composição. Os ajustes anteriores foram preservados.', 'warn') : '') +
     `<div class="actions">${btn('Novo rascunho com fórmula atual', 'newProductSheet', productId)}</div>` +
     select('Tipo da ficha','tipo',[['aberta','Aberta'],['fechada','Fechada']],base.tipo) + rows +
     names.map(([key,label]) => textarea(label,key,base[key] || '')).join('') +
     textarea('Motivo da revisão','motivo',sheet?.status === 'rascunho' ? base.motivo : '') +
-    (sheet ? `<p>Revisão ${sheet.revisao} — ${esc(sheet.status)}</p><div class="actions">${btn('Prévia / imprimir', 'previewProductSheet',sheet.id)}${sheet.status === 'rascunho' ? btn('Aprovar revisão salva','approveProductSheet',sheet.id) : ''}</div>` : '') +
+    (sheet ? `<p>Revisão ${sheet.revisao} — ${esc(sheet.status)}</p><div class="actions">${sheet.status === 'rascunho' ? btn('Aprovar revisão salva','approveProductSheet',sheet.id) : ''}</div>` : '') +
     table(['Revisão','Situação','Data','Ações'],history.map(f => [f.revisao,esc(f.status),esc(f.atualizadoEm),btn('Abrir revisão','sheetRevision',f.id)])),
     data => commit('saveProductSheet', {produtoId: productId, sourceId:sheet?.id, id:sheet?.status === 'rascunho' ? sheet.id : null,
       ...Object.fromEntries(names.map(([key]) => [key,data[key]])),tipo:data.tipo,motivo:data.motivo,
