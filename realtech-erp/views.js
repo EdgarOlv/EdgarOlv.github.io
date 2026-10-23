@@ -31,13 +31,13 @@ function clientsView() {
           const h = c.historicoFinanceiro || [],
             late = h.filter(x => x.diasAtraso > 0)
           return [
-            `${esc(c.nomeFantasia)}<small>${esc(c.razaoSocial)}</small><small>${esc(c.cnpj)}</small>`,
+            `${typeof registryCode==='function'?registryCode(c):''}${esc(c.nomeFantasia)}<small>${esc(c.razaoSocial)}</small><small>${esc(c.cnpj)}</small>`,
             esc(find(state.usuarios, c.vendedorId).nome),
             badge(c.ativo ? c.situacaoFinanceira : 'inativo'),
             late.length,
             `${Math.max(0, ...late.map(x => x.diasAtraso))} dias`,
             money(c.limiteCentavos),
-            btn('Ver histórico anual', 'clientHistory', c.id)
+            btn('Ver histórico anual', 'clientHistory', c.id) + (can('saveClient')?btn('Editar','saveClient',c.id):'')
           ]
         })
       )
@@ -65,7 +65,7 @@ function productsView() {
           'Status'
         ],
         state.produtos.map(p => [
-          `${esc(p.codigo)} · ${esc(p.nome)}${technical() && p.formulaId ? `<small>${esc(find(state.formulas, p.formulaId).codigo)} · v${find(state.formulas, p.formulaId).versao}</small>` : ''}`,
+          `${typeof registryCode==='function'?registryCode(p):esc(p.codigo)} · ${esc(p.nome)}${technical() && p.formulaId ? `<small>${esc(find(state.formulas, p.formulaId).codigo)} · v${find(state.formulas, p.formulaId).versao}</small>` : ''}`,
           esc(p.categoria),
           `${p.unidade} · ${qty(p.pesoKg)} kg<small>${esc(p.embalagem)}</small>`,
           `${esc(p.volumeTipo || 'Volume')} · ${p.unidadesPorVolume || 1} UN<small>limite ${p.limiteUnidadesPorVolume || 1} UN/volume</small>`,
@@ -84,7 +84,7 @@ function suppliersView() {
   return searchableList('suppliers', 'Buscar por nome, documento ou contato',
     intro('Fornecedores', 'Cadastro utilizado no recebimento de matéria-prima.', actionButton('+ Novo fornecedor', 'saveSupplier', null, true)) +
     panel('Fornecedores cadastrados', table(['Fornecedor', 'CNPJ', 'Contato / endereço', 'Categorias / observação', 'Status', 'Ações'], state.fornecedores.map(f => [
-      esc(f.nome), esc(f.documento || '—'), `${esc(f.contato || '—')}<small>${esc([f.endereco, f.bairro, f.cidade, f.estado, f.cep].filter(Boolean).join(' — '))}</small>`, `${esc([...(f.categorias || []).map(c => c === 'ingredientes' ? 'Ingredientes' : 'Embalagens'), ...(f.categoriasRotulagem || []).map(id => D.labelCategoryName(state, id))].join(', '))}<small>${esc(f.observacao || '')}</small>`, badge(f.ativo === false ? 'inativo' : 'ativo'), actionButton('Editar', 'saveSupplier', f.id)
+      (typeof registryCode==='function'?registryCode(f):'')+esc(f.nome), esc(f.documento || '—'), `${esc(f.contato || '—')}<small>${esc([f.endereco, f.bairro, f.cidade, f.estado, f.cep].filter(Boolean).join(' — '))}</small>`, `${esc([...(f.categorias || []).map(c => c === 'ingredientes' ? 'Ingredientes' : 'Embalagens'), ...(f.categoriasRotulagem || []).map(id => D.labelCategoryName(state, id))].join(', '))}<small>${esc(f.observacao || '')}</small>`, badge(f.ativo === false ? 'inativo' : 'ativo'), actionButton('Editar', 'saveSupplier', f.id)
     ]))) + notice('Inative fornecedores para impedir novas entradas sem apagar os vínculos dos lotes já recebidos.'))
 }
 function ingredientsView() {
@@ -113,7 +113,7 @@ function ingredientsView() {
           'Ações'
         ],
         state.ingredientes.map(i => [
-          esc(i.codigo),
+          typeof registryCode==='function'?registryCode(i):esc(i.codigo),
           ingredientName(i),
           esc(state.gruposIngredientes.find(g => g.id === i.grupoPadronizacao)?.nome || i.grupoPadronizacao || '—'),
           i.exibePercentualRotulo ? 'Sim' : 'Não',
@@ -133,7 +133,7 @@ function packagingView() {
   return intro('Embalagens', 'Cadastre capacidade e custo por unidade. A embalagem compõe o custo e a apresentação, sem entrar no rendimento da fórmula.', actionButton('+ Nova embalagem', 'savePackaging', null, true)) + panel('Catálogo de embalagens', table(
     ['Código / embalagem', 'Tipo / medida', 'Capacidade', 'Custo unitário', 'Situação', 'Ações'],
     state.embalagens.map(pack => [
-      `${esc(pack.codigo)}<small>${esc(pack.nome)}</small>`, `${esc(pack.tipo)}<small>${esc(pack.medida || '')}</small>`,
+      `${typeof registryCode==='function'?registryCode(pack):esc(pack.codigo)}<small>${esc(pack.nome)}</small>`, `${esc(pack.tipo)}<small>${esc(pack.medida || '')}</small>`,
       `${qty(pack.capacidade)} ${pack.unidadeCapacidade === 'L' ? 'L' : 'kg'}`, money(pack.custoCentavos),
       badge(pack.ativo ? 'ativo' : 'inativo'), actionButton('Editar', 'savePackaging', pack.id)
     ])
@@ -421,28 +421,14 @@ function stockView() {
   )
 }
 function qualityView() {
-  return (
-    intro(
-      'Controle de qualidade',
-      'Cada lote produzido exige uma decisão. Reprovação bloqueia o faturamento.'
-    ) +
-    productSheetList() +
-    panel(
-      'Lotes produzidos',
-      table(
-        ['Lote / OP', 'Produto', 'Quantidade', 'Situação', 'Ações'],
-        state.lotes
-          .filter(l => l.tipo === 'produto')
-          .map(l => [
-            `${esc(l.codigo)}<small>${esc(find(state.ordens, l.opId).numero)}</small>`,
-            esc(find(state.produtos, l.produtoId).nome),
-            `${qty(l.quantidadeInicial)} ${unitLabel(l)}`,
-            badge(l.status),
-            `<div class="actions">${l.status === 'pendente' ? actionButton('Inspecionar', 'inspect', l.id, true) : ''}${btn('Rastreabilidade', 'trace', l.id)}${btn('Gerar ficha técnica', 'technicalSheet', l.id)}</div>`
-          ])
-      )
-    )
-  )
+  const lots=state.lotes.filter(l=>l.tipo==='produto').sort((a,b)=>(a.status==='pendente'?0:1)-(b.status==='pendente'?0:1))
+  return intro('Controle de qualidade','Inspecione os lotes pendentes. Consulte as fichas por produto na seção abaixo.') +
+    panel('Lotes produzidos', `<div class="quality-filters">${input('Buscar lote, OP ou produto','qualitySearch','','search','id="qualitySearch"')}${select('Situação','qualityStatus',[['','Todas'],['pendente','Pendente'],['liberado','Aprovado'],['reprovado','Reprovado']],'')}</div><p id="qualitySummary" class="muted small" role="status" aria-live="polite">${lots.length} lotes</p><div data-quality-lots>` + table(
+      ['Lote / OP','Produto','Quantidade','Situação','Ações'],lots.map(l=>[
+        `<span data-quality-status="${esc(l.status)}">${esc(l.codigo)}</span><small>${esc(find(state.ordens,l.opId).numero)}</small>`,
+        esc(find(state.produtos,l.produtoId).nome),`${qty(l.quantidadeInicial)} ${unitLabel(l)}`,badge(l.status),
+        `<div class="actions">${l.status==='pendente'?actionButton('Inspecionar','inspect',l.id,true):''}${btn('Ficha do produto','productSheet',l.produtoId)}${btn('Rastreabilidade','trace',l.id)}</div>`
+      ]))+'</div>') + productSheetList()
 }
 function samplesView() {
   const samples = orders()
@@ -1020,6 +1006,7 @@ function updatesView() {
   )
 }
 function guideView() {
+  if (state.demonstracao?.tipo === 'jornadas-realtech-v26') return realtechGuideView()
   if (state.demonstracao?.tipo === 'quatro-cenarios-v24') return meetingGuideView()
   const scenarios = dataMode === 'with-data' ? panel('Cenários prontos para a reunião', table(
     ['Pedido / cliente', 'Objetivo da demonstração', 'Etapa atual', 'Abrir'],
@@ -1077,4 +1064,13 @@ function meetingGuideView() {
     panel('P&D, recebimentos, ficha, amostra e etiquetas',pd) +
     notice('Use Administrador para percorrer tudo, ou Trocar perfil para apresentar as responsabilidades. Comece pelos cenários comerciais antes de ativar revisões do P&D. Todas as quantidades e fórmulas são fictícias. Novas compras e testes de reprovação alteram o cenário; reinicie somente se desejar voltar à base inicial.') +
     (user.perfil === 'administrador' ? panel('Ferramentas da apresentação',btn('Reiniciar os quatro cenários','resetDemo')) : '')
+}
+
+function realtechGuideView() {
+  return intro('Jornadas de teste Realtech','13 pedidos e amostras, 13 produtos e 24 ingredientes. Dados fictícios para testes.') +
+    panel('Cenários disponíveis',table(['Pedido / cliente','Objetivo','Etapa atual','Abrir'],orders().map(o=>[
+      esc(o.numero)+'<small>'+esc(o.clienteNome)+'</small>',esc(o.observacoes),esc(D.stage(state,o)),link('Abrir',o.tipo==='amostra'?'amostras':'pedidos',o.id)
+    ]))) +
+    panel('Como continuar', '<ol class="guide-list"><li>Rascunho: enviar ao Financeiro, liberar e aprovar. Bloqueio financeiro: revisar a análise com justificativa.</li><li>Pedido aprovado: gerar OP. OP aguardando: emitir documentos e iniciar. Produção parcial: apontar o saldo; cada apontamento cria um lote.</li><li>Qualidade: buscar lote ou produto, filtrar pendentes e inspecionar. Ficha do produto abre a revisão gerenciada pela Qualidade. Expanda Fichas técnicas dos produtos para consultar revisões e prévias.</li><li>Reprovação bloqueia faturamento. O protótipo não oferece retrabalho ou reversão da inspeção.</li><li>Lotes aprovados: faturar, conferir parcelas e despachar. O pagamento não é pré-requisito do despacho. Confirmar entrega e baixar cada recebível.</li><li>Amostra: gerar OP, produzir, inspecionar e despachar sem análise financeira ou faturamento comercial.</li><li>Confira rastreabilidade, estoque, auditoria e persistência ao recarregar. Fórmulas e preços são sintéticos e não reproduzem a receita do Excel.</li></ol>') +
+    (user.perfil==='administrador'?panel('Dados de teste',btn('Reiniciar jornadas de teste','resetDemo')):'')
 }

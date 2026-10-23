@@ -1,3 +1,15 @@
+# Versão vigente v28 - seletores pesquisáveis
+
+Sequência inicial 001 confirmada. Nos pedidos, recebimentos e P&D, digite código/nome nos seletores de cadastro; use setas/Enter ou clique para escolher. Valores continuam IDs e filtros existentes são preservados. Novo arquivo obrigatório na distribuição: searchable-selects.js. Recarregue o protótipo. [Contrato](docs/decisoes/2026-10-23-seletores-pesquisaveis.md). Descrições abaixo são históricas.
+
+# Versão vigente v27 - cadastros e códigos
+
+Recarregue para comparar Cadastros no menu e Central de cadastros com seis abas sobre a mesma base. Clientes, fornecedores, representantes, matérias-primas, embalagens e produtos acabados. Código GG-SNNN, sequência automática por subgrupo e busca global no cabeçalho. IDs, referências antigas e jornadas preservados; códigos demonstrativos migrados marcados para revisão. Novo arquivo estático obrigatório: registrations.js. [Contrato](docs/decisoes/2026-10-23-cadastros-codigos-centralizados.md). Descrições abaixo são históricas.
+
+# Versão vigente v26 - jornadas Realtech e Qualidade
+
+Ative Dados de demonstração e recarregue: 13 pedidos/amostras, 13 produtos e 24 ingredientes. RealMix/RealMax com receitas e preços fictícios; estados operacionais e de bloqueio. Qualidade com lotes primeiro, busca, filtro e fichas recolhíveis por produto. Ficha do lote corrigida. 107 testes aprovados. Bases anteriores preservadas. [Contrato](docs/decisoes/2026-10-23-jornadas-realtech-qualidade.md). Descrições abaixo são históricas.
+
 # Versão vigente v25 — catálogo ampliado e acesso à ficha
 
 12 ingredientes, 5 produtos, 4 embalagens, 4 fornecedores, 3 clientes e 18 lotes; quatro cenários mantidos. Ative Dados de demonstração e recarregue para a base nova, preservando anteriores. Visualizar ficha técnica destacado no início do modal. [Contrato](docs/decisoes/2026-10-22-catalogo-ampliado-ficha-acesso.md). 104 testes aprovados.

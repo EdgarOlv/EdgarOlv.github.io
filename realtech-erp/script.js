@@ -1,7 +1,7 @@
 'use strict'
 // Presentation and repository adapter. Business rules stay in domain.js.
 const D = Realtech,
-  DEMO_KEY = 'realtech.prototype.meeting-expanded-v25',
+  DEMO_KEY = 'realtech.prototype.realtech-journeys-v26',
   EMPTY_KEY = 'realtech.prototype.v8.empty',
   MODE_KEY = 'realtech.prototype.data-mode'
 const $ = s => document.querySelector(s)
@@ -41,7 +41,7 @@ let state,
 let dataMode = 'with-data',
   KEY = DEMO_KEY
 function freshState() {
-  return dataMode === 'with-data' ? D.expandedMeetingSeed() : D.emptySeed()
+  return D.initializeRegistrations(dataMode === 'with-data' ? D.realtechScenariosSeed() : D.emptySeed())
 }
 function loadDataMode(mode) {
   dataMode = mode
@@ -50,16 +50,19 @@ function loadDataMode(mode) {
   try {
     const saved = localStorage.getItem(KEY)
     state = saved ? D.validateState(JSON.parse(saved)) : freshState()
+    const registrationMigration = state.cadastrosVersion !== 1
+    D.initializeRegistrations(state)
+    if(registrationMigration && saved) state.revision++
     const migratedEmpty =
       mode === 'empty' &&
       saved &&
       (!state.clientes.length || !state.produtos.length)
     if (migratedEmpty) state = freshState()
-    if (!saved) localStorage.setItem(KEY, JSON.stringify(state))
+    if (!saved || registrationMigration) localStorage.setItem(KEY, JSON.stringify(state))
     else if (migratedEmpty) localStorage.setItem(KEY, JSON.stringify(state))
     localStorage.setItem(MODE_KEY, mode)
   } catch (e) {
-    state = freshState()
+    state = D.initializeRegistrations(freshState())
     storageProblem = true
   }
 }
@@ -72,12 +75,15 @@ try {
   storageProblem = true
 }
 const names = {
+  cadastros: 'Central de cadastros (abas)',
+  representantes: 'Representantes',
+  produtosAcabados: 'Produtos acabados',
   dashboard: 'Dashboard',
   pedidos: 'Pedidos',
   clientes: 'Clientes',
   produtos: 'Produtos',
   fornecedores: 'Fornecedores',
-  ingredientes: 'Ingredientes',
+  ingredientes: 'Matérias-primas',
   embalagens: 'P&D · Embalagens',
   gruposIngredientes: 'Grupos de ingredientes',
   estoqueEmbalagens: 'Estoque de embalagens',
@@ -103,17 +109,15 @@ const navGroups = [
     'Comercial',
     [
       ['pedidos', '🛒'],
-      ['clientes', '👥'],
       ['produtos', '🧴'],
       ['comissoes', '◉']
     ]
   ],
-  ['Pesquisa e desenvolvimento', [['formulas', '⚗'], ['embalagens', '▣'], ['gruposIngredientes', '◌'], ['estoqueEmbalagens', '▣']]],
+  ['Pesquisa e desenvolvimento', [['formulas', '⚗'], ['gruposIngredientes', '◌'], ['estoqueEmbalagens', '▣']]],
+  ['Cadastros', [['cadastros', '▤'],['clientes', '01'],['fornecedores', '02'],['representantes', '03'],['ingredientes', '04'],['embalagens', '05'],['produtosAcabados', '07']]],
   [
     'Operação',
     [
-      ['fornecedores', '▦'],
-      ['ingredientes', '◌'],
       ['producao', '⚙'],
       ['etiquetas', '▣'],
       ['estoque', '📦'],
@@ -168,6 +172,7 @@ const actionNames = {
   saveIngredient: 'Ingrediente salvo',
   deleteIngredient: 'Ingrediente excluído',
   saveClient: 'Cadastro de cliente',
+  saveRepresentative: 'Representante cadastrado / atualizado',
   createProduct: 'Novo produto',
   saveProduct: 'Dados do produto atualizados',
   savePricingSettings: 'Parâmetros globais de precificação',
@@ -177,9 +182,14 @@ const actionNames = {
   releasePrice: 'Liberação de preço',
   toggleUser: 'Acesso atualizado'
 }
-const allowed = r =>
-  !!user &&
-  (D.profiles[user.perfil].modules.includes(r) || r === 'atualizacoes')
+const allowed = r => {
+  if(!user)return false
+  const modules=D.profiles[user.perfil].modules
+  if(r==='cadastros')return Object.values(D.registrationGroups).some(c=>modules.includes(c.route)||c.route==='produtosAcabados'&&modules.includes('produtos'))
+  if(r==='representantes')return ['administrador','comercial','diretor'].includes(user.perfil)
+  if(r==='produtosAcabados')return modules.includes('produtos')||modules.includes('formulas')
+  return modules.includes(r)||r==='atualizacoes'
+}
 const can = a => D.can(user, a)
 const technical = () =>
   ['administrador', 'pd', 'producao', 'qualidade'].includes(user.perfil)
@@ -196,6 +206,7 @@ function toast(m) {
   toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 4500)
 }
 function commit(a, p) {
+  if(typeof registrySubmittingPrefix !== 'undefined' && registrySubmittingPrefix && ['saveClient','saveSupplier','saveIngredient','savePackaging','createProduct','saveProduct','saveRepresentative'].includes(a))p={...p,prefixoCadastro:registrySubmittingPrefix,...(a==='saveProduct'?{nomeCadastro:document.querySelector('[name="nomeCadastro"]')?.value}: {})}
   if (!storageProblem) {
     const saved = localStorage.getItem(KEY)
     if (saved && JSON.parse(saved).revision !== state.revision)
@@ -287,6 +298,9 @@ function formData() {
   return Object.fromEntries(new FormData($('#dialogForm')))
 }
 function modal(t, b, fn, label = 'Confirmar') {
+  if(typeof prepareRegistrationModal==='function'){
+    const prepared=prepareRegistrationModal(b,fn);b=prepared.body;fn=prepared.submit
+  }
   dialogOrigin = document.activeElement
   delete $('#dialogBody').dataset.product
   delete $('#dialogBody').dataset.budgetFormula
@@ -296,6 +310,7 @@ function modal(t, b, fn, label = 'Confirmar') {
   $('#confirmDialog').textContent = label
   $('#confirmDialog').hidden = !fn
   modalSubmit = fn
+  if(typeof syncRegistrationPreview==='function')syncRegistrationPreview()
   if (!$('#flowDialog').open) $('#flowDialog').showModal()
   if ($('#dialogBody [data-label-preview]')) {
     document.fonts.ready.then(() => fitLabelText())
@@ -484,6 +499,9 @@ function render() {
     })
     .join('')
   const views = {
+    cadastros: registrationsView,
+    representantes: () => registrationList('representantes'),
+    produtosAcabados: () => registrationList('produtos'),
     dashboard: dashboardView,
     pedidos: () => (selectedId ? orderView(selectedId) : ordersView()),
     clientes: clientsView,

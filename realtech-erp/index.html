@@ -8,13 +8,15 @@
       content="Protótipo demonstrativo REALTECH ERP. Dados sintéticos, sem operação fiscal ou industrial real."
     />
     <title>ERP REALTECH — Protótipo interativo</title>
-    <link rel="stylesheet" href="styles.css?v=25" />
-    <link rel="stylesheet" href="flows.css?v=25" />
-    <script defer src="domain.js?v=25"></script>
-    <script defer src="script.js?v=25"></script>
-    <script defer src="views.js?v=25"></script>
-    <script defer src="technical-sheets.js?v=25"></script>
-    <script defer src="interactions.js?v=25"></script>
+    <link rel="stylesheet" href="styles.css?v=28" />
+    <link rel="stylesheet" href="flows.css?v=28" />
+    <script defer src="domain.js?v=28"></script>
+    <script defer src="script.js?v=28"></script>
+    <script defer src="views.js?v=28"></script>
+    <script defer src="technical-sheets.js?v=28"></script>
+    <script defer src="registrations.js?v=28"></script>
+    <script defer src="interactions.js?v=28"></script>
+    <script defer src="searchable-selects.js?v=28"></script>
   </head>
   <body>
     <main id="loginScreen" class="login-shell">
@@ -136,6 +138,7 @@
             <h2 id="screenTitle">Dashboard</h2>
           </div>
           <div class="topbar-actions">
+            <button type="button" class="ghost-btn" data-action="registrySearch">Buscar cadastro / código</button>
             <span id="currentUser" class="user-pill"></span
             ><button id="newOrderBtn" class="primary-btn">+ Novo pedido</button
             ><button id="logoutBtn" class="ghost-btn">Trocar perfil</button>

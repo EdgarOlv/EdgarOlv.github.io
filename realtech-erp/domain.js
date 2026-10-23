@@ -70,7 +70,10 @@
     inadimplente: 'Inadimplente'
   }
   const releases = [
-    {version:'v25',date:'2026-10-22',current:true,title:'Catálogos e estoque ampliados',summary:'12 ingredientes, 5 produtos, 4 embalagens, 4 fornecedores e 3 clientes; quatro pedidos preservados.',changes:[{area:'Demonstração',title:'Mais cadastros vinculados',description:'Novos ingredientes com recebimentos e produtos com fórmulas e preços; guia e quatro cenários mantidos.',rules:['RN-DEMO-002'],status:'Solicitação confirmada; dados sintéticos',route:'guia'}]},
+    {version:'v28',date:'2026-10-23',current:true,title:'Seletores pesquisáveis por código e nome',summary:'Clientes, produtos, fornecedores, matérias-primas e embalagens com busca ao digitar. Sequência inicial 001 confirmada.',changes:[{area:'Cadastros e formulários',title:'Selecionar cadastros digitando',description:'Combobox reutilizável nos pedidos, recebimentos e P&D; busca por código e nome, teclado e preservação dos IDs e filtros existentes.',rules:['RN-CAD-002','RN-UX-004'],status:'Confirmada via Edgar; apresentação demonstrada',route:'cadastros'}]},
+    {version:'v27',date:'2026-10-23',current:false,title:'Cadastros centralizados e códigos',summary:'Menu por cadastro, central com abas e busca global. Código GG-SNNN com sequência por subgrupo.',changes:[{area:'Cadastros',title:'Duas alternativas na mesma base',description:'Clientes, fornecedores, representantes, matérias-primas, embalagens e produtos acabados compartilham os mesmos registros nas duas navegações. Referências anteriores e IDs preservados.',rules:['RN-CAD-001','RN-CAD-002','RN-CAD-003'],status:'Solicitação confirmada; detalhes de migração demonstrados',route:'cadastros'}]},
+    {version:'v26',date:'2026-10-23',current:false,title:'Jornadas Realtech e Qualidade',summary:'13 pedidos e amostras, 13 produtos, 24 ingredientes e fichas recolhíveis.',changes:[{area:'Qualidade',title:'Lotes e fichas por produto',description:'Busca, filtro por situação, pendentes primeiro e acesso corrigido à ficha do produto. Catálogo RealMix e RealMax com dados fictícios.',rules:['RN-DEMO-003','RN-QUA-006'],status:'Demonstrado; conteúdo técnico pendente',route:'qualidade'}]},
+    {version:'v25',date:'2026-10-22',current:false,title:'Catálogos e estoque ampliados',summary:'12 ingredientes, 5 produtos, 4 embalagens, 4 fornecedores e 3 clientes; quatro pedidos preservados.',changes:[{area:'Demonstração',title:'Mais cadastros vinculados',description:'Novos ingredientes com recebimentos e produtos com fórmulas e preços; guia e quatro cenários mantidos.',rules:['RN-DEMO-002'],status:'Solicitação confirmada; dados sintéticos',route:'guia'}]},
     {version:'v24',date:'2026-10-22',current:false,title:'Quatro cenários para apresentação',summary:'Rascunho, análise, produção parcial e despacho com guia de ponta a ponta.',changes:[
       {area:'Demonstração',title:'Volume moderado e roteiros completos',description:'Quatro pedidos, duas OPs e saldos suficientes para concluir os cenários.',rules:['RN-DEMO-002'],status:'Solicitação confirmada; roteiros demonstrados',route:'guia'}]},
     {version:'v23',date:'2026-10-22',current:false,title:'Demonstração integrada e enxuta',summary:'Um pedido conectado aos cadastros, recebimentos, produção, Qualidade, financeiro e despacho.',changes:[
@@ -632,6 +635,7 @@
     saveIngredient: ['estoque', 'pd'],
     deleteIngredient: ['estoque', 'pd'],
     saveClient: ['comercial'],
+    saveRepresentative: ['comercial'],
     editLabel: ['producao'],
     saveLabel: ['producao'],
     editOpLabels: ['producao'],
@@ -1715,6 +1719,60 @@
     const p = get(s.produtos, sheet.produtoId), f = get(s.formulas, p?.formulaId)
     return !f || JSON.stringify(f) !== JSON.stringify(sheet.formulaSnapshot)
   }
+  const registrationGroups = {
+    clientes:{prefix:'01',label:'Clientes',route:'clientes',action:'saveClient',groups:{1:'São Paulo',2:'Minas Gerais',3:'Rio de Janeiro',4:'Espírito Santo',5:'Sul',6:'Centro-Oeste',7:'Nordeste',8:'Norte',9:'Distrito Federal'}},
+    fornecedores:{prefix:'02',label:'Fornecedores',route:'fornecedores',action:'saveSupplier',groups:{1:'Matéria-prima',2:'Especiarias',3:'Embalagens',4:'Diversos'}},
+    representantes:{prefix:'03',label:'Representantes',route:'representantes',action:'saveRepresentative',groups:{1:'Direta',2:'Representantes',3:'Revendas'}},
+    ingredientes:{prefix:'04',label:'Matérias-primas',route:'ingredientes',action:'saveIngredient',groups:{1:'Aditivos',2:'Especiarias',3:'Óleos',4:'Diversos'}},
+    embalagens:{prefix:'05',label:'Embalagens',route:'embalagens',action:'savePackaging',groups:{1:'Plásticas',2:'Papel/Papelão',3:'Bombonas',4:'Frascos',5:'Potes',6:'Diversos'}},
+    produtos:{prefix:'07',label:'Produtos acabados',route:'produtosAcabados',action:'createProduct',groups:{1:'Commodities (aditivos, especiarias e insumos)',2:'Condimentos',3:'Aditivos e blends',4:'Mix e Max',5:'Fumaças, óleos e corantes',6:'Molhos e pastas',7:'Linha especial (PET e outros)'}}
+  }
+  function registrationPrefix(kind,value) {
+    const config=registrationGroups[kind],digits=String(value??'').replace(/[\s-]/g,'')
+    requireThat(config && /^\d{3}$/.test(digits) && digits.slice(0,2)===config.prefix && config.groups[digits[2]],'Informe um prefixo válido de três dígitos para este cadastro.')
+    return digits
+  }
+  function nextRegistrationCode(s,kind,value) {
+    const prefix=registrationPrefix(kind,value)
+    const used=(s[kind]||[]).map(r=>r.codigoCadastro).filter(Boolean).map(c=>c.replace('-','')).filter(c=>c.startsWith(prefix)).map(c=>Number(c.slice(3)))
+    const next=Math.max(s.sequenciasCadastro?.[prefix]||0,0,...used)+1
+    requireThat(next<=999,'Sequência esgotada neste subgrupo (999 registros). Não é possível gerar outro código.')
+    return prefix.slice(0,2)+'-'+prefix[2]+String(next).padStart(3,'0')
+  }
+  function assignRegistrationCode(s,kind,row,prefix) {
+    const digits=registrationPrefix(kind,prefix)
+    const code=nextRegistrationCode(s,kind,digits)
+    if(row.codigoCadastro)row.codigosAnteriores=[...new Set([...(row.codigosAnteriores||[]),row.codigoCadastro])]
+    row.codigoCadastro=code;row.subgrupoCadastro=digits[2];row.classificacaoRevisar=false
+    s.sequenciasCadastro ||= {};s.sequenciasCadastro[digits]=Number(code.slice(-3))
+  }
+  function initializeRegistrations(s) {
+    if(s.cadastrosVersion===1)return s
+    s.representantes ||= [];s.sequenciasCadastro ||= {}
+    if(s.demonstracao && !s.representantes.length)s.representantes.push(
+      {id:'rep-demo-direta',nome:'Equipe comercial direta - demonstração',contato:'direta@example.com',ativo:true,subgrupoCadastro:'1'},
+      {id:'rep-demo-representante',nome:'Representação Sul - fictícia',contato:'representante@example.com',ativo:true,subgrupoCadastro:'2'},
+      {id:'rep-demo-revenda',nome:'Revenda de ingredientes - fictícia',contato:'revenda@example.com',ativo:true,subgrupoCadastro:'3'})
+    const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    for(const [kind,config] of Object.entries(registrationGroups))for(const row of s[kind]||[]){
+      if(row.codigoCadastro)continue
+      const name=normalize(row.nome||row.nomeFantasia),type=normalize(row.tipo)
+      let group='1'
+      if(kind==='representantes')group=row.subgrupoCadastro||'1'
+      if(kind==='clientes'){
+        const uf=String(row.estado||'').toUpperCase()
+        group=({SP:1,MG:2,RJ:3,ES:4,PR:5,SC:5,RS:5,GO:6,MT:6,MS:6,BA:7,SE:7,AL:7,PE:7,PB:7,RN:7,CE:7,PI:7,MA:7,AM:8,AC:8,AP:8,PA:8,RO:8,RR:8,TO:8,DF:9})[uf]||'1'
+      }
+      if(kind==='fornecedores')group=(row.categorias||[]).includes('embalagens')?'3':name.includes('especiaria')?'2':'1'
+      if(kind==='ingredientes')group=/oleo/.test(name)?'3':/alho|cebola|pimenta|paprica|oregano|cominho/.test(name)?'2':row.ins?'1':'4'
+      if(kind==='embalagens')group=/bombona/.test(name+type)?'3':/pote/.test(name+type)?'5':/frasco/.test(name+type)?'4':/caixa|papel/.test(name+type)?'2':'1'
+      if(kind==='produtos')group=/realmix|realmax/.test(name)?'4':/molho|pasta/.test(name)?'6':/oleo|fumaca|corante/.test(name)?'5':/blend|realcador/.test(name)?'3':'2'
+      assignRegistrationCode(s,kind,row,config.prefix+group)
+      row.classificacaoRevisar=true
+    }
+    s.cadastrosVersion=1
+    return s
+  }
   function execute(state, user, action, payload = {}) {
     requireThat(
       user &&
@@ -1726,6 +1784,11 @@
     requireThat(can(user, action), 'Seu perfil não permite esta ação.')
     const s = validateState(clone(state)),
       now = new Date().toISOString()
+    const codingKind=({saveClient:'clientes',saveSupplier:'fornecedores',saveIngredient:'ingredientes',savePackaging:'embalagens',createProduct:'produtos',saveProduct:'produtos',saveRepresentative:'representantes'})[action]
+    if(s.cadastrosVersion===1 && codingKind && !payload.id){
+      const generated=nextRegistrationCode(s,codingKind,payload.prefixoCadastro)
+      if(['saveIngredient','savePackaging','createProduct'].includes(action))payload={...payload,codigo:generated}
+    }
     let target, before, result
     const audit = (entity, previous, next) => {
       s.auditoria.push({
@@ -2694,14 +2757,23 @@
         l.saldo = q
         break
       }
+      case 'saveRepresentative': {
+        const old=payload.id?get(s.representantes||[],payload.id):null
+        before=old?clone(old):null
+        target={...(old||{}),id:old?.id||uid(),nome:text(payload.nome,'Nome do representante'),contato:text(payload.contato,'Contato',false),documento:text(payload.documento,'Documento',false),ativo:payload.ativo!==false}
+        if(old)Object.assign(old,target);else (s.representantes ||= []).push(target)
+        break
+      }
       case 'saveClient': {
+        const existing=payload.id?get(s.clientes,payload.id):null
+        if(existing)own(existing)
         const cnpj = normalizeCnpj(text(payload.cnpj, 'CNPJ'))
         requireThat(
           validCnpj(cnpj),
           'CNPJ inválido: confira os dígitos verificadores.'
         )
         requireThat(
-          !s.clientes.some(c => normalizeCnpj(c.cnpj) === cnpj),
+          !s.clientes.some(c => c.id!==existing?.id && normalizeCnpj(c.cnpj) === cnpj),
           'CNPJ já cadastrado.'
         )
         target = {
@@ -2723,7 +2795,11 @@
           ativo: true,
           historicoFinanceiro: []
         }
-        s.clientes.push(target)
+        if(existing){
+          before=clone(existing)
+          Object.assign(existing,{cnpj:target.cnpj,razaoSocial:target.razaoSocial,nomeFantasia:target.nomeFantasia,inscricaoEstadual:target.inscricaoEstadual,endereco:target.endereco,contato:target.contato})
+          target=existing
+        }else s.clientes.push(target)
         result = target.id
         break
       }
@@ -2898,6 +2974,7 @@
         const p = get(s.produtos, payload.id)
         target = p
         before = clone(p)
+        if(payload.nomeCadastro!==undefined)p.nome=text(payload.nomeCadastro,'Nome do produto')
         const formula = p.formulaId ? get(s.formulas, p.formulaId) : null
         const allowedIds = new Set(
           (formula?.itens || []).map(item => item.ingredienteId)
@@ -3208,6 +3285,23 @@
       default:
         throw new Error('Ação desconhecida.')
     }
+    const registryKind=({saveClient:'clientes',saveSupplier:'fornecedores',saveIngredient:'ingredientes',savePackaging:'embalagens',createProduct:'produtos',saveProduct:'produtos',saveRepresentative:'representantes'})[action]
+    if(s.cadastrosVersion===1 && registryKind && target){
+      const original=(state[registryKind]||[]).find(r=>r.id===target.id)
+      const stored=get(s[registryKind],target.id)
+      if(!original)for(const key of ['codigoCadastro','subgrupoCadastro','classificacaoRevisar','codigosAnteriores'])delete stored[key]
+      if(original?.codigoCadastro && !stored.codigoCadastro){
+        for(const key of ['codigoCadastro','subgrupoCadastro','classificacaoRevisar','codigosAnteriores'])if(original[key]!==undefined)stored[key]=clone(original[key])
+      }
+      if(payload.prefixoCadastro){
+        const prefix=registrationPrefix(registryKind,payload.prefixoCadastro)
+        if(!stored.codigoCadastro || stored.classificacaoRevisar){
+          if(stored.codigoCadastro?.replace('-','').slice(0,3)===prefix)stored.classificacaoRevisar=false
+          else assignRegistrationCode(s,registryKind,stored,prefix)
+        }else requireThat(stored.codigoCadastro.replace('-','').slice(0,3)===prefix,'Código consolidado não pode ser alterado. Reclassificação precisa de regra específica.')
+      }else requireThat(!!stored.codigoCadastro,'Selecione o grupo e subgrupo para gerar o código do cadastro.')
+      target=stored
+    }
     audit(
       target?.numero || target?.codigo || target?.id,
       before,
@@ -3431,6 +3525,62 @@
     s.revision = 0
     return clone(s)
   }
+  // Synthetic catalog inspired by the supplied workbook; never a manufacturing recipe.
+  function realtechScenariosSeed() {
+    let s = expandedMeetingSeed()
+    const run = (a,p) => { const r=execute(s,get(s.usuarios,'admin'),a,p);s=r.state;return r.id }
+    const supplier=s.fornecedores[0].id
+    const names=[['Tripolifosfato de sódio','451i'],['Eritorbato de sódio','316'],['Carragena','407'],['Nitrito de sódio','250'],['Nitrato de sódio','251'],['Fibra de bambu',''],['Carboximetilcelulose (CMC)','466'],['Carbonato de sódio','500i'],['Óleo de soja',''],['Aroma natural de cravo',''],['Aroma natural de canela',''],['Corante urucum','160b']]
+    const ids=names.map(([nome,ins],i)=>{
+      const id=run('saveIngredient',{codigo:'ING-RT-'+String(i+1).padStart(3,'0'),nome,ins,categoriaRotulagem:'Base da fórmula',grupoPadronizacao:'01'})
+      run('receiveLot',{ingredienteId:id,fornecedorId:supplier,codigo:'DEMO-RT-MP-'+(i+1),quantidade:200,unidade:'KG',valorUnitario:10+i*2,icmsPercentual:18,icmsCreditado:true,fabricacao:today(),validade:day(240)})
+      return id
+    })
+    // Extra stock covers completing the open journeys in any order.
+    for(const ing of s.ingredientes.filter(i=>!ids.includes(i.id))) run('receiveLot',{ingredienteId:ing.id,fornecedorId:supplier,codigo:'DEMO-RESERVA-'+ing.codigo,quantidade:500,unidade:'KG',valorUnitario:12,icmsPercentual:18,icmsCreditado:true,fabricacao:today(),validade:day(240)})
+    for(const pack of s.embalagens) run('receivePackagingLot',{embalagemId:pack.id,fornecedorId:s.fornecedores.find(f=>f.categorias.includes('embalagens')).id,codigo:'DEMO-RESERVA-'+pack.codigo,quantidade:500,valorUnitario:pack.custoCentavos/100,fabricacao:today(),validade:day(365)})
+    const variants=['RealMix Apresuntado RT-3650','RealMax Apresuntado RT-3651','RealMix Linguiça RT-2100','RealMax Mortadela RT-3200','RealMix Hambúrguer RT-2200','RealMax Emulsão RT-3300','RealMix Condimento RT-2400','RealMax Piloto RT-3900']
+    for(const [i,nome] of variants.entries()){
+      const id='p-rt-'+i,formulaId='f-rt-'+i,pack=get(s.embalagens,'emb-pote1')
+      const lines=[{ingredienteId:'i3',quantidade:60},{ingredienteId:ids[i%ids.length],quantidade:25},{ingredienteId:ids[(i+2)%ids.length],quantidade:15}]
+      s.formulas.push({...clone(s.formulas[0]),id:formulaId,codigo:'FORM-RT-'+i,nome,versao:1,rendimento:100,itens:lines,status:i===7?'rascunho':'ativa',observacoes:'Fórmula fictícia para testes. Não reproduz a receita do Excel e não deve ser usada na fabricação.'})
+      const product={...clone(s.produtos[0]),id,codigo:nome.match(/RT-\d+/)[0],nome,formulaId,embalagemId:pack.id,embalagem:pack.nome,embalagemSnapshot:clone(pack),pesoKg:1,embalagemCentavos:pack.custoCentavos,volumeLitros:null,status:i===7?'emDesenvolvimento':'ativo',precoLiberado:false,contemItens:lines.map(x=>x.ingredienteId),nutricao:null}
+      delete product.liberacaoPreco;delete product.precoVendaKgCentavos;delete product.precoCalculadoKgCentavos
+      s.produtos.push(product)
+      if(i!==7)run('releasePrice',{id,margem:40})
+      const draft=productSheetDraft(s,id)
+      const sheetId=run('saveProductSheet',{...draft,motivo:'Ficha sintética para testar consulta e revisão.',responsavel:'Qualidade - demonstração',nutricao:'Não informado - exemplo fictício.',composicao:draft.composicao.map(r=>({...r,percentualExibicao:''}))})
+      if(i%3===0&&i!==7)run('approveProductSheet',{id:sheetId})
+    }
+    const create=(i,note,tipo='producao')=>run('saveOrder',{clienteId:s.clientes.filter(c=>c.ativo)[i%s.clientes.filter(c=>c.ativo).length].id,tipo,modoQuantidade:'KG',itens:[{produtoId:'p-rt-'+(i%7),quantidade:10}],prazoEntrega:day(7),condicoesPagamentoDias:[14,28],observacoes:'Cenário '+(i+5)+' - '+note})
+    const approve=id=>{run('submitOrder',{id});run('analyze',{id,decisao:credit(s,get(s.pedidos,id)).warning?'liberadoComRestricao':'liberado',justificativa:'Análise fictícia para teste.'});run('approveOrder',{id})}
+    const produce=(id,decision)=>{
+      run('createOps',{id});const op=s.ordens.find(o=>o.pedidoId===id)
+      run('issueSheet',{id:op.id});run('startOp',{id:op.id})
+      run('reportProduction',{id:op.id,quantidade:10,perdasKg:0,sobrasKg:0,validade:day(180),consumos:suggestConsumption(s,op,10)})
+      if(decision)for(const lot of s.lotes.filter(l=>l.pedidoId===id))run('inspect',{id:lot.id,decisao:decision,observacoes:'Inspeção fictícia: '+decision})
+    }
+    const scenarios=[...s.demonstracao.cenarios]
+    for(let i=0;i<9;i++){
+      const note=['Bloqueio financeiro: conferir justificativa e impedimento da aprovação.','Aprovado: gerar OP e acompanhar o consumo.','OP aguardando: emitir documentos e iniciar produção.','Qualidade pendente: inspecionar e consultar ficha do produto.','Qualidade reprovada: conferir bloqueio do faturamento, sem retrabalho automático.','Pronto para faturar: lotes aprovados e parcelas ainda não geradas.','Faturado: registrar frete e despacho com parcelas abertas.','Entregue e pago: consultar rastreabilidade, recebimentos e comissão.','Amostra: produzir, inspecionar e despachar sem análise financeira.'][i]
+      const id=create(i,note,i===8?'amostra':'producao');scenarios.push(id)
+      if(i===0){run('submitOrder',{id});run('analyze',{id,decisao:'bloqueado',justificativa:'Bloqueio demonstrativo para teste de impedimento.'});continue}
+      if(i!==8)approve(id)
+      if(i===1||i===8)continue
+      if(i===2){run('createOps',{id});continue}
+      produce(id,i===3?null:i===4?'reprovado':'aprovado')
+      if(i<6)continue
+      run('bill',{id,referencia:'FAT-RT-'+i})
+      if(i===7){
+        run('dispatch',{id,transportadora:'Transportadora fictícia',valor:50,tomadorFrete:'destinatario',rastreamento:'DEMO-RT-'+i,comprovante:'ROM-RT-'+i,dataSaida:today(),prazo:day(3)})
+        run('confirmDelivery',{id,dataEntrega:today(),recebidoPor:'Recebedor fictício'})
+        for(const r of s.recebiveis.filter(r=>r.pedidoId===id))run('registerReceipt',{id:r.id,recebidoEm:today(),referencia:'REC-'+r.id})
+      }
+    }
+    s.demonstracao={...s.demonstracao,tipo:'jornadas-realtech-v26',catalogo:'realtech-v26',cenarios:scenarios}
+    s.revision=0
+    return clone(s)
+  }
   function emptySeed() {
     const s = seed()
     // Keep synthetic reference data so the empty presentation can still run a new order.
@@ -3466,6 +3616,23 @@
       'auditoria'
     ])
       requireThat(Array.isArray(s[key]), 'Arquivo de demonstração incompleto.')
+    if(s.cadastrosVersion===1){
+      const seen=new Set()
+      requireThat(s.sequenciasCadastro && typeof s.sequenciasCadastro==='object','Contadores de cadastros ausentes.')
+      for(const [kind,config] of Object.entries(registrationGroups)){
+        requireThat(Array.isArray(s[kind]),'Cadastro incompleto: '+config.label)
+        for(const row of s[kind]){
+          requireThat(typeof row.codigoCadastro==='string' && /^\d{2}-[1-9]\d{3}$/.test(row.codigoCadastro),'Código de cadastro inválido.')
+          const digits=row.codigoCadastro.replace('-','')
+          registrationPrefix(kind,digits.slice(0,3))
+          requireThat(Number(digits.slice(-3))>0 && String(row.subgrupoCadastro)===digits[2],'Subgrupo ou sequência inválida.')
+          requireThat(!seen.has(row.codigoCadastro),'Código de cadastro duplicado.')
+          seen.add(row.codigoCadastro)
+        }
+      }
+      requireThat(Object.entries(s.sequenciasCadastro).every(([key,value])=>/^\d{3}$/.test(key)&&Number.isInteger(value)&&value>=0&&value<=999),'Contador de cadastro inválido.')
+    }
+    if (!Array.isArray(s.representantes)) s.representantes = []
     if (!Array.isArray(s.fichasTecnicas)) s.fichasTecnicas = []
     if (!Array.isArray(s.categoriasRotulagem)) s.categoriasRotulagem = labelCategorySeed()
     if (!Array.isArray(s.gruposIngredientes)) s.gruposIngredientes = ingredientGroupSeed()
@@ -3482,6 +3649,10 @@
     return s
   }
   return {
+    registrationGroups,
+    initializeRegistrations,
+    registrationPrefix,
+    nextRegistrationCode,
     VERSION,
     productSheetDraft,
     productSheetStale,
@@ -3502,6 +3673,7 @@
     meetingSeed,
     meetingScenariosSeed,
     expandedMeetingSeed,
+    realtechScenariosSeed,
     emptySeed,
     execute,
     orderTotal,

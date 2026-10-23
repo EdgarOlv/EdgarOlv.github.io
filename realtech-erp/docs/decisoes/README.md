@@ -75,3 +75,9 @@ O modelo completo de registro está em [`COMO_REGISTRAR_MUDANCAS.md`](../COMO_RE
 - [22/10/2026 — Quatro cenários e guia completo v24](2026-10-22-quatro-cenarios-apresentacao.md).
 
 - [22/10/2026 — Catálogo ampliado e acesso rápido à ficha v25](2026-10-22-catalogo-ampliado-ficha-acesso.md).
+
+- 23/10/2026 · Demonstração e Qualidade: [Jornadas Realtech e fichas recolhíveis](2026-10-23-jornadas-realtech-qualidade.md).
+
+- 23/10/2026 · Cadastros / navegação / códigos: [Central de cadastros e codificação](2026-10-23-cadastros-codigos-centralizados.md).
+
+- 23/10/2026 · UX / cadastros: [Seletores pesquisáveis e início em 001](2026-10-23-seletores-pesquisaveis.md).

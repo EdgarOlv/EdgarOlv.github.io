@@ -55,11 +55,11 @@ function openOrderForm(id = null, complement = false, sampleOnly = false) {
         ...data,
         itens: [...document.querySelectorAll('.order-line')].map(row => ({
           produtoId: row.querySelector('select').value,
-          quantidade: row.querySelector('input').value
+          quantidade: row.querySelector('input[type="number"]').value
         })),
         condicoesPagamentoDias: [
           ...document.querySelectorAll('.payment-term-line')
-        ].map(row => row.querySelector('input').value)
+        ].map(row => row.querySelector('input[type="number"]').value)
       })
       route = data.tipo === 'amostra' ? 'amostras' : 'pedidos'
       selectedId = data.tipo === 'amostra' ? null : result
@@ -110,7 +110,7 @@ function addOrderLine(i = {}) {
 function orderLinePreview(row) {
   const product = state.produtos.find(p => p.id === row.querySelector('select').value)
   if (!product) return null
-  const amount = Number(row.querySelector('input').value) || 0
+  const amount = Number(row.querySelector('input[type="number"]').value) || 0
   const kgMode = editingOrder?.modoQuantidade === 'KG'
   const price = kgMode ? Math.round(product.precoCentavos / product.pesoKg) : product.precoCentavos
   const item = { quantidade: amount, unidade: kgMode ? 'KG' : 'UN', pesoEmbalagemKg: product.pesoKg, unidadesPorVolume: product.unidadesPorVolume }
@@ -479,7 +479,7 @@ function budgetPayload() {
   return {
     sourceProductId: productId, embalagemId: value('embalagemId'), pesoLiquidoKg: value('pesoLiquidoKg'), volumeLitros: value('volumeLitros'),
     margem: value('orcamentoMargem'), rendimento: value('rendimento') || (baseFormula ? find(state.formulas, baseFormula).rendimento : ''),
-    itens: rows.length ? rows.map(row => ({ ingredienteId: row.querySelector('select').value, quantidade: row.querySelector('input').value })) : (baseFormula ? find(state.formulas, baseFormula).itens : [])
+    itens: rows.length ? rows.map(row => ({ ingredienteId: row.querySelector('select').value, quantidade: row.querySelector('input[type="number"]').value })) : (baseFormula ? find(state.formulas, baseFormula).itens : [])
   }
 }
 function updateDraftBudget() {
@@ -540,7 +540,7 @@ function updateContainsText(force = false) {
       rendimento: Number($('[name="rendimento"]')?.value || 0),
       itens: rows.map(row => ({
         ingredienteId: row.querySelector('select').value,
-        quantidade: Number(row.querySelector('input').value || 0)
+        quantidade: Number(row.querySelector('input[type="number"]').value || 0)
       }))
     }
   } else {
@@ -572,6 +572,7 @@ function syncContainsOptions() {
   updateContainsText()
 }
 function openAction(a, id, productContext = null) {
+  if(typeof registryActionStart==='function' && registryActionStart(a,id))return
   if (a in D.permissions && !can(a))
     throw new Error('Seu perfil não permite esta ação.')
   if (a === 'saveOrder') return openOrderForm(id || null)
@@ -838,16 +839,13 @@ function openAction(a, id, productContext = null) {
       d => commit(a, { id, ...d }),
       'Registrar ajuste'
     )
-  if (a === 'saveClient')
-    return modal(
-      'Novo cliente de demonstração',
-      notice(
-        'Use apenas dados fictícios. CNPJ deve ter dígitos verificadores válidos e ser único. Limite inicial: zero.'
-      ) +
-        `<div class="form-grid">${input('Razão social', 'razaoSocial', '', 'text', 'required')}${input('Nome fantasia', 'nomeFantasia', '', 'text', 'required')}${input('CNPJ', 'cnpj', '', 'text', 'required')}${input('Inscrição estadual / ISENTO', 'inscricaoEstadual', 'ISENTO', 'text', 'required')}${input('Endereço completo', 'endereco', '', 'text', 'required')}${input('Contato (nome, e-mail ou telefone)', 'contato', '', 'text', 'required')}</div>`,
-      d => commit(a, d),
-      'Cadastrar cliente'
-    )
+  if (a === 'saveClient') {
+    const c=id?find(state.clientes,id):null
+    return modal(c?'Editar cliente':'Novo cliente',
+      notice('O código é gerado no salvamento. Alterar o cadastro não altera limite, histórico financeiro ou pedidos anteriores.') +
+      `<div class="form-grid">${input('Razão social','razaoSocial',c?.razaoSocial||'','text','required')}${input('Nome fantasia','nomeFantasia',c?.nomeFantasia||'','text','required')}${input('CNPJ','cnpj',c?.cnpj||'','text','required')}${input('Inscrição estadual / ISENTO','inscricaoEstadual',c?.inscricaoEstadual||'ISENTO','text','required')}${input('Endereço completo','endereco',c?.endereco||'','text','required')}${input('Contato','contato',c?.contato||'','text','required')}</div>`,
+      d=>commit(a,{...d,id}),'Salvar cliente')
+  }
   if (a === 'savePackaging') {
     const pack = id ? find(state.embalagens, id) : null
     return modal(pack ? 'Editar embalagem' : 'Nova embalagem',
@@ -1044,7 +1042,7 @@ function openAction(a, id, productContext = null) {
           itens: [...document.querySelectorAll('.formula-ingredient-row')].map(
             row => ({
               ingredienteId: row.querySelector('select').value,
-              quantidade: row.querySelector('input').value
+              quantidade: row.querySelector('input[type="number"]').value
             })
           )
         }),
@@ -1098,7 +1096,7 @@ function openAction(a, id, productContext = null) {
           itens: [...document.querySelectorAll('.formula-ingredient-row')].map(
             row => ({
               ingredienteId: row.querySelector('select').value,
-              quantidade: row.querySelector('input').value
+              quantidade: row.querySelector('input[type="number"]').value
             })
           )
         }),
@@ -1186,6 +1184,11 @@ function openAction(a, id, productContext = null) {
     commit('approveProductSheet',{id}); return openProductSheet(f.produtoId,id)
   }
   if (a === 'technicalSheet') {
+    const lot = state.lotes.find(l => l.id === id && l.tipo === 'produto')
+    if (lot) {
+      if (!can('saveProductSheet')) throw new Error('Ficha restrita à Qualidade.')
+      return openProductSheet(lot.produtoId)
+    }
     const sample = find(state.pedidos, id).tipo === 'amostra'
     if (
       !['administrador', 'qualidade'].includes(user.perfil) &&
@@ -1577,6 +1580,7 @@ function syncFormulaIngredientChoices(changed = null) {
     el.value = current
     el.dataset.previousIngredient = current
   }
+  if(typeof syncSearchableSelects==='function')syncSearchableSelects()
 }
 function addFormulaIngredientRow(item = {}) {
   const used = new Set(
@@ -1615,7 +1619,7 @@ function updateFormulaBalance() {
   if (!$('#formulaBalance')) return
   const yieldKg = Number($('[name="rendimento"]')?.value || 0)
   const total = [
-    ...document.querySelectorAll('.formula-ingredient-row input')
+    ...document.querySelectorAll('.formula-ingredient-row input[name="formulaQuantity"]')
   ].reduce((sum, el) => sum + Number(el.value || 0), 0)
   const difference = yieldKg - total
   const matches = Math.abs(difference) < 0.00001
@@ -1639,7 +1643,7 @@ function updateBatchPlan(changed = null) {
   } catch (error) { preview.innerHTML = notice(esc(error.message), 'warn') }
 }
 function openTableRecord(row) {
-  const readActions = new Set(['productDetails', 'clientHistory', 'trace', 'technicalSheet', 'viewOrderLabel', 'viewLabel', 'viewProductionFormula', 'viewOpLabels', 'editLabel', 'saveSupplier', 'saveIngredient', 'savePackaging'])
+  const readActions = new Set(['registryOpen', 'productSheet', 'saveClient', 'productDetails', 'clientHistory', 'trace', 'technicalSheet', 'viewOrderLabel', 'viewLabel', 'viewProductionFormula', 'viewOpLabels', 'editLabel', 'saveSupplier', 'saveIngredient', 'savePackaging'])
   const controls = [...row.querySelectorAll('button[data-route], button[data-action]')].filter(button => !button.disabled)
   const primary = controls.find(button => button.dataset.route) || controls.find(button => readActions.has(button.dataset.action))
   if (primary) { primary.click(); return }
@@ -1802,7 +1806,7 @@ function filterSearchList(input) {
   let visible = 0
   rows.forEach(row => {
     const value = normalize(row.textContent)
-    const identifiers = (row.textContent.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g) || []).map(value => value.replace(/\D/g, ''))
+    const identifiers = (row.textContent.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\b\d{2}-\d{4}\b/g) || []).map(value => value.replace(/\D/g, ''))
     row.hidden = !tokens.every(token => value.includes(token) || (/^\d+$/.test(token) && identifiers.some(value => value.includes(token))))
     if (!row.hidden) visible++
   })
@@ -1854,3 +1858,23 @@ document.addEventListener('change', e => {
   if (e.target.closest('.order-line')) updateOrderTotals()
 })
 
+
+function filterQualityLots() {
+  const normalize=v=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+  const term=normalize(document.querySelector('[name="qualitySearch"]')?.value||'').trim()
+  const status=document.querySelector('[name="qualityStatus"]')?.value||''
+  const rows=[...document.querySelectorAll('[data-quality-lots] tbody tr')]
+  let count=0
+  rows.forEach(row=>{row.hidden=!(normalize(row.textContent).includes(term)&&(!status||row.querySelector('[data-quality-status]')?.dataset.qualityStatus===status));if(!row.hidden)count++})
+  const summary=document.querySelector('#qualitySummary');if(summary)summary.textContent=count?`${count} de ${rows.length} lotes`:'Nenhum lote encontrado. Altere a busca ou a situação.'
+}
+document.addEventListener('input',e=>{
+  if(e.target.name==='qualitySearch')filterQualityLots()
+  if(e.target.name==='sheetSearch'){
+    const normalize=v=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    const term=normalize(e.target.value).trim();let count=0
+    document.querySelectorAll('[data-sheet-search]').forEach(el=>{el.hidden=!normalize(el.dataset.sheetSearch).includes(term);if(!el.hidden)count++})
+    document.querySelector('#sheetSummary').textContent=count?`${count} produtos`:'Nenhum produto encontrado.'
+  }
+})
+document.addEventListener('change',e=>{if(e.target.name==='qualityStatus')filterQualityLots()})

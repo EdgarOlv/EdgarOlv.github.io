@@ -2,10 +2,11 @@
 // Documento do produto: percentuais públicos nunca são usados na fabricação.
 function productSheetList() {
   if (!can('saveProductSheet')) return ''
-  return panel('Fichas técnicas dos produtos', table(['Produto', 'Revisões', 'Ações'], state.produtos.map(p => [
-    esc(p.nome), (state.fichasTecnicas || []).filter(f => f.produtoId === p.id).length,
-    btn('Gerenciar ficha técnica', 'productSheet', p.id)
-  ])))
+  return `<details class="quality-sheets"><summary>Fichas técnicas dos produtos <span class="muted">(${state.produtos.length})</span></summary><div class="quality-sheet-content">${input('Buscar produto ou código','sheetSearch','','search')}<p id="sheetSummary" class="muted small" role="status" aria-live="polite">${state.produtos.length} produtos</p>${state.produtos.map(p=>{
+    const history=(state.fichasTecnicas||[]).filter(f=>f.produtoId===p.id)
+    const current=[...history].reverse().find(f=>f.status==='aprovada')||history.at(-1)
+    return `<details class="quality-product" data-sheet-search="${esc(p.codigo+' '+p.nome)}"><summary>${esc(p.nome)} <small>${esc(p.codigo)} · ${current?'Rev. '+current.revisao+' · '+esc(current.status):'Sem ficha salva'}</small></summary><div class="quality-sheet-content"><div class="actions">${current?btn('Visualizar ficha técnica','previewProductSheet',current.id,true):''}${btn('Gerenciar ficha técnica','productSheet',p.id)}</div>${table(['Revisão','Situação','Ações'],history.map(f=>[f.revisao,esc(f.status),btn('Abrir revisão','sheetRevision',f.id)]))}</div></details>`
+  }).join('')}</div></details>`
 }
 function openProductSheet(productId, revisionId) {
   if (!can('saveProductSheet')) throw new Error('Ficha restrita à Qualidade.')

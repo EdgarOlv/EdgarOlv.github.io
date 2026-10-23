@@ -139,3 +139,19 @@ Nova suíte tests/pd-receipts.test.cjs cobre custo/créditos/L/kg/grupos/fornece
 
 ## v20
 85 testes aprovados, quatro JS com sintaxe aprovada. Nova suíte label-categories.test.cjs cobre compartilhamento, status, migração, IDs, declaração e histórico. QA da criação/seleção/persistência nos dois cadastros e contagem de vínculos em localhost:8773; screenshot docs/v20-fornecedor-categorias.png.
+
+
+## 23/10/2026 - v26 jornadas Realtech e Qualidade
+RN-DEMO-003 e RN-QUA-006: 13 pedidos/amostras, 13 produtos e 24 ingredientes; estados operacionais e de bloqueio, catálogo RealMix/RealMax sintético, lotes com busca/filtro e fichas recolhíveis. Botão do lote resolve produtoId; ficha atual do produto, sem snapshot histórico da emissão. Chave v26 preserva bases anteriores. [Contrato, aceite, testes e impacto](docs/decisoes/2026-10-23-jornadas-realtech-qualidade.md). Flutter/API/SQL não alterados; QA visual pendente por bloqueio de file://.
+
+
+## 23/10/2026 - v27 cadastros e códigos
+RN-CAD-001/002/003: grupo Cadastros no menu e Central com seis abas sobre as mesmas entidades. Código GG-SNNN, sequência por subgrupo, prefixo selecionado e sufixo automático. Busca global normaliza formato e respeita perfis/carteira. Representantes separado de usuários; produtos acabados reutilizam produtos. Migração local aditiva, IDs/referências anteriores preservados, classificações dos exemplos a revisar. [Contrato, aceite, pendências e impacto](docs/decisoes/2026-10-23-cadastros-codigos-centralizados.md). Flutter/API/SQL não implementados; classificação e reclassificação de base real dependem da empresa.
+
+Verificação v27: 117/117 testes aprovados; sintaxe de todos os scripts JS aprovada. Inclui sequência, limite, permissões, aliases, persistência e reutilização de entidades. QA visual permanece pendente.
+
+
+## 23/10/2026 - v28 seletores pesquisáveis
+RN-CAD-002: sequência inicial 001 confirmada por Edgar. RN-UX-004: seletores pesquisáveis por código/nome nos pedidos, recebimentos e P&D; componente compartilhado preserva IDs, filtros, eventos e cálculos. Campo pesquisável não integra dados do formulário; quantidades lidas por tipo/nome para evitar conflito. [Contrato, aceite e impacto](docs/decisoes/2026-10-23-seletores-pesquisaveis.md). Flutter/API/SQL sem alterações. QA visual pendente; interação testada em DOM simulado.
+
+Verificação v28: 122/122 testes aprovados e sintaxe JS aprovada; quatro testes do componente repetidos após ajuste de validação ao sair do campo. QA visual permanece pendente.

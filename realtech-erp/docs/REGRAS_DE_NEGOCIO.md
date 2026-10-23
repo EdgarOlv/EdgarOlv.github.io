@@ -164,3 +164,15 @@ RN-DEMO-002 corrigida por solicitação de Edgar: quatro pedidos em rascunho, an
 ## 22/10/2026 — v25 catálogo e acesso à ficha
 
 RN-DEMO-002 ampliada: 12 ingredientes, 5 produtos, 4 embalagens, 4 fornecedores, 3 clientes, 18 lotes; quatro pedidos/duas OPs e guia preservados. RN-FT-004: Visualizar ficha técnica como ação primária no início do modal, prévia da revisão salva. [Contrato e impacto Flutter](decisoes/2026-10-22-catalogo-ampliado-ficha-acesso.md). 104 testes aprovados; chave local nova preserva anteriores. QA visual pendente. Dart/SQL/backend/E1/E2/E3 sem execução.
+
+
+## 23/10/2026 - v26 jornadas Realtech e Qualidade
+RN-DEMO-003 e RN-QUA-006: 13 pedidos/amostras, 13 produtos e 24 ingredientes; estados operacionais e de bloqueio, catálogo RealMix/RealMax sintético, lotes com busca/filtro e fichas recolhíveis. Botão do lote resolve produtoId; ficha atual do produto, sem snapshot histórico da emissão. Chave v26 preserva bases anteriores. [Contrato, aceite, testes e impacto](decisoes/2026-10-23-jornadas-realtech-qualidade.md). Flutter/API/SQL não alterados; QA visual pendente por bloqueio de file://.
+
+
+## 23/10/2026 - v27 cadastros e códigos
+RN-CAD-001/002/003: grupo Cadastros no menu e Central com seis abas sobre as mesmas entidades. Código GG-SNNN, sequência por subgrupo, prefixo selecionado e sufixo automático. Busca global normaliza formato e respeita perfis/carteira. Representantes separado de usuários; produtos acabados reutilizam produtos. Migração local aditiva, IDs/referências anteriores preservados, classificações dos exemplos a revisar. [Contrato, aceite, pendências e impacto](decisoes/2026-10-23-cadastros-codigos-centralizados.md). Flutter/API/SQL não implementados; classificação e reclassificação de base real dependem da empresa.
+
+
+## 23/10/2026 - v28 seletores pesquisáveis
+RN-CAD-002: sequência inicial 001 confirmada por Edgar. RN-UX-004: seletores pesquisáveis por código/nome nos pedidos, recebimentos e P&D; componente compartilhado preserva IDs, filtros, eventos e cálculos. Campo pesquisável não integra dados do formulário; quantidades lidas por tipo/nome para evitar conflito. [Contrato, aceite e impacto](decisoes/2026-10-23-seletores-pesquisaveis.md). Flutter/API/SQL sem alterações. QA visual pendente; interação testada em DOM simulado.
